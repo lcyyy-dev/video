@@ -71,6 +71,11 @@ A folder:
 - The picture is captured once `frame` returns, or once the Promise it returns resolves. Create a WebGL context with `preserveDrawingBuffer: true`.
 - A page has no sound: every sound is a clip in film.html. A shot's sound effect goes at the film second it plays: the page clip's `at`, plus the page's t, less the clip's in point (a hit at t = 2 in a clip at 5 goes at 7). When you move the page clip, move its sounds with it.
 
+For editable titles in Jianying / CapCut drafts, `openfilm/text-page` provides `textPageHtml(data)`: an ordinary
+page whose structured text is also exported as native text. See [structured text pages](SPEC.md#structured-text-pages)
+for the data and export limits. Unsupported effects keep their rendered appearance, with reasons in the draft's
+`native-text-report.json`.
+
 ## Tools
 
 Run them in the film's folder. Each one's `--help` lists its options:

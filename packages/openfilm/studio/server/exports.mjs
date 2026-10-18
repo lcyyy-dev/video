@@ -60,6 +60,7 @@ import { filmSound, kill as killProcess, mix, open } from '../../src/shared.mjs'
 import { FILM_FILE, clipFade, filmHtml, fittedFade, kindOf, pictureRect, readFilmFile } from '../../src/film-doc.mjs';
 import { NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
+import { readTextPage, textValueAt } from '../../src/text-page.mjs';
 import { slidesPdf, writePptx } from './slides.mjs';
 import { subtitlesForExport } from './captions.mjs';
 import { filmSubtitleCuesInRange, filmSubtitleShown, filmSubtitleSrt, filmSubtitleTranscript, filmSubtitleVtt } from './film-subtitle.mjs';
@@ -1110,6 +1111,10 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       const pictures = [];
       /** @type {import('./nle.mjs').NleSound[]} */
       const sounds = [];
+      /** @type {Map<string, import('../../src/text-page.mjs').TextPage>} */
+      const textPages = new Map();
+      /** @type {{ clip: string, mode: 'native' | 'rendered', reason?: string }[]} */
+      const textReport = [];
       let duration = 0;
       for (const [ti, track] of doc.tracks.entries()) {
         for (const row of track.clips) {
@@ -1122,6 +1127,30 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
           const fade = fittedFade(clipFade(row), c.end - c.at);
           if (!track.hidden) duration = Math.max(duration, c.end);
           if (kind !== 'sound') {
+            if (app && kind === 'page') {
+              const page = readTextPage(await readFile(path, 'utf8'));
+              if (page) {
+                const reason = row.overrides?.some((entry) => entry.at !== undefined)
+                  ? 'Studio element overrides require rendering to preserve edits'
+                  : row.box || row.class || row.style || fade || c.speed !== 1
+                  ? 'Clip placement, CSS, fade or speed override requires rendering'
+                  : page.width !== doc.stage.w || page.height !== doc.stage.h
+                    ? 'Text page dimensions must match the film canvas'
+                    : page.texts.some((item) => item.keyframes?.opacity)
+                      ? 'Animated text opacity is not supported natively; the page keeps its animation as rendered media'
+                      : null;
+                textReport.push({ clip: row.id, mode: reason ? 'rendered' : 'native', ...(reason ? { reason } : {}) });
+                if (!reason) {
+                  // Page source time can be trimmed independently of its position on the timeline.
+                  const texts = page.texts.map((item) => ({ ...item, keyframes: Object.fromEntries(
+                    Object.entries(item.keyframes ?? {}).map(([key, points]) => [key,
+                      [...new Set([0, ...points.map((p) => p.time - c.from).filter((t) => t > 0 && t < c.end - c.at), c.end - c.at])]
+                        .map((time) => ({ time, value: textValueAt(points, time + c.from) }))]),
+                  ) }));
+                  textPages.set(row.id, { ...page, texts });
+                }
+              }
+            }
             /** @type {import('./nle.mjs').SourceFacts | null} */
             let f = kind === 'page' ? null : { ...(await factsOf(path)), ...(c.w && c.h ? { w: c.w, h: c.h } : {}) };
             /* a drawing has no pixels of its own: it is drawn as big as it shows, so the editor doesn't blow it up */
@@ -1166,7 +1195,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       const staged = (/** @type {import('./nle.mjs').NleFile} */ f) => join(staging, 'media', basename(f.path));
 
       /* each web page (and each picture Basic Motion can't place) drawn alone, full frame, with alpha */
-      const renders = timeline.files.filter((f) => f.job.kind === 'render');
+      const renders = timeline.files.filter((f) => f.job.kind === 'render' && !textPages.has(f.job.clip));
       const totalFrames = renders.reduce((n, f) => n + (f.job.kind === 'render' ? f.job.frames : 0), 0);
       const tick = frames(job, 0.88);
       let framesBefore = 0;
@@ -1222,11 +1251,12 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       const cues = ask.subtitles !== false ? (await subtitlesOf(root).catch(() => ({ cues: [] }))).cues : [];
       if (app) {
         /* the app on Windows reads draft_content.json, on a Mac draft_info.json: the same draft in both */
-        const draft = jianyingDraft(timeline, { app, name: basename(final), folder: final, root: dir, cues });
+        const draft = jianyingDraft(timeline, { app, name: basename(final), folder: final, root: dir, cues, textPages });
         const info = JSON.stringify(draft.info);
         await writeFile(join(staging, 'draft_info.json'), info, 'utf8');
         await writeFile(join(staging, 'draft_content.json'), info, 'utf8');
         await writeFile(join(staging, 'draft_meta_info.json'), JSON.stringify(draft.meta), 'utf8');
+        if (textReport.length) await writeFile(join(staging, 'native-text-report.json'), JSON.stringify(textReport, null, 2), 'utf8');
       } else {
         const srt = filmSubtitleSrt(cues);
         if (srt) await writeFile(join(staging, `${title}.srt`), srt, 'utf8');

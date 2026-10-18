@@ -26,6 +26,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import { textStyleRuns, textValueAt } from '../../src/text-page.mjs';
 
 /**
  * @typedef {import('./nle.mjs').NleTimeline} NleTimeline
@@ -84,7 +85,8 @@ const round6 = (/** @type {number} */ n) => { const r = Math.round(n * 1e6) / 1e
  * The draft: `info` (draft_info.json) and `meta` (draft_meta_info.json), for the folder `folder` in the app's drafts
  * folder `root`.
  * @param {NleTimeline} timeline
- * @param {{ app?: DraftApp, name: string, folder: string, root: string, cues?: readonly JianyingCue[], now?: number }} opts
+ * @param {{ app?: DraftApp, name: string, folder: string, root: string, cues?: readonly JianyingCue[], now?: number,
+ *   textPages?: Map<string, import('../../src/text-page.mjs').TextPage> }} opts
  */
 export function jianyingDraft(timeline, opts) {
   const platform = PLATFORM[opts.app ?? 'jianying'];
@@ -168,9 +170,80 @@ export function jianyingDraft(timeline, opts) {
   /* pictures: the plan's first track is the bottom one, as 剪映's first video track (its main track) is */
   for (const t of timeline.video) {
     const index = renderIndex++;
+    const native = t.clips.filter((c) => {
+      const job = files.get(c.fileId)?.job;
+      return job?.kind === 'render' && opts.textPages?.has(job.clip);
+    });
+    for (const c of native) {
+      const file = /** @type {NleFile} */ (files.get(c.fileId));
+      const job = /** @type {{ kind: 'render', clip: string }} */ (file.job);
+      const page = /** @type {import('../../src/text-page.mjs').TextPage} */ (opts.textPages?.get(job.clip));
+      for (const [i, item] of page.texts.entries()) {
+        const id = hex();
+        const rgb = (/** @type {string} */ hex) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255);
+        const solid = (/** @type {string} */ color, alpha = 1) => ({ render_type: 'solid', solid: { alpha, color: rgb(color) } });
+        const fontSize = round6(item.fontSize * 6 / 48);
+        const alignment = { left: 0, center: 1, right: 2 }[item.align ?? 'center'];
+        const styles = textStyleRuns(item).map((run) => ({
+          fill: { alpha: 1, content: solid(run.color ?? '#ffffff') },
+          range: run.range, size: round6(run.fontSize * 6 / 48),
+          bold: run.bold ?? false, italic: run.italic ?? false, underline: run.underline ?? false,
+          strokes: run.stroke ? [{ content: solid(run.stroke.color), width: round6(run.stroke.width / run.fontSize) }] : [],
+          ...(item.shadow ? { shadows: [{ content: solid(item.shadow.color, item.shadow.opacity), alpha: item.shadow.opacity,
+            diffuse: round6(item.shadow.blur / item.fontSize / 6), distance: Math.hypot(item.shadow.x, item.shadow.y),
+            angle: Math.atan2(item.shadow.y, item.shadow.x) * 180 / Math.PI }] } : {}),
+          ...(item.fontFamily ? { font: { id: '', path: item.fontPath ?? '', name: item.fontFamily } } : {}),
+        }));
+        materials.texts.push({
+          id, type: 'text', typesetting: 0, alignment, text_alignment: alignment, is_rich_text: styles.length > 1,
+          font_name: item.fontFamily ?? '', font_path: item.fontPath ?? '', font_size: fontSize,
+          text_color: `${item.color ?? '#ffffff'}FF`,
+          letter_spacing: round6((item.letterSpacing ?? 0) / item.fontSize),
+          line_spacing: round6(item.lineHeight === undefined ? 0.02 : item.lineHeight - 1), line_feed: 1,
+          line_max_width: item.width ? item.width / page.width : 1, force_apply_line_max_width: Boolean(item.width),
+          check_flag: 7 | (styles.some((s) => s.strokes.length) ? 8 : 0) | (item.shadow ? 32 : 0), global_alpha: item.opacity ?? 1,
+          has_shadow: Boolean(item.shadow), ...(item.shadow ? { shadow_color: `${item.shadow.color}FF`, shadow_alpha: item.shadow.opacity,
+            shadow_distance: Math.hypot(item.shadow.x, item.shadow.y), shadow_angle: Math.atan2(item.shadow.y, item.shadow.x) * 180 / Math.PI } : {}),
+          ...(item.stroke ? { border_color: `${item.stroke.color}FF`, border_width: round6(item.stroke.width / item.fontSize) } : {}),
+          content: JSON.stringify({ text: item.text, styles }),
+        });
+        const x = (/** @type {number} */ v) => round6((v / page.width - 0.5) * 2);
+        const y = (/** @type {number} */ v) => round6((0.5 - v / page.height) * 2);
+        const from = c.in / fps, until = from + (c.end - c.start) / fps;
+        const properties = { x: 'KFTypePositionX', y: 'KFTypePositionY', scale: 'UNIFORM_SCALE' };
+        const common = Object.entries(item.keyframes ?? {}).map(([key, points]) => {
+          if (!(key in properties)) throw new Error(`Unsupported native text keyframe: ${key}`);
+          const map = key === 'x' ? x : key === 'y' ? y : (/** @type {number} */ v) => v;
+          // Boundary samples preserve a trimmed animation, including trims between keys.
+          const times = [...new Set([from, ...points.map((p) => p.time).filter((time) => time > from && time < until), until])];
+          const byTime = new Map(times.map((time) => [Math.round((time - from) * fps), map(textValueAt(points, time))]));
+          return { id: hex(), material_id: '', property_type: properties[/** @type {'x' | 'y' | 'scale'} */ (key)],
+            keyframe_list: [...byTime].map(([frame, value]) => ({ id: hex(), time_offset: us(frame), values: [value],
+              curveType: 'Line', graphID: '', left_control: { x: 0, y: 0 }, right_control: { x: 0, y: 0 } })) };
+        });
+        const textTrack = {
+          attribute: 0, flag: 0, id: hex(), is_default_name: false, name: `${t.name} · ${i + 1}`, type: 'text',
+          segments: [segment({ material_id: id, target_timerange: span(c.start, c.end), source_timerange: null,
+            visible: t.enabled && c.enabled, extra_material_refs: [], common_keyframes: common,
+            clip: clipSettings(item.scale ?? 1, x(item.x), y(item.y)), uniform_scale: { on: true, value: item.scale ?? 1 }, render_index: index })],
+        };
+        // Sequential words share a lane. Keep overlapping words and different source layers separate.
+        const range = span(c.start, c.end);
+        const lane = tracks.find((track) => track.type === 'text' && track.name === textTrack.name
+          && track.segments.every((/** @type {Record<string, any>} */ s) => s.render_index === index
+            && (s.target_timerange.start + s.target_timerange.duration <= range.start
+              || range.start + range.duration <= s.target_timerange.start)));
+        if (lane) {
+          lane.segments.push(...textTrack.segments);
+          lane.segments.sort((/** @type {Record<string, any>} */ a, /** @type {Record<string, any>} */ b) => a.target_timerange.start - b.target_timerange.start);
+        } else tracks.push(textTrack);
+      }
+    }
+    const footage = t.clips.filter((c) => !native.includes(c));
+    if (!footage.length) continue;
     tracks.push({
       attribute: 0, flag: 0, id: hex(), is_default_name: false, name: t.name, type: 'video',
-      segments: t.clips.map((c) => {
+      segments: footage.map((c) => {
         const file = /** @type {NleFile} */ (files.get(c.fileId));
         const w = file.video?.w ?? timeline.width, h = file.video?.h ?? timeline.height;
         /* 剪映 first fits it whole in the canvas; the plan's scale is of its own pixels, 100 when none */

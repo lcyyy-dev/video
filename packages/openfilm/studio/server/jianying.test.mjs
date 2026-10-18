@@ -4,6 +4,85 @@ import { join } from 'node:path';
 import { planNleTimeline } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
 
+test('structured titles become native text, with no corresponding video material', () => {
+  const timeline = plan();
+  const textPages = new Map([['title', { version: 1, width: 1920, height: 1080, duration: 2,
+    texts: [{ text: '可编辑 😀', x: 960, y: 270, fontSize: 80, color: '#ff8000', fontFamily: 'Microsoft YaHei',
+      fontPath: 'C:/Windows/Fonts/msyh.ttc', bold: true,
+      keyframes: { x: [{ time: 0, value: 480 }, { time: 1, value: 960 }] } }] }]]);
+  const { info } = jianyingDraft(timeline, { name: 'Native', folder: '/d/Native', root: '/d', textPages });
+  const native = info.tracks.find((t) => t.type === 'text');
+  const material = info.materials.texts.find((m) => m.id === native.segments[0].material_id);
+  const content = JSON.parse(material.content);
+  assert.equal(content.text, '可编辑 😀');
+  assert.equal(content.styles[0].size, 10);
+  assert.equal(content.styles[0].font.path, 'C:/Windows/Fonts/msyh.ttc');
+  assert.deepEqual(content.styles[0].fill.content.solid.color, [1, 128 / 255, 0]);
+  assert.deepEqual(native.segments[0].target_timerange, { start: 0, duration: 2_000_000 });
+  assert.deepEqual(native.segments[0].clip.transform, { x: 0, y: 0.5 });
+  const key = native.segments[0].common_keyframes[0];
+  assert.equal(key.property_type, 'KFTypePositionX');
+  assert.deepEqual(key.keyframe_list.map((k) => [k.time_offset, ...k.values]), [[0, -0.5], [1_000_000, 0], [2_000_000, 0]]);
+  assert.equal(info.materials.videos.some((m) => m.path.endsWith('title.mov')), false);
+});
+
+test('formatted text keeps spacing, alignment, font metadata, outline and shadow', () => {
+  const textPages = new Map([['title', { version: 1, width: 1920, height: 1080, duration: 2,
+    texts: [{ text: '保留样式', x: 600, y: 250, fontSize: 80, color: '#d5ff60', fontFamily: 'Microsoft YaHei',
+      fontPath: 'C:/Windows/Fonts/msyh.ttc', align: 'left', width: 900, lineHeight: 1.25,
+      letterSpacing: 4, underline: true, stroke: { color: '#000000', width: 2 },
+      shadow: { color: '#112233', opacity: 0.5, blur: 6, x: 3, y: 4 } }] }]]);
+  const { info } = jianyingDraft(plan(), { name: 'Styles', folder: '/d/Styles', root: '/d', textPages });
+  const material = info.materials.texts[0], style = JSON.parse(material.content).styles[0];
+  assert.equal(material.font_name, 'Microsoft YaHei');
+  assert.equal(material.font_path, style.font.path);
+  assert.equal(material.font_size, style.size);
+  assert.equal(material.text_color, '#d5ff60FF');
+  assert.equal(material.letter_spacing, 0.05);
+  assert.equal(material.line_spacing, 0.25);
+  assert.equal(material.alignment, 0);
+  assert.equal(material.force_apply_line_max_width, true);
+  assert.equal(style.underline, true);
+  assert.equal(style.strokes[0].width, 0.025);
+  assert.equal(style.shadows[0].alpha, 0.5);
+  assert.equal(info.materials.videos.some((m) => m.path.endsWith('title.mov')), false);
+});
+
+test('sequential native titles share a track; overlapping titles remain separate', () => {
+  const timeline = plan();
+  const layer = timeline.video.find((t) => t.clips.some((c) => c.fileId === timeline.files.find((f) => f.job.kind === 'render')?.id));
+  const original = layer.clips[0];
+  layer.clips.push({ ...original, id: 'next', start: 60, end: 120 });
+  const textPages = new Map([['title', { version: 1, width: 1920, height: 1080, duration: 2,
+    texts: [{ text: '标题', x: 960, y: 300, fontSize: 80 }] }]]);
+  const opts = { name: 'Lanes', folder: '/d/Lanes', root: '/d', textPages };
+  const sequential = jianyingDraft(timeline, opts).info.tracks.filter((t) => t.type === 'text');
+  assert.equal(sequential.length, 1);
+  assert.deepEqual(sequential[0].segments.map((s) => s.target_timerange), [
+    { start: 0, duration: 2_000_000 }, { start: 2_000_000, duration: 2_000_000 },
+  ]);
+  layer.clips[1].start = 30;
+  assert.equal(jianyingDraft(timeline, opts).info.tracks.filter((t) => t.type === 'text').length, 2);
+});
+
+test('multi-color outlined copy stays one editable text segment with per-range styles', () => {
+  const textPages = new Map([['title', { version: 1, width: 1920, height: 1080, duration: 2,
+    texts: [{ text: '黄标题\n白说明\n红重点', x: 960, y: 250, fontSize: 80, bold: true,
+      runs: [{ text: '黄标题\n', color: '#ffe21f', stroke: { color: '#000000', width: 8 } },
+        { text: '白说明\n', color: '#ffffff', fontSize: 64, stroke: { color: '#000000', width: 6 } },
+        { text: '红重点', color: '#ff344d', fontSize: 68, stroke: { color: '#ffffff', width: 6 } }] }] }]]);
+  const { info } = jianyingDraft(plan(), { name: 'Rich', folder: '/d/Rich', root: '/d', textPages });
+  assert.equal(info.materials.texts.length, 1);
+  assert.equal(info.tracks.filter((t) => t.type === 'text').length, 1);
+  const content = JSON.parse(info.materials.texts[0].content);
+  assert.deepEqual(content.styles.map((s) => s.range), [[0, 4], [4, 8], [8, 11]]);
+  assert.equal(info.materials.texts[0].is_rich_text, true);
+  assert.deepEqual(content.styles.map((s) => s.size), [10, 8, 8.5]);
+  assert.deepEqual(content.styles[2].strokes[0].content.solid.color, [1, 1, 1]);
+  assert.equal(content.styles[0].bold, true);
+  assert.equal(info.materials.videos.some((m) => m.path.endsWith('title.mov')), false);
+});
+
 const facts = { w: 960, h: 540, duration: 10, hasVideo: true, hasAudio: true, channels: 2, sampleRate: 48000 };
 const sound = { duration: 20, hasVideo: false, hasAudio: true, channels: 2, sampleRate: 48000 };
 

@@ -12,9 +12,11 @@ import { filmSubtitleSrt, parseFilmSubtitleStyle } from './film-subtitle.mjs';
 import { zipFiles } from './zip.mjs';
 import { launch } from '../../src/host.mjs';
 import { filmHtml } from '../../src/film-doc.mjs';
+import { textPageHtml } from '../../src/text-page.mjs';
 
 const hasFfmpeg = (() => { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const ffmpeg = { skip: !hasFfmpeg && 'no ffmpeg', timeout: 120_000 };
+
 let root, scratch;
 
 before(() => {
@@ -110,6 +112,78 @@ async function parseXml(texts, query = () => null) {
   }
 }
 const frameCount = (file) => parseInt(execFileSync('ffprobe', ['-v', 'error', '-count_packets', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', file]).toString(), 10);
+
+test('structured text exports directly to native draft JSON, respecting trim and hidden state', { timeout: 120_000 }, async () => {
+  const path = join(scratch, 'NativeText');
+  mkdirSync(path);
+  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 3,
+    texts: [{ text: 'Native title', x: 160, y: 90, fontSize: 32, color: '#ff0000',
+      runs: [{ text: 'Native ', color: '#ffff00' }, { text: 'title', color: '#ffffff', stroke: { color: '#000000', width: 2 } }],
+      keyframes: { x: [{ time: 0, value: 0 }, { time: 2, value: 320 }] } }] }));
+  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
+    { clips: [{ id: 'title', src: 'title.html', at: 1, time: [1, 2] }] },
+    { hidden: true, clips: [{ id: 'hidden', src: 'title.html', time: [0, 1] }] },
+  ] }));
+  for (const format of ['jianying', 'capcut']) {
+    const exports = createExports({ drafts: () => null, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
+    const job = await ended(exports, exports.start(project(`NativeText-${format}`, path), { kind: 'nle', format }));
+    assert.equal(job.status, 'done', job.error);
+    const folder = join(process.env.OPENFILM_EXPORTS, `NativeText-${format}`);
+    const draft = JSON.parse(readFileSync(join(folder, 'draft_content.json'), 'utf8'));
+    assert.equal(draft.materials.texts.length, 2);
+    assert.equal(draft.platform.app_source, format === 'jianying' ? 'lv' : 'cc');
+    const content = JSON.parse(draft.materials.texts[0].content);
+    assert.equal(draft.materials.texts[0].is_rich_text, true);
+    assert.deepEqual(content.styles.map((s) => s.range), [[0, 7], [7, 12]]);
+    assert.equal(content.styles[1].strokes.length, 1);
+    assert.equal(draft.materials.videos.length, 0);
+    assert.equal(existsSync(join(folder, 'media')), false, 'no text MOV is rendered');
+    const visible = draft.tracks.flatMap((t) => t.segments).find((s) => s.visible);
+    assert.deepEqual(visible.target_timerange, { start: 1_000_000, duration: 1_000_000 });
+    assert.equal(visible.common_keyframes[0].keyframe_list[0].values[0], 0, 'trim starts halfway through the movement');
+    assert.equal(draft.tracks.flatMap((t) => t.segments).filter((s) => !s.visible).length, 1);
+    const report = JSON.parse(readFileSync(join(folder, 'native-text-report.json'), 'utf8'));
+    assert.ok(report.every((entry) => entry.mode === 'native'));
+  }
+});
+
+test('structured text opacity animation retains its render and explains the fallback', ffmpeg, async () => {
+  const path = join(scratch, 'TextFade');
+  mkdirSync(path);
+  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 0.1,
+    texts: [{ text: 'Fade', x: 160, y: 90, fontSize: 32,
+      keyframes: { opacity: [{ time: 0, value: 0 }, { time: 0.1, value: 1 }] } }] }));
+  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [{ id: 'fade', src: 'title.html' }] }] }));
+  const exports = createExports({ drafts: () => null, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
+  const job = await ended(exports, exports.start(project('TextFade', path), { kind: 'nle', format: 'jianying' }));
+  assert.equal(job.status, 'done', job.error);
+  const folder = join(process.env.OPENFILM_EXPORTS, 'TextFade');
+  const draft = JSON.parse(readFileSync(join(folder, 'draft_content.json'), 'utf8'));
+  assert.equal(draft.materials.texts.length, 0);
+  assert.equal(draft.materials.videos.length, 1);
+  assert.ok(existsSync(draft.materials.videos[0].path));
+  assert.match(JSON.parse(readFileSync(join(folder, 'native-text-report.json'), 'utf8'))[0].reason, /opacity/);
+});
+
+test('structured text with Studio element edits renders instead of exporting stale text', ffmpeg, async () => {
+  const path = join(scratch, 'TextEdits');
+  mkdirSync(path);
+  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 0.1,
+    texts: [{ text: 'Original', x: 160, y: 90, fontSize: 32 }] }));
+  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
+    { clips: [{ id: 'edited', src: 'title.html', overrides: [{ at: 'body > div', text: 'Edited' }] }] },
+  ] }));
+  const exports = createExports({ drafts: () => null, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
+  const job = await ended(exports, exports.start(project('TextEdits', path), { kind: 'nle', format: 'jianying' }));
+  assert.equal(job.status, 'done', job.error);
+  const folder = join(process.env.OPENFILM_EXPORTS, 'TextEdits');
+  const draft = JSON.parse(readFileSync(join(folder, 'draft_content.json'), 'utf8'));
+  assert.equal(draft.materials.texts.length, 0, 'the unedited source must not be exported as editable text');
+  assert.equal(draft.materials.videos.length, 1);
+  const report = JSON.parse(readFileSync(join(folder, 'native-text-report.json'), 'utf8'));
+  assert.equal(report[0].mode, 'rendered');
+  assert.match(report[0].reason, /overrides/);
+});
 
 test('the exports folder: OPENFILM_EXPORTS, else `exports` in OPENFILM_HOME, else the Movies folder', () => {
   const env = { exports: process.env.OPENFILM_EXPORTS, home: process.env.OPENFILM_HOME };

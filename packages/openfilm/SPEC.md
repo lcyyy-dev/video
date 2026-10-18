@@ -147,6 +147,50 @@ The frame rate is not the page's: a film is timed in seconds, and the rate is ch
 A page SHOULD set `window.film` before its `load` event. Hosts wait for it to appear (for at least 10 seconds
 after `load`) before reporting the page as not a film.
 
+### Structured text pages
+
+`openfilm/text-page` is an optional helper for text that should remain editable in Jianying / CapCut drafts.
+`textPageHtml(data)` returns a self-contained HTML page following §2; write it to a file and reference it with an
+ordinary iframe. It embeds its source in `<script id="openfilm-text" type="application/json">`. No film attributes
+or page-host methods are added. Arbitrary HTML is still rendered as media on export.
+
+```js
+import { writeFileSync } from 'node:fs';
+import { textPageHtml } from 'openfilm/text-page';
+writeFileSync('title.html', textPageHtml({
+  version: 1, width: 1080, height: 1920, duration: 4,
+  texts: [{ text: 'Start moving', x: 540, y: 300, fontSize: 80,
+    color: '#ffffff', bold: true, stroke: { color: '#000000', width: 3 } }],
+}));
+```
+
+The page's positive `width`, `height` and `duration` describe its canvas and source seconds. `texts` is a nonempty
+array of text objects, each with `text`, center `x` and `y` in canvas pixels from the top left, and positive
+`fontSize` in preview pixels. Supported optional fields:
+
+- `fontFamily`, `fontPath`: the preview family and the font file on the destination computer. Fonts are not embedded;
+  a family name alone may use the editor's fallback font.
+- `color` (`#RRGGBB`), `bold`, `italic`, `underline`, `opacity` (0–1), `scale` (positive).
+- `align` (`left`, `center`, `right`), `width` (positive pixels, enables wrapping), `lineHeight` (positive ratio),
+  `letterSpacing` (pixels). Explicit newlines are preserved.
+- `stroke: { color, width }` and `shadow: { color, opacity, blur, x, y }`, with lengths in preview pixels.
+- `runs`: ordered objects containing `text` and optional `fontSize`, `color`, `bold`, `italic`, `underline`, `stroke`.
+  Their concatenated text must exactly equal the object's `text`, including newlines. Each inherits object defaults.
+  They become per-range styles in one native text material, not separate tracks; ranges use UTF-16 start/end indices.
+- `keyframes`: optional `x`, `y`, `scale`, `opacity` arrays of `{ time, value }` in strictly increasing source seconds,
+  within the page duration. Values are absolute, linearly interpolated and held outside the points. The preview is
+  deterministic when seeking in either direction. Native drafts retain position/scale keys, including trimmed starts.
+
+Unknown fields and invalid data fail validation. The generated HTML is a view of this data: make changes to the data
+and regenerate it when the native draft should retain them. A clip with Studio element overrides is rendered so
+those edits are not lost.
+
+Native text export requires a page matching the film canvas, without clip CSS, box, fade or speed overrides.
+Unsupported opacity animation, element overrides and placement fall back to rendered media and are listed in
+`native-text-report.json` with reasons. Sequential text clips reuse a track; simultaneous text objects remain on
+separate lanes. XML export continues to render pages. `fontSize` maps 48 preview pixels to draft text size 6;
+browser/editor font metrics, wrapping, spacing, outlines and shadows may differ and need a visual check.
+
 ## 3. The one rule: a frame is a function of t
 
 For the same `t`, `frame` MUST produce the same picture, whatever was drawn before it and in whatever order frames
