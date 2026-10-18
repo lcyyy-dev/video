@@ -154,6 +154,10 @@ after `load`) before reporting the page as not a film.
 ordinary iframe. It embeds its source in `<script id="openfilm-text" type="application/json">`. No film attributes
 or page-host methods are added. Arbitrary HTML is still rendered as media on export.
 
+For an in-app preview, `mountTextPage(validatedData, container)` uses the same DOM renderer and returns its film
+controller without changing `window.film`. It appends its nodes to the supplied container; the caller handles
+container sizing, positioning, and cleanup. Standalone HTML installs this controller as `window.film`.
+
 ```js
 import { writeFileSync } from 'node:fs';
 import { textPageHtml } from 'openfilm/text-page';
@@ -190,6 +194,46 @@ Unsupported opacity animation, element overrides and placement fall back to rend
 `native-text-report.json` with reasons. Sequential text clips reuse a track; simultaneous text objects remain on
 separate lanes. XML export continues to render pages. `fontSize` maps 48 preview pixels to draft text size 6;
 browser/editor font metrics, wrapping, spacing, outlines and shadows may differ and need a visual check.
+
+### Local text style presets
+
+`openfilm/text-styles` provides `listTextStyles()`, `getTextStyle(id)` and
+`applyTextStyle(item, idOrPreset, overrides?)`. The built-in JSON library (`src/text-styles.json`) includes
+`white-outline`, `yellow-headline` and `red-emphasis`. These are basic OpenFilm presets, not imported proprietary
+text effects. They work offline and contain no font files or machine-specific paths.
+
+```js
+import { applyTextStyle, getTextStyle } from 'openfilm/text-styles';
+const preset = getTextStyle('yellow-headline');
+const title = applyTextStyle({ text: 'Start today', x: 540, y: 300, fontSize: 64 }, preset,
+  { fontFamily: 'Your installed font', fontSize: 76 });
+// Save title in the text page; optionally record preset.id and preset.version in the production plan.
+```
+
+Presets hold appearance only: font family/path/size, color, bold, italic, underline, stroke and shadow. Sizes are
+preview pixels, initially chosen for a 1080-pixel-wide canvas; other sizes can use explicit overrides. Position,
+text width, alignment, line height, spacing, opacity, scale and animation stay on the text item. The helper replaces
+the previous appearance, including clearing a previous font path or shadow absent from the new style. It resets
+rich-text run formatting to inherit the chosen style, preserving run text and boundaries. Reapply intentional
+per-range emphasis afterwards. Local overrides replace whole properties, not individual shadow/stroke fields.
+
+The applied item is a complete style snapshot, so changing the library does not change an existing page. No input
+objects or shared library values are mutated. `validateTextStyleLibrary(data)` validates custom JSON using the same
+`{ version: 1, presets: [{ id, version, name, description, style }] }` contract and returns a copy. Preset IDs are
+unique lowercase identifiers with optional digits/hyphens; versions are positive integers. Unknown properties,
+unsupported effects and invalid styles fail explicitly.
+
+`getTextStyleCompatibility()` returns the machine-readable `src/text-style-compatibility.json` contract. Agents can
+also use `openfilm text-styles list`, `text-styles show <id>` and `text-styles rules` without a project or browser.
+The contract describes appearance properties, units, draft mappings, font dependencies, keyframe support and native
+fallback conditions. Appearance field names and required preset fields are read by the style validator; the draft
+exporter uses its ordered fallback reasons through `nativeTextFallbackReason`. Value validation and numerical
+conversion remain code, not evaluated strings from JSON. Native field evidence does not certify client visual parity.
+
+Use an installed font and, for a native draft, its destination font path as described above. The generic default
+does not guarantee the same font across computers. Presets use existing native text export properties; actual
+browser/editor appearance still needs visual verification. Studio's Settings → Text styles previews the same library
+with editable sample copy and light/dark backgrounds; it does not apply styles to the current project.
 
 ## 3. The one rule: a frame is a function of t
 

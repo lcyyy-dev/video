@@ -101,8 +101,8 @@ export function textValueAt(points, time) {
   return points[points.length - 1].value;
 }
 
-/** Runs in the preview browser; no dependency on project or package paths. @param {TextPage} page */
-function mountTextPage(page) {
+/** Mount validated data in a browser container; also embedded in standalone pages. @param {TextPage} page @param {HTMLElement} [root] */
+export function mountTextPage(page, root = document.body) {
   const nodes = page.texts.map((item) => {
     const node = document.createElement('div');
     node.textContent = item.text;
@@ -129,10 +129,10 @@ function mountTextPage(page) {
         node.append(span);
       }
     }
-    document.body.append(node);
+    root.append(node);
     return node;
   });
-  /** @type {any} */ (window).film = {
+  const film = {
     width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
     frame(/** @type {number} */ time) {
       page.texts.forEach((item, i) => {
@@ -145,7 +145,8 @@ function mountTextPage(page) {
       });
     },
   };
-  /** @type {any} */ (window).film.frame(0);
+  film.frame(0);
+  return film;
 }
 
 /** Self-contained preview; insert in film.html as an ordinary iframe. @param {TextPage} input */
@@ -154,7 +155,7 @@ export function textPageHtml(input) {
   const json = JSON.stringify(page).replace(/</g, '\\u003c');
   return `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:transparent;width:${page.width}px;height:${page.height}px;overflow:hidden}</style><body>
 <script id="openfilm-text" type="application/json">${json}</script>
-<script>${textValueAt.toString()};${textStyleRuns.toString()};(${mountTextPage.toString()})(JSON.parse(document.getElementById('openfilm-text').textContent));</script></body>`;
+<script>${textValueAt.toString()};${textStyleRuns.toString()};window.film=(${mountTextPage.toString()})(JSON.parse(document.getElementById('openfilm-text').textContent));</script></body>`;
 }
 
 /** Only explicitly structured pages opt in; arbitrary HTML stays a rendered page. @param {string} html */

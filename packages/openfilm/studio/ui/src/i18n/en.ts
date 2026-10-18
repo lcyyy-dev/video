@@ -1436,12 +1436,27 @@ export const en = {
       site: 'Website',
     },
     sections: {
+      textStyles: 'Text styles',
       agents: 'Agents',
       providers: 'Providers',
       models: 'Services',
       developer: 'Developer',
       general: 'General',
       shortcuts: 'Keyboard shortcuts',
+    },
+    textStyles: {
+      intro: 'Preview the built-in text styles with your own copy. These presets are available locally.',
+      previewText: 'Preview text',
+      sample: 'Start today. Make every workout count.',
+      background: 'Preview background',
+      dark: 'Dark',
+      light: 'Light',
+      note: 'This gallery previews styles; it does not change your project. Sizes refer to a 1080-pixel-wide canvas. The default uses a system font, so fonts and appearance can differ in Jianying / CapCut.',
+      names: {
+        'white-outline': 'White with black outline',
+        'yellow-headline': 'Yellow headline with shadow',
+        'red-emphasis': 'Red with white outline',
+      },
     },
     appearance: {
       group: 'Appearance',

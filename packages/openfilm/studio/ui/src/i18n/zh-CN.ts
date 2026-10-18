@@ -1436,12 +1436,27 @@ export const zhCN: Words = {
       site: '官网',
     },
     sections: {
+      textStyles: '文字样式',
       agents: '智能体',
       providers: '服务商',
       models: '服务',
       developer: '开发者',
       general: '通用',
       shortcuts: '键盘快捷键',
+    },
+    textStyles: {
+      intro: '输入文案，预览内置文字样式。样式保存在本地，无需联网获取。',
+      previewText: '预览文案',
+      sample: '从今天开始，让每次训练更有效',
+      background: '预览背景',
+      dark: '深色',
+      light: '浅色',
+      note: '此处仅预览样式，不会修改当前工程。字号以 1080 像素宽画布为参考；默认使用系统字体，在剪映中可能存在字体及显示差异。',
+      names: {
+        'white-outline': '白字黑描边',
+        'yellow-headline': '黄字黑描边 · 阴影',
+        'red-emphasis': '红字白描边',
+      },
     },
     appearance: {
       group: '外观',

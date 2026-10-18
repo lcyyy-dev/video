@@ -61,6 +61,7 @@ import { FILM_FILE, clipFade, filmHtml, fittedFade, kindOf, pictureRect, readFil
 import { NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
 import { readTextPage, textValueAt } from '../../src/text-page.mjs';
+import { nativeTextFallbackReason } from '../../src/text-compatibility.mjs';
 import { slidesPdf, writePptx } from './slides.mjs';
 import { subtitlesForExport } from './captions.mjs';
 import { filmSubtitleCuesInRange, filmSubtitleShown, filmSubtitleSrt, filmSubtitleTranscript, filmSubtitleVtt } from './film-subtitle.mjs';
@@ -1130,15 +1131,11 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
             if (app && kind === 'page') {
               const page = readTextPage(await readFile(path, 'utf8'));
               if (page) {
-                const reason = row.overrides?.some((entry) => entry.at !== undefined)
-                  ? 'Studio element overrides require rendering to preserve edits'
-                  : row.box || row.class || row.style || fade || c.speed !== 1
-                  ? 'Clip placement, CSS, fade or speed override requires rendering'
-                  : page.width !== doc.stage.w || page.height !== doc.stage.h
-                    ? 'Text page dimensions must match the film canvas'
-                    : page.texts.some((item) => item.keyframes?.opacity)
-                      ? 'Animated text opacity is not supported natively; the page keeps its animation as rendered media'
-                      : null;
+                const reason = nativeTextFallbackReason(page, {
+                  canvas: { width: doc.stage.w, height: doc.stage.h },
+                  hasElementOverrides: row.overrides?.some((entry) => entry.at !== undefined),
+                  hasClipOverrides: Boolean(row.box || row.class || row.style || fade || c.speed !== 1),
+                });
                 textReport.push({ clip: row.id, mode: reason ? 'rendered' : 'native', ...(reason ? { reason } : {}) });
                 if (!reason) {
                   // Page source time can be trimmed independently of its position on the timeline.

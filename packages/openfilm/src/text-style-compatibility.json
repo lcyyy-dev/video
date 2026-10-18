@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "id": "openfilm-native-text-v1",
+  "authority": "OpenFilm implementation contract; not an official Jianying schema",
+  "targets": ["jianying", "capcut"],
+  "evidence": {
+    "nativeFields": "automated-tests-and-exported-draft",
+    "clientVisualParity": "not-certified",
+    "clientVersions": []
+  },
+  "appearance": {
+    "fontSize": {
+      "type": "number", "requiredInPreset": true, "exclusiveMinimum": 0,
+      "unit": "preview-px", "draftPaths": ["content.styles[].size", "font_size"],
+      "conversion": "value * 6 / 48"
+    },
+    "fontFamily": {
+      "type": "string", "draftPaths": ["content.styles[].font.name", "font_name"],
+      "dependency": "font-available-on-target", "visualParity": "font-dependent"
+    },
+    "fontPath": {
+      "type": "string", "draftPaths": ["content.styles[].font.path", "font_path"],
+      "dependency": "font-file-on-target", "bundledAutomatically": false
+    },
+    "color": {
+      "type": "string", "pattern": "^#[0-9a-fA-F]{6}$",
+      "draftPaths": ["content.styles[].fill.content.solid.color", "text_color"],
+      "conversion": "normalized RGB for fill; #RRGGBBFF for material"
+    },
+    "bold": { "type": "boolean", "draftPaths": ["content.styles[].bold"] },
+    "italic": { "type": "boolean", "draftPaths": ["content.styles[].italic"] },
+    "underline": { "type": "boolean", "draftPaths": ["content.styles[].underline"] },
+    "stroke": {
+      "type": "object", "required": ["color", "width"], "additionalProperties": false,
+      "properties": {
+        "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "width": { "type": "number", "minimum": 0, "unit": "preview-px" }
+      },
+      "draftPaths": ["content.styles[].strokes", "border_color", "border_width"],
+      "conversion": "width / range.fontSize", "visualParity": "requires-client-check"
+    },
+    "shadow": {
+      "type": "object", "required": ["color", "opacity", "blur", "x", "y"], "additionalProperties": false,
+      "properties": {
+        "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "blur": { "type": "number", "minimum": 0, "unit": "preview-px" },
+        "x": { "type": "number", "unit": "preview-px" },
+        "y": { "type": "number", "unit": "preview-px" }
+      },
+      "draftPaths": ["content.styles[].shadows", "shadow_color", "shadow_alpha", "shadow_distance", "shadow_angle"],
+      "conversion": { "distance": "hypot(x,y)", "angle": "atan2(y,x) * 180 / PI", "diffuse": "blur / fontSize / 6" },
+      "visualParity": "requires-client-check"
+    }
+  },
+  "textFields": {
+    "text": { "type": "string", "nonBlank": true, "draftPaths": ["content.text"] },
+    "runs": {
+      "type": "array", "mustConcatenateToText": true,
+      "allowedOverrides": ["fontSize", "color", "bold", "italic", "underline", "stroke"],
+      "rangeUnit": "UTF-16-code-units", "rangeFormat": "[start,end)",
+      "draftPaths": ["content.styles[].range", "is_rich_text"]
+    },
+    "x": { "type": "number", "unit": "preview-px", "conversion": "2 * (x / canvas.width - 0.5)" },
+    "y": { "type": "number", "unit": "preview-px", "conversion": "2 * (0.5 - y / canvas.height)" },
+    "width": { "type": "number", "exclusiveMinimum": 0, "conversion": "width / canvas.width", "visualParity": "wrapping-dependent" },
+    "align": { "enum": ["left", "center", "right"], "draftValues": [0, 1, 2] },
+    "lineHeight": { "type": "number", "exclusiveMinimum": 0, "conversion": "value - 1", "previewDefault": 1.25, "draftDefault": 0.02 },
+    "letterSpacing": { "type": "number", "unit": "preview-px", "conversion": "value / fontSize" },
+    "opacity": { "type": "number", "minimum": 0, "maximum": 1, "draftPaths": ["global_alpha"] },
+    "scale": { "type": "number", "exclusiveMinimum": 0, "draftPaths": ["segment.clip.scale", "segment.uniform_scale"] }
+  },
+  "keyframes": {
+    "timeUnit": "source-seconds", "interpolation": "linear", "trimBoundarySamples": true,
+    "properties": {
+      "x": { "native": true, "draftType": "KFTypePositionX" },
+      "y": { "native": true, "draftType": "KFTypePositionY" },
+      "scale": { "native": true, "draftType": "UNIFORM_SCALE" },
+      "opacity": { "native": false, "fallback": "rendered" }
+    }
+  },
+  "nativeFallbackRules": [
+    {
+      "id": "element-overrides", "check": "hasElementOverrides",
+      "reason": "Studio element overrides require rendering to preserve edits"
+    },
+    {
+      "id": "clip-overrides", "check": "hasClipOverrides",
+      "reason": "Clip placement, CSS, fade or speed override requires rendering"
+    },
+    {
+      "id": "canvas-mismatch", "check": "canvasMismatch",
+      "reason": "Text page dimensions must match the film canvas"
+    },
+    {
+      "id": "opacity-animation", "check": "hasOpacityKeyframes",
+      "reason": "Animated text opacity is not supported natively; the page keeps its animation as rendered media"
+    }
+  ],
+  "draft": {
+    "materialType": "text", "trackType": "text", "timeUnit": "microseconds",
+    "contentEncoding": "JSON-string", "sequentialTextLaneReuse": true,
+    "report": "native-text-report.json"
+  },
+  "unsupported": {
+    "arbitraryHtml": "rendered-media",
+    "xmlTextExport": "rendered-media",
+    "proprietaryWordArtResources": "not-integrated",
+    "unknownStructuredFields": "validation-error"
+  },
+  "generationRules": [
+    "Select a preset from the local library and save the resolved style in the project.",
+    "Keep timing and placement on text items and clips, outside appearance presets.",
+    "Use structured text pages matching the film canvas for native text export.",
+    "Resolve fonts on the target machine; do not invent resource ids or assume font embedding.",
+    "Do not claim visual parity from JSON validation alone.",
+    "Keep unsupported effects through explicit rendering fallback or report an unsupported request."
+  ]
+}

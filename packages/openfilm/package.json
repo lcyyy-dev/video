@@ -28,6 +28,7 @@
   "exports": {
     "./film-doc": "./src/film-doc.mjs",
     "./text-page": "./src/text-page.mjs",
+    "./text-styles": "./src/text-styles.mjs",
     "./host": "./src/host.mjs",
     "./shared": "./src/shared.mjs",
     "./look": "./src/look.mjs",

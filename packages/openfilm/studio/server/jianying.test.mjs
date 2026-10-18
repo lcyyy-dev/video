@@ -3,6 +3,30 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { planNleTimeline } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
+import { applyTextStyle, listTextStyles } from '../../src/text-styles.mjs';
+
+test('every built-in text preset exports native editable text with its appearance', () => {
+  for (const preset of listTextStyles()) {
+    const item = applyTextStyle({ text: '原生样式 😀', x: 960, y: 700, fontSize: 40 }, preset,
+      { fontFamily: 'Example font', fontPath: 'C:/Windows/Fonts/example.ttf' });
+    const textPages = new Map([['title', { version: 1, width: 1920, height: 1080, duration: 2, texts: [item] }]]);
+    for (const app of ['jianying', 'capcut']) {
+      const { info } = jianyingDraft(plan(), { app, name: 'Presets', folder: '/drafts/Presets', root: '/drafts', textPages });
+      assert.equal(info.materials.texts.length, 1);
+      const material = info.materials.texts[0];
+      const content = JSON.parse(material.content);
+      assert.equal(content.text, item.text);
+      assert.equal(content.styles[0].size, item.fontSize / 8);
+      assert.equal(content.styles[0].font.path, item.fontPath);
+      assert.equal(content.styles[0].bold, true);
+      assert.equal(material.text_color, `${item.color}FF`);
+      assert.equal(material.has_shadow, Boolean(item.shadow));
+      assert.equal(content.styles[0].strokes[0].width, Math.round(item.stroke.width / item.fontSize * 1e6) / 1e6);
+      assert.equal(info.tracks.filter((track) => track.type === 'text').length, 1);
+      assert.equal(info.materials.videos.some((media) => media.path.endsWith('title.mov')), false);
+    }
+  }
+});
 
 test('structured titles become native text, with no corresponding video material', () => {
   const timeline = plan();

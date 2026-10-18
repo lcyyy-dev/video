@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "white-outline",
+      "version": 1,
+      "name": "White with black outline",
+      "description": "A neutral caption for bright or detailed footage.",
+      "style": {
+        "fontFamily": "sans-serif",
+        "fontSize": 64,
+        "color": "#ffffff",
+        "bold": true,
+        "italic": false,
+        "underline": false,
+        "stroke": { "color": "#000000", "width": 4 }
+      }
+    },
+    {
+      "id": "yellow-headline",
+      "version": 1,
+      "name": "Yellow headline",
+      "description": "A bold headline or selling point with a black outline and shadow.",
+      "style": {
+        "fontFamily": "sans-serif",
+        "fontSize": 80,
+        "color": "#ffe21f",
+        "bold": true,
+        "italic": false,
+        "underline": false,
+        "stroke": { "color": "#000000", "width": 5 },
+        "shadow": { "color": "#000000", "opacity": 0.45, "blur": 4, "x": 0, "y": 3 }
+      }
+    },
+    {
+      "id": "red-emphasis",
+      "version": 1,
+      "name": "Red emphasis",
+      "description": "An emphasized benefit or response with a white outline.",
+      "style": {
+        "fontFamily": "sans-serif",
+        "fontSize": 68,
+        "color": "#ff344d",
+        "bold": true,
+        "italic": false,
+        "underline": false,
+        "stroke": { "color": "#ffffff", "width": 4 }
+      }
+    }
+  ]
+}
