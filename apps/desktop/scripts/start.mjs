@@ -9,7 +9,7 @@
  */
 import { execFileSync, spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launcherEnvironment, loginShellEnvironment } from '../src/environment.mjs';
@@ -59,7 +59,21 @@ if (process.platform === 'darwin') {
 }
 
 const { PATH } = await loginShellEnvironment();
-const child = spawn(executable, [desktop, ...args], { stdio: 'inherit', env: launcherEnvironment(process.env, PATH) });
+const env = launcherEnvironment(process.env, PATH);
+/* Optional local browser settings, kept outside source control. Explicit shell settings take precedence. */
+const browserConfig = join(desktop, '.dev', 'runtime', 'browser.json');
+if (existsSync(browserConfig)) {
+  const config = JSON.parse(readFileSync(browserConfig, 'utf8'));
+  for (const key of ['OPENFILM_BROWSER_CDP_URL', 'OPENFILM_SKIP_BROWSER_DOWNLOAD']) {
+    if (typeof config[key] === 'string') env[key] ??= config[key];
+  }
+}
+/* Optional development-only libraries unpacked locally on Linux hosts without Electron's system dependencies. */
+const localLibraries = join(desktop, '.dev', 'linux-libs', 'usr', 'lib', 'x86_64-linux-gnu');
+if (process.platform === 'linux' && process.arch === 'x64' && existsSync(localLibraries)) {
+  env.LD_LIBRARY_PATH = [localLibraries, env.LD_LIBRARY_PATH].filter(Boolean).join(':');
+}
+const child = spawn(executable, [desktop, ...args], { stdio: 'inherit', env });
 /* Ctrl-C already reaches Electron (same foreground group); a SIGINT to this process alone is passed on later, once
    the app has had time to stop Studio on its own */
 process.on('SIGINT', () => { setTimeout(() => { if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM'); }, 12_000).unref(); });

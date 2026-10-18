@@ -223,7 +223,9 @@ export async function launch({ headed = false, channel = headed ? 'chromium' : n
   /* CanvasDrawElement: HTML-in-Canvas (drawElementImage, texElementImage2D), so a page can draw its own DOM into 2D or WebGL */
   const args = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--autoplay-policy=no-user-gesture-required', '--hide-scrollbars', '--enable-blink-features=CanvasDrawElement', ...extra];
   if (process.platform === 'darwin') args.push('--use-angle=metal');
-  const browser = await chromium.launch({ ...(channel ? { channel } : {}), headless: !headed, args, ...(env ? { env } : {}) });
+  const endpoint = env?.OPENFILM_BROWSER_CDP_URL ?? process.env.OPENFILM_BROWSER_CDP_URL;
+  const browser = endpoint ? await chromium.connectOverCDP(endpoint)
+    : await chromium.launch({ ...(channel ? { channel } : {}), headless: !headed, args, ...(env ? { env } : {}) });
   LIVE.add(browser);
   browser.on('disconnected', () => LIVE.delete(browser));
   return browser;

@@ -15,6 +15,13 @@ shares anything with an installed OpenFilm. Its renamed copy of Electron lives i
 
 Codex, Claude Code, the other agents, your own key, and Studio with your own media keys all work.
 
+On Linux, the launcher keeps the desktop session's display and audio variables. Optional development libraries in
+`.dev/linux-libs/usr/lib/x86_64-linux-gnu/` and ffmpeg in `.dev/runtime/ffmpeg/` are reused when present.
+To use an already running Chromium browser, set `OPENFILM_BROWSER_CDP_URL` to its local CDP address. Set
+`OPENFILM_SKIP_BROWSER_DOWNLOAD=1` to report a missing browser instead of downloading one. These two settings can
+also be stored as strings in `.dev/runtime/browser.json` (git-ignored); explicit environment values take precedence.
+The external browser must enable the rendering features the film needs; its executable is not installed by OpenFilm.
+
 ## Builds
 
 `npm run release` builds the app into `.release/` (git-ignored). Without `OPENFILM_SIGN_IDENTITY` and `APPLE_TEAM_ID`

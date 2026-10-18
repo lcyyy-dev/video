@@ -62,7 +62,9 @@ try {
   send({ type: 'browser', state: 'ready' });
 } catch (e) {
   if (!/Executable doesn't exist/.test(e?.message ?? '')) send({ type: 'browser', state: 'failed', message: e?.message ?? String(e) });
-  else {
+  else if (process.env.OPENFILM_SKIP_BROWSER_DOWNLOAD === '1') {
+    send({ type: 'browser', state: 'failed', message: 'No browser is available; automatic browser download is disabled.' });
+  } else {
     send({ type: 'browser', state: 'downloading' });
     const openfilm = dirname(createRequire(import.meta.url).resolve('openfilm/package.json'));
     const cli = join(dirname(createRequire(join(openfilm, 'package.json')).resolve('playwright-core/package.json')), 'cli.js');

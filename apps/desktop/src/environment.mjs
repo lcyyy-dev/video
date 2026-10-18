@@ -18,7 +18,7 @@ import { isAbsolute, join } from 'node:path';
 
 /* what the system gives every program the person starts, a terminal included: SSH_AUTH_SOCK (their keys' agent, for git
    over ssh) comes from it, not from the shell's files */
-const OS_KEYS = ['HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'LANG', 'TZ', 'SSH_AUTH_SOCK'];
+const OS_KEYS = ['HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'LANG', 'TZ', 'SSH_AUTH_SOCK', 'LD_LIBRARY_PATH'];
 /** what a Windows program needs to find its system, its profile and its temporary folder */
 const WIN_KEYS = ['SystemRoot', 'SystemDrive', 'windir', 'ComSpec', 'PATHEXT', 'TEMP', 'TMP', 'USERPROFILE', 'USERNAME', 'USERDOMAIN',
   'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432',
@@ -249,12 +249,18 @@ export async function loginShellEnvironment(options = {}) {
 }
 
 /** What scripts/start.mjs passes on to Electron besides the OS identity: this app's own switches. */
-export const LAUNCHER_FLAGS = ['OPENFILM_DESKTOP_FLAVOR', 'OPENFILM_DESKTOP_CAPTURE', 'OPENFILM_EXAMPLES_INDEX', 'ELECTRON_ENABLE_LOGGING', 'ELECTRON_ENABLE_STACK_DUMPING'];
+export const LAUNCHER_FLAGS = ['OPENFILM_DESKTOP_FLAVOR', 'OPENFILM_DESKTOP_CAPTURE', 'OPENFILM_EXAMPLES_INDEX', 'OPENFILM_BROWSER_CDP_URL', 'OPENFILM_SKIP_BROWSER_DOWNLOAD', 'ELECTRON_ENABLE_LOGGING', 'ELECTRON_ENABLE_STACK_DUMPING'];
 
 /** Electron's environment when run from source: the OS identity, the login shell's PATH, LAUNCHER_FLAGS. */
 export function launcherEnvironment(source, path) {
   const env = osEnvironment(source);
   for (const key of LAUNCHER_FLAGS) if (typeof source[key] === 'string') env[key] = source[key];
+  /* Linux desktop sessions (including WSLg) supply the display, audio and optional local runtime libraries. */
+  if (process.platform === 'linux') {
+    for (const key of ['DISPLAY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'XAUTHORITY', 'DBUS_SESSION_BUS_ADDRESS', 'PULSE_SERVER', 'LD_LIBRARY_PATH']) {
+      if (typeof source[key] === 'string') env[key] = source[key];
+    }
+  }
   env.PATH = path || mergePath('', env.HOME ?? env.USERPROFILE);
   return env;
 }

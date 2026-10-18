@@ -50,6 +50,7 @@ mkdirSync(LOGS, { recursive: true });
 const log = (line) => { try { appendFileSync(join(LOGS, 'studio.log'), line); } catch { /* no log */ } };
 
 if (!app.requestSingleInstanceLock()) {
+  if (!app.isPackaged) console.log(`${PRODUCT_NAME} is already running; requesting its existing window.`);
   app.quit();
 } else {
   app.on('second-instance', () => focusWindow());
@@ -319,7 +320,8 @@ async function runStudio(env) {
     home: env.OPENFILM_HOME,
     port: IDENTITY.studioPort,
     /* Studio serves the window's page as its editor (shell/: its editor with the chat beside it) */
-    env: { ...env, OPENFILM_EDITOR_DIR: here('../shell/dist/') },
+    env: { ...env, OPENFILM_EDITOR_DIR: here('../shell/dist/'),
+      ...(process.env.OPENFILM_SKIP_BROWSER_DOWNLOAD === '1' ? { OPENFILM_SKIP_BROWSER_DOWNLOAD: '1' } : {}) },
     log,
     onOpen: (url) => {
       /* Studio would open a browser for an address of its own: the window already shows Studio */
@@ -366,12 +368,13 @@ async function start() {
      agents' `openfilm` command, and the headless browser Studio and `openfilm` draw pages in. A build without them
      (from source): no ffmpeg on this computer, the app's own goes first on the PATH and is downloaded once the window
      is up (they find it the moment it lands); the browser, Studio downloads the first time (studio-process.mjs) */
-  const runtime = app.isPackaged ? join(process.resourcesPath, 'runtime') : null;
+  const runtime = app.isPackaged ? join(process.resourcesPath, 'runtime') : here('../.dev/runtime');
   const ownFfmpeg = runtime && ffmpegIn(join(runtime, 'ffmpeg')) ? join(runtime, 'ffmpeg') : null;
   const needFfmpeg = !ownFfmpeg && !ffmpegOnPath(env.PATH) && ffmpegDownloadable();
   const ffmpegHere = ownFfmpeg ?? (needFfmpeg ? ffmpegDir(DATA) : null);
   if (ffmpegHere) env.PATH = [ffmpegHere, env.PATH].join(PATH_SEP);
   const browsers = runtime && existsSync(join(runtime, 'ms-playwright')) ? { PLAYWRIGHT_BROWSERS_PATH: join(runtime, 'ms-playwright') } : {};
+  if (process.env.OPENFILM_BROWSER_CDP_URL) browsers.OPENFILM_BROWSER_CDP_URL = process.env.OPENFILM_BROWSER_CDP_URL;
   Object.assign(env, browsers);
 
   const display = screen.getPrimaryDisplay().workArea;
