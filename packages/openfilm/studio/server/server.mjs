@@ -37,6 +37,8 @@ import { BrowseError, browseFolder, browsePlaces } from './browse.mjs';
 import { exampleFile, exampleFolder, listExamples } from './examples.mjs';
 import { pickFiles, pickFolder } from './folder-picker.mjs';
 import { readPrefs, writePrefs } from './prefs.mjs';
+import { TextStyleError, textStyleLibrary, saveTextStyle, setDefaultTextStyle, deleteTextStyle } from './text-styles.mjs';
+import { bundledTextFonts, textFontCss } from './text-fonts.mjs';
 import { ensureProxies } from './proxies.mjs';
 import { npmOpenfilm, olderThanThis } from '../client.mjs';
 import { writeAtomic } from './atomic.mjs';
@@ -334,6 +336,33 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
       }
     }
     /* Studio's own preferences, the same for every project (prefs.mjs) */
+    if (parts[0] === 'text-styles') {
+      try {
+        if (parts.length === 2 && parts[1] === 'fonts.css' && req.method === 'GET') {
+          res.writeHead(200, { 'content-type': 'text/css; charset=utf-8' });
+          return res.end(textFontCss(bundledTextFonts().map((font) => font.family)));
+        }
+        if (parts.length === 3 && parts[1] === 'fonts' && req.method === 'GET') {
+          const font = bundledTextFonts().find((font) => font.id === parts[2]);
+          if (!font) throw new TextStyleError('No such bundled font.', 404);
+          res.writeHead(200, { 'content-type': font.file.endsWith('.ttc') ? 'font/collection' : font.format === 'opentype' ? 'font/otf' : 'font/ttf' });
+          return createReadStream(font.path).pipe(res);
+        }
+        if (parts.length === 1 && req.method === 'GET') return json(res, 200, textStyleLibrary());
+        if (parts.length === 1 && req.method === 'POST') return json(res, 201, saveTextStyle(await readJson(req)));
+        if (parts.length === 2 && parts[1] === 'default' && req.method === 'PUT') {
+          const { id } = await readJson(req) ?? {};
+          if (typeof id !== 'string' || id === 'default') throw new TextStyleError('Choose an existing text style.');
+          return json(res, 200, setDefaultTextStyle(id));
+        }
+        if (parts.length === 2 && req.method === 'PUT') return json(res, 200, saveTextStyle(await readJson(req), parts[1]));
+        if (parts.length === 2 && req.method === 'DELETE') return json(res, 200, deleteTextStyle(parts[1]));
+      } catch (error) {
+        if (error instanceof TextStyleError) throw new HttpError(error.status, error.message);
+        throw error;
+      }
+      throw new HttpError(404, 'No such text style action.');
+    }
     if (parts[0] === 'prefs' && parts.length === 1) {
       if (req.method === 'GET') return json(res, 200, readPrefs());
       if (req.method === 'PATCH') {

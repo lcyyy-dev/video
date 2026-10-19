@@ -20,7 +20,8 @@
     },
     "fontPath": {
       "type": "string", "draftPaths": ["content.styles[].font.path", "font_path"],
-      "dependency": "font-file-on-target", "bundledAutomatically": false
+      "dependency": "font-file-on-target", "bundledAutomatically": "registered-built-in-fonts-only",
+      "builtinReference": "openfilm-font:<id> resolves to a packaged font and is replaced with the copied media/fonts path on draft export"
     },
     "color": {
       "type": "string", "pattern": "^#[0-9a-fA-F]{6}$",

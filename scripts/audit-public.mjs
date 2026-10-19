@@ -50,6 +50,7 @@ const HOME = /(?:\/Users\/|\/home\/|[A-Za-z]:\\{1,2}Users\\{1,2})(?!(?:me|you|so
  * matches, and why it is fine.
  */
 const ALLOWED = [
+  { file: 'packages/openfilm/src/text-style-generation-rules.json', check: 'cjk', match: /^\s*"candidates":\s*\[/, why: 'exact Chinese font labels used to select Jianying font candidates, not untranslated prose' },
   { file: 'apps/desktop/scripts/start.mjs', check: 'path', match: /resolve\(electron, '(\.\.\/){2}\.\.'\)/, why: 'up from the Electron binary to its .app, not from this file' },
   { file: 'packages/openfilm/src/render.mjs', check: 'private', match: "C:\\\\Users\\\\O'Brien", why: 'a made-up Windows path with a quote in it' },
 ];

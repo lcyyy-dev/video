@@ -46,6 +46,57 @@
         "underline": false,
         "stroke": { "color": "#ffffff", "width": 4 }
       }
+    },
+    {
+      "id": "xinqingnian-yellow",
+      "version": 1,
+      "name": "Xin Qing Nian with yellow fill and black outline",
+      "description": "Reference-inspired yellow W8 lettering with a heavy black outline using the packaged font.",
+      "style": {
+        "fontFamily": "WenYue XinQingNianTi (Non-Commercial Use) W8",
+        "fontSize": 96, "color": "#FFEA00", "bold": false,
+        "stroke": { "color": "#000000", "width": 14 },
+        "shadow": { "color": "#000000", "opacity": 0.9, "blur": 2, "x": 4, "y": 5 }
+      }
+    },
+    {
+      "id": "houxiandai-cyan",
+      "version": 1,
+      "name": "Hou Xian Dai with cyan fill and black outline",
+      "description": "Reference-inspired cyan W4-75 lettering with a black outline using the packaged font.",
+      "style": {
+        "fontFamily": "WenYue HouXianDaiTi (Authorization Required) W4-75",
+        "fontSize": 96, "color": "#00D5ED", "bold": false,
+        "stroke": { "color": "#000000", "width": 12 },
+        "shadow": { "color": "#000000", "opacity": 0.85, "blur": 2, "x": 3, "y": 4 }
+      }
+    },
+    {
+      "id": "zhongyuan-red",
+      "version": 1,
+      "name": "HY Zhong Yuan with red fill and white outline",
+      "description": "Reference-inspired red rounded lettering with a white outline and black shadow; the screenshot's double outline is approximated with a single outline and shadow.",
+      "style": {
+        "fontFamily": "HYZhongYuanJ",
+        "fontSize": 96, "color": "#FF2349", "bold": false,
+        "stroke": { "color": "#FFFFFF", "width": 12 },
+        "shadow": { "color": "#000000", "opacity": 1, "blur": 3, "x": 4, "y": 5 }
+      }
+    },
+    {
+      "id": "simsun-white", "version": 1, "name": "SimSun with white fill and black outline",
+      "description": "A serif caption using packaged SimSun, independent of system font installation.",
+      "style": { "fontFamily": "SimSun", "fontSize": 80, "color": "#FFFFFF", "bold": false, "stroke": { "color": "#000000", "width": 6 } }
+    },
+    {
+      "id": "simhei-yellow", "version": 1, "name": "SimHei with yellow fill and black outline",
+      "description": "A sans-serif headline using packaged SimHei, independent of system font installation.",
+      "style": { "fontFamily": "SimHei", "fontSize": 88, "color": "#FFEA00", "bold": false, "stroke": { "color": "#000000", "width": 8 } }
+    },
+    {
+      "id": "kaiti-white", "version": 1, "name": "KaiTi with white fill and black outline",
+      "description": "A calligraphic caption using packaged KaiTi, independent of system font installation.",
+      "style": { "fontFamily": "KaiTi", "fontSize": 88, "color": "#FFFFFF", "bold": false, "stroke": { "color": "#000000", "width": 6 } }
     }
   ]
 }

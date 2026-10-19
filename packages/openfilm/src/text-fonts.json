@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "fonts": [
+    { "id": "xinqingnian-w8", "name": "新青年体", "family": "WenYue XinQingNianTi (Non-Commercial Use) W8", "file": "xinqingnian-w8.ttf", "format": "truetype", "source": "Local Jianying font file; internal name WenYue-XinQingNianTi-NC-W8", "licenseStatus": "Font metadata says Non-Commercial Use; external use and redistribution authorization not established." },
+    { "id": "houxiandai-w4-75", "name": "后现代体", "family": "WenYue HouXianDaiTi (Authorization Required) W4-75", "file": "houxiandai-w4-75.otf", "format": "opentype", "source": "Local Jianying font file; internal name WenYue-HouXianDaiTi-NC-W4-75", "licenseStatus": "Font metadata says Authorization Required; external use and redistribution authorization not established." },
+    { "id": "hy-zhongyuan", "name": "圆体（汉仪中圆简）", "family": "HYZhongYuanJ", "file": "hy-zhongyuan.ttf", "format": "truetype", "source": "Local Jianying font file; internal family HYZhongYuanJ", "licenseStatus": "External use and redistribution authorization not established." },
+    { "id": "simsun", "name": "宋体", "family": "SimSun", "file": "simsun.ttc", "format": "truetype", "source": "User's local Windows font file; collection includes SimSun and NSimSun", "licenseStatus": "Third-party Windows font; external use and redistribution authorization not established." },
+    { "id": "simhei", "name": "黑体", "family": "SimHei", "file": "simhei.ttf", "format": "truetype", "source": "User's local Windows font file; internal family SimHei", "licenseStatus": "Third-party Windows font; external use and redistribution authorization not established." },
+    { "id": "kaiti", "name": "楷体", "family": "KaiTi", "file": "simkai.ttf", "format": "truetype", "source": "User's local Windows font file; internal family KaiTi", "licenseStatus": "Third-party Windows font; external use and redistribution authorization not established." }
+  ]
+}

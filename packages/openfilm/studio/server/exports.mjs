@@ -61,6 +61,7 @@ import { FILM_FILE, clipFade, filmHtml, fittedFade, kindOf, pictureRect, readFil
 import { NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
 import { readTextPage, textValueAt } from '../../src/text-page.mjs';
+import { bundledTextFont } from './text-fonts.mjs';
 import { nativeTextFallbackReason } from '../../src/text-compatibility.mjs';
 import { slidesPdf, writePptx } from './slides.mjs';
 import { subtitlesForExport } from './captions.mjs';
@@ -1247,6 +1248,15 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       update(job, { phase: 'finishing', progress: 0.98 });
       const cues = ask.subtitles !== false ? (await subtitlesOf(root).catch(() => ({ cues: [] }))).cues : [];
       if (app) {
+        // Carry the selected built-in fonts into the draft, independent of this checkout's location.
+        for (const page of textPages.values()) for (const item of page.texts) {
+          const font = bundledTextFont(item.fontFamily);
+          if (!font || (item.fontPath && item.fontPath !== font.path && item.fontPath !== `openfilm-font:${font.id}`)) continue;
+          const target = join(staging, 'media', 'fonts', font.file);
+          await mkdir(dirname(target), { recursive: true });
+          await copyFile(font.path, target);
+          item.fontPath = join(final, 'media', 'fonts', font.file);
+        }
         /* the app on Windows reads draft_content.json, on a Mac draft_info.json: the same draft in both */
         const draft = jianyingDraft(timeline, { app, name: basename(final), folder: final, root: dir, cues, textPages });
         const info = JSON.stringify(draft.info);

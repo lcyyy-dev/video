@@ -110,7 +110,9 @@ export function mountTextPage(page, root = document.body) {
       position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
       width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
       lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
-      fontFamily: item.fontFamily ?? 'sans-serif', fontSize: `${item.fontSize}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
       fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
       textDecoration: item.underline ? 'underline' : 'none',
       webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
@@ -149,11 +151,11 @@ export function mountTextPage(page, root = document.body) {
   return film;
 }
 
-/** Self-contained preview; insert in film.html as an ordinary iframe. @param {TextPage} input */
-export function textPageHtml(input) {
+/** Self-contained preview; insert in film.html as an ordinary iframe. @param {TextPage} input @param {{ fontCss?: string }} [options] */
+export function textPageHtml(input, options = {}) {
   const page = validateTextPage(input);
   const json = JSON.stringify(page).replace(/</g, '\\u003c');
-  return `<!doctype html><meta charset="utf-8"><style>html,body{margin:0;background:transparent;width:${page.width}px;height:${page.height}px;overflow:hidden}</style><body>
+  return `<!doctype html><meta charset="utf-8"><style>${(options.fontCss ?? '').replace(/<\/style/gi, '<\\/style')}html,body{margin:0;background:transparent;width:${page.width}px;height:${page.height}px;overflow:hidden}</style><body>
 <script id="openfilm-text" type="application/json">${json}</script>
 <script>${textValueAt.toString()};${textStyleRuns.toString()};window.film=(${mountTextPage.toString()})(JSON.parse(document.getElementById('openfilm-text').textContent));</script></body>`;
 }

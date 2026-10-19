@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "scene-adaptive-text-v1",
+  "kind": "generation-policy",
+  "rangePolicy": {
+    "strength": "advisory",
+    "reference": "jianying-panel",
+    "selection": "Prefer the suggested ranges; readability and explicit user choices take priority. Record a reason when choosing outside a suggested range.",
+    "units": "Numbers refer to Jianying panel controls, not preview pixels. Calibrate panel-to-draft and panel-to-preview conversions using real drafts before applying unresolved controls."
+  },
+  "selection": {
+    "mode": "scene-informed",
+    "rangeBounds": "inclusive",
+    "randomizePerCaption": false,
+    "consistency": "Choose a main style for the film; adjust individual captions only when the footage requires it.",
+    "explicitUserStyleTakesPriority": true,
+    "output": "Save concrete resolved appearance values in each project text item, not ranges or live library references."
+  },
+  "font": {
+    "candidates": ["宋体", "新青年体", "后现代体", "黑体", "圆体", "楷体"],
+    "source": "All six candidates have packaged font files registered in text-fonts.json; no system installation, Jianying cache or online font library is required at runtime.",
+    "resolvedCandidates": [
+      { "label": "新青年体", "fontId": "xinqingnian-w8", "presetId": "xinqingnian-yellow" },
+      { "label": "后现代体", "fontId": "houxiandai-w4-75", "presetId": "houxiandai-cyan" },
+      { "label": "圆体", "fontId": "hy-zhongyuan", "presetId": "zhongyuan-red" },
+      { "label": "宋体", "fontId": "simsun", "presetId": "simsun-white" },
+      { "label": "黑体", "fontId": "simhei", "presetId": "simhei-yellow" },
+      { "label": "楷体", "fontId": "kaiti", "presetId": "kaiti-white" }
+    ],
+    "selection": "Choose an available candidate appropriate to the footage and copy; keep the primary font consistent.",
+    "availability": "Resolve each candidate through its fontId in the packaged registry. Use embedded font CSS for rendering and portable font references for native draft export; do not invent Jianying resource IDs.",
+    "missingCandidates": "Report missing fonts; ask for a font file or an approved alternative if no candidate is available."
+  },
+  "fill": {
+    "mode": "scene-adaptive",
+    "selection": "Inspect the footage behind the intended text placement across its visible interval. Match the scene palette while preserving legibility; inspect the composed result."
+  },
+  "stroke": {
+    "color": { "darkText": "#FFFFFF", "lightText": "#000000" },
+    "opacity": { "min": 60, "max": 100, "unit": "percent" },
+    "thickness": { "min": 30, "max": 45, "unit": "jianying-panel-value", "conversion": "unverified" }
+  },
+  "background": {
+    "enabled": "when-needed-for-scene-readability",
+    "selection": "When enabled, choose one of these two alternatives according to footage and readability; do not combine them. Percentages follow Jianying panel controls; do not assume a CSS radius reference.",
+    "variants": [
+      { "id": "yellow-solid", "color": "#FFEA00", "opacity": { "min": 100, "max": 100, "unit": "percent" }, "cornerRadius": { "min": 20, "max": 50, "unit": "percent" } },
+      { "id": "white-translucent", "color": "#FFFFFF", "opacity": { "min": 40, "max": 40, "unit": "percent" }, "cornerRadius": { "min": 0, "max": 0, "unit": "percent" } }
+    ]
+  },
+  "shadow": {
+    "enabled": "when-needed-for-scene-readability",
+    "opacity": { "min": 70, "max": 90, "unit": "percent" },
+    "blur": { "min": 15, "max": 25, "unit": "percent", "conversion": "unverified-reference-scale" },
+    "distance": { "min": 5, "max": 10, "unit": "jianying-panel-value", "conversion": "unverified" },
+    "angle": { "min": -150, "max": -30, "unit": "degrees", "conversion": "verify-target-angle-convention" }
+  },
+  "implementation": {
+    "executor": "AI agent reading this policy; no automatic pixel-analysis engine is implied.",
+    "readAlongside": "text-style-compatibility.json",
+    "supportedAppearance": ["fontFamily", "fontPath", "color", "stroke.color", "shadow.opacity"],
+    "requiresConversion": ["stroke.thickness", "shadow.blur", "shadow.distance", "shadow.angle"],
+    "notYetSupportedInStructuredText": ["stroke.opacity", "background"],
+    "onUnresolvedSetting": "Do not pass policy values directly as preview pixels, invent draft fields, silently omit settings or claim native support. Report the unresolved setting; if rendering is needed, disclose it and retain editable text where possible."
+  }
+}

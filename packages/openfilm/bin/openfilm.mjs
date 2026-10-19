@@ -9,7 +9,7 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
   openfilm get     [what] [--options]  voice-over, music, sound effects, transcripts, images, video, from a connected service
   openfilm capture <url> <file.png>    a picture of a live web page, to show a product or a site as it is
   openfilm skills                      the skills this film can be made with; \`openfilm skill <name>\` prints one
-  openfilm text-styles [list | rules | show <id>]   local text presets and machine-readable draft compatibility
+  openfilm text-styles [list | rules | generation-rules | show <id>]   text presets and generation rules
   openfilm update                      the newest OpenFilm; Studio starts again on it
 
   Run with no arguments for the manual; \`openfilm <command> --help\` for one command's options; --version for the version.
@@ -18,14 +18,19 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
 
 /* one command's help: what it does, what it takes, where its output goes */
 const COMMAND_HELP = {
-  'text-styles': `openfilm text-styles [list | rules | show <id>]
+  'text-styles': `openfilm text-styles [list | rules | generation-rules | show <id> | default [id]]
+openfilm text-styles page <file.html> --text <copy> --duration <seconds> [--size 1080x1920] [--preset <id>]
 
   list        local text style presets as JSON (default)
   rules       machine-readable properties, units, native draft mappings, dependencies and fallback rules
-  show <id>   one preset as JSON
+  generation-rules  scene-informed font candidates, appearance ranges and implementation limits as JSON
+  show <id>   one preset as JSON; 'default' resolves the saved default
+  default     read the default preset; with an id, change it
+  page        generate a structured text page using the default (or --preset), preserving editable draft export
 
   Works without a project, browser or connected service. Use the rules and an existing preset when generating
-  structured text; apply it with openfilm/text-styles before making the text page.`,
+  structured text. Built-ins and custom presets are read from the same Studio home as the desktop app.
+  A page stores the complete style, not a live reference to the preset. Existing files are never overwritten.`,
   open: `openfilm open [folder | url]
 
   folder   a new film: a folder named after it (made if missing); or an existing project
@@ -146,6 +151,7 @@ try {
       fps: { type: 'string' }, workers: { type: 'string' }, help: { type: 'boolean', short: 'h' },
       size: { type: 'string' }, full: { type: 'boolean' }, wait: { type: 'string' }, dark: { type: 'boolean' },
       click: { type: 'string', multiple: true }, hide: { type: 'string', multiple: true }, selector: { type: 'string' },
+      text: { type: 'string' }, duration: { type: 'string' }, preset: { type: 'string' },
     },
   });
 } catch (e) {
@@ -171,12 +177,34 @@ for (const [name, [lo, hi, whole]] of Object.entries(RANGES)) {
 const commands = {
   'text-styles': async () => {
     const styles = await import('../src/text-styles.mjs');
+    const saved = await import('../studio/server/text-styles.mjs');
     let data;
-    if (!args.length || (args.length === 1 && args[0] === 'list')) data = styles.listTextStyles();
+    if (!args.length || (args.length === 1 && args[0] === 'list')) data = saved.textStyleLibrary().presets;
     else if (args.length === 1 && args[0] === 'rules') data = styles.getTextStyleCompatibility();
+    else if (args.length === 1 && args[0] === 'generation-rules') data = styles.getTextStyleGenerationRules();
     else if (args.length === 2 && args[0] === 'show') {
-      try { data = styles.getTextStyle(args[1]); }
+      try { data = saved.resolveTextStyle(args[1]); }
       catch (error) { return { ok: false, usage: true, lines: [error.message] }; }
+    } else if (args[0] === 'default' && args.length <= 2) {
+      if (args[1]) saved.setDefaultTextStyle(args[1]);
+      data = saved.resolveTextStyle();
+    } else if (args[0] === 'page' && args.length === 2) {
+      const { existsSync, mkdirSync, writeFileSync } = await import('node:fs');
+      const { resolve, dirname } = await import('node:path');
+      const { textPageHtml } = await import('../src/text-page.mjs');
+      const { textFontCss } = await import('../studio/server/text-fonts.mjs');
+      const size = /^(\d+)x(\d+)$/.exec(o.size ?? '1080x1920');
+      const duration = Number(o.duration);
+      if (!size || typeof o.text !== 'string' || !o.text.trim() || !Number.isFinite(duration) || duration <= 0) {
+        return { ok: false, usage: true, lines: ['page requires --text, a positive --duration, and --size <width>x<height>'] };
+      }
+      const out = resolve(args[1]);
+      if (existsSync(out)) return { ok: false, usage: true, lines: ['The output file already exists; choose another path.'] };
+      const page = saved.styledTextPage({ text: o.text, width: Number(size[1]), height: Number(size[2]), duration }, o.preset);
+      const html = textPageHtml(page, { fontCss: textFontCss(page.texts.map((item) => item.fontFamily ?? ''), true) });
+      mkdirSync(dirname(out), { recursive: true });
+      writeFileSync(out, html, { flag: 'wx' });
+      data = { path: out, preset: saved.resolveTextStyle(o.preset).id, texts: page.texts.length };
     } else return { ok: false, usage: true, lines: [named(COMMAND_HELP['text-styles'])] };
     return { ok: true, lines: [JSON.stringify(data, null, 2)] };
   },

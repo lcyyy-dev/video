@@ -2,8 +2,14 @@
 /** Local appearance presets; placement and timing remain properties of the text page and its clip. */
 import builtin from './text-styles.json' with { type: 'json' };
 import compatibility from './text-style-compatibility.json' with { type: 'json' };
+import generationRules from './text-style-generation-rules.json' with { type: 'json' };
 import { validateTextPage } from './text-page.mjs';
 export { getTextStyleCompatibility } from './text-compatibility.mjs';
+
+/** Scene-informed candidate ranges for agents, separate from resolved renderable presets. */
+export function getTextStyleGenerationRules() {
+  return structuredClone(generationRules);
+}
 
 /** @typedef {import('./text-page.mjs').TextItem} TextItem */
 /** @typedef {Pick<TextItem, 'fontSize' | 'fontFamily' | 'fontPath' | 'color' | 'bold' | 'italic' | 'underline' | 'stroke' | 'shadow'>} TextStyle */

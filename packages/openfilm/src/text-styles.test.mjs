@@ -39,7 +39,8 @@ test('native draft fallback decisions and report reasons follow the machine-read
 
 test('built-in JSON presets are discoverable, independent snapshots', () => {
   const presets = listTextStyles();
-  assert.deepEqual(presets.map((preset) => preset.id), ['white-outline', 'yellow-headline', 'red-emphasis']);
+  assert.deepEqual(presets.map((preset) => preset.id), ['white-outline', 'yellow-headline', 'red-emphasis',
+    'xinqingnian-yellow', 'houxiandai-cyan', 'zhongyuan-red', 'simsun-white', 'simhei-yellow', 'kaiti-white']);
   presets[0].style.stroke.width = 999;
   assert.equal(getTextStyle('white-outline').style.stroke.width, 4);
   assert.throws(() => getTextStyle('missing'), /Unknown text style/);

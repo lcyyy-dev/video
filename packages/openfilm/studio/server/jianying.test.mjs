@@ -18,7 +18,7 @@ test('every built-in text preset exports native editable text with its appearanc
       assert.equal(content.text, item.text);
       assert.equal(content.styles[0].size, item.fontSize / 8);
       assert.equal(content.styles[0].font.path, item.fontPath);
-      assert.equal(content.styles[0].bold, true);
+      assert.equal(content.styles[0].bold, Boolean(item.bold));
       assert.equal(material.text_color, `${item.color}FF`);
       assert.equal(material.has_shadow, Boolean(item.shadow));
       assert.equal(content.styles[0].strokes[0].width, Math.round(item.stroke.width / item.fontSize * 1e6) / 1e6);

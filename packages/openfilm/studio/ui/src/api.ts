@@ -4,6 +4,8 @@
  */
 import type { ExportJob } from '@/lib/export-jobs';
 import { watchStudioVersion } from '@/lib/studio-version';
+import type { TextStylePreset } from 'openfilm/text-styles';
+export interface TextStyleCollection { version: number; defaultId: string; builtinIds: string[]; presets: TextStylePreset[] }
 
 /** `working`: an agent of the app's chat is working in it right now (it cannot be deleted meanwhile). */
 /** GET /api/version: this Studio's, and npm's latest (null when never learnt; `checking` false: never asked). */
@@ -91,6 +93,11 @@ export const api = {
   update: () => call<{ update: NonNullable<StudioVersion['update']> }>('update', { method: 'POST', json: {} }),
   projects: () => call<{ projects: Project[] }>('projects').then((r) => r.projects),
   prefs: () => call<StudioPrefs>('prefs'),
+  textStyles: () => call<TextStyleCollection>('text-styles'),
+  saveTextStyle: (preset: Pick<TextStylePreset, 'name' | 'style'> & { version?: number }, id?: string) =>
+    call<{ library: TextStyleCollection; preset: TextStylePreset }>(`text-styles${id ? `/${encodeURIComponent(id)}` : ''}`, { method: id ? 'PUT' : 'POST', json: preset }),
+  defaultTextStyle: (id: string) => call<TextStyleCollection>('text-styles/default', { method: 'PUT', json: { id } }),
+  deleteTextStyle: (id: string) => call<TextStyleCollection>(`text-styles/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   /** where new projects and exports go, and the free space there */
   locations: () => call<StudioLocations>('locations'),
   /** one of them in the system's file manager */
