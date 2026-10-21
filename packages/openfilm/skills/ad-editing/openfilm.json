@@ -1,0 +1,15 @@
+{
+  "version": "0.1.0",
+  "kind": "workflow",
+  "order": 1,
+  "icon": "film",
+  "title": { "en": "Advertising edit", "zh-CN": "广告剪辑" },
+  "summary": {
+    "en": "Match your footage to advertising copy, time shots to narration, and apply editable text presets.",
+    "zh-CN": "从素材中选取与文案相关的片段，按配音时长剪辑，应用可编辑文字样式。"
+  },
+  "details": {
+    "en": "For footage-based fitness, service and product promos. Reuses existing tools and local fonts; keeps simple tracks and records native versus rendered draft effects. Uses supplied narration or a configured TTS service.",
+    "zh-CN": "适合健身、服务介绍、产品宣传等素材剪辑广告。复用现有工具和内置字体，保持简洁分轨，记录选片依据和原生／预渲染效果。支持已有录音或已配置的TTS；不会自动开通付费服务。"
+  }
+}

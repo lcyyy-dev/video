@@ -1,2 +1,3 @@
 https://github.com/openfilm/skills/commit/702f16944c14d64a87fc5149cb865bd5c95c895f
-Copied by `pnpm skills:sync`. Change the skills in https://github.com/openfilm/skills, not here.
+Copied by `pnpm skills:sync`. Change upstream skills in https://github.com/openfilm/skills, not here.
+Package-owned additions maintained here and preserved on sync: ad-editing.

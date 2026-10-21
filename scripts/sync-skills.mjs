@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * `pnpm skills:sync`: the official skills, copied from a checkout of openfilm/skills into packages/openfilm/skills,
- * where the npm package and the desktop app take them from. The skills are changed there, never here: this folder is
- * replaced whole, and its SOURCE file says which commit it came from.
+ * where the npm package and desktop app take them from. Upstream skills are changed there; the package-owned
+ * additions named below are maintained here and preserved during synchronization. SOURCE records both origins.
  *
  *   pnpm skills:sync            from the checkout beside this repository (the folder holding it also holds skills/)
  *   pnpm skills:sync <folder>   from another checkout
@@ -12,7 +12,7 @@
  * commit. While changing skills, `pnpm dev` reads them from the checkout itself (OPENFILM_OFFICIAL_SKILLS).
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +20,7 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const TO = join(ROOT, 'packages', 'openfilm', 'skills');
 const SOURCE = join(TO, 'SOURCE');
 const REPO = 'https://github.com/openfilm/skills';
+const LOCAL_SKILLS = ['ad-editing'];
 
 const args = process.argv.slice(2);
 const check = args.includes('--check');
@@ -39,10 +40,14 @@ const files = (dir, base = '') => readdirSync(join(dir, base), { withFileTypes: 
   .flatMap((e) => (e.isDirectory() ? files(dir, join(base, e.name)) : [join(base, e.name)]))
   .sort();
 
-const source = `${REPO}/commit/${commit}\nCopied by \`pnpm skills:sync\`. Change the skills in ${REPO}, not here.\n`;
+const localFile = (file) => LOCAL_SKILLS.includes(file.split(/[\\/]/)[0]);
+for (const name of LOCAL_SKILLS) if (existsSync(join(from, 'skills', name))) {
+  fail(`upstream now contains the package-owned skill ${name}; reconcile its ownership before syncing`);
+}
+const source = `${REPO}/commit/${commit}\nCopied by \`pnpm skills:sync\`. Change upstream skills in ${REPO}, not here.\nPackage-owned additions maintained here and preserved on sync: ${LOCAL_SKILLS.join(', ')}.\n`;
 if (check) {
   const theirs = files(join(from, 'skills'));
-  const ours = existsSync(TO) ? files(TO) : [];
+  const ours = existsSync(TO) ? files(TO).filter((file) => !localFile(file)) : [];
   const differ = [...new Set([...theirs, ...ours])].filter((file) => !theirs.includes(file) || !ours.includes(file)
     || !readFileSync(join(from, 'skills', file)).equals(readFileSync(join(TO, file))));
   const said = existsSync(SOURCE) ? readFileSync(SOURCE, 'utf8') : '';
@@ -53,8 +58,13 @@ if (check) {
 }
 
 execFileSync(process.execPath, [join(from, 'scripts', 'check.mjs')], { stdio: 'inherit' });
+const local = existsSync(TO) ? files(TO).filter(localFile).map((file) => [file, readFileSync(join(TO, file))]) : [];
 rmSync(TO, { recursive: true, force: true });
 cpSync(join(from, 'skills'), TO, { recursive: true, filter: (src) => !src.split(/[\\/]/).pop()?.startsWith('.') });
+for (const [file, bytes] of local) {
+  mkdirSync(dirname(join(TO, file)), { recursive: true });
+  writeFileSync(join(TO, file), bytes);
+}
 writeFileSync(SOURCE, source);
 const names = readdirSync(TO).filter((n) => statSync(join(TO, n)).isDirectory());
-console.log(`skills:sync: ${names.length} skills from ${REPO} at ${commit.slice(0, 7)} → ${relative(ROOT, TO)}`);
+console.log(`skills:sync: ${names.length} skills including package-owned additions; upstream ${REPO} at ${commit.slice(0, 7)} → ${relative(ROOT, TO)}`);
