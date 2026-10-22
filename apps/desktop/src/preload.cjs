@@ -45,18 +45,11 @@ contextBridge.exposeInMainWorld('openfilmNative', {
     connect: (id) => ipcRenderer.invoke('desktop:agents:connect', { id }),
     disconnect: (id) => ipcRenderer.invoke('desktop:agents:disconnect', { id }),
     usage: (id, fresh) => ipcRenderer.invoke('desktop:agents:usage', { id, fresh: fresh === true }),
-    setShown: (id, shown) => ipcRenderer.invoke('desktop:agents:shown', { id, shown: shown === true }),
     locate: (id, words) => ipcRenderer.invoke('desktop:agents:locate', { id, words }),
     useAutomatic: (id) => ipcRenderer.invoke('desktop:agents:automatic', { id }),
     diagnose: (id) => ipcRenderer.invoke('desktop:agents:diagnose', { id }),
-    saveOwnModel: (config) => ipcRenderer.invoke('desktop:agents:own-model', { config }),
-    removeOwnModel: (id) => ipcRenderer.invoke('desktop:agents:own-model-remove', { id }),
     /* the MCP servers the person added to it themselves, each let into OpenFilm or not (skills-ipc.mjs) */
-    mcp: (id) => ipcRenderer.invoke('desktop:agents:mcp', { id }),
     /* the skills the person installed in it themselves, each let into OpenFilm or not */
-    skills: (id) => ipcRenderer.invoke('desktop:agents:skills', { id }),
-    allowSkill: (id, name, allowed) => ipcRenderer.invoke('desktop:skills:allow', { agent: id, name, allowed: allowed === true }),
-    allowMcp: (id, name, allowed) => ipcRenderer.invoke('desktop:agents:mcp-allow', { id, name, allowed: allowed === true }),
     onChange: on('desktop:agents'),
   },
   /* the agents' turns (local-agents-ipc.mjs) */
@@ -95,13 +88,7 @@ contextBridge.exposeInMainWorld('openfilmNative', {
   skills: {
     list: (project, agent) => ipcRenderer.invoke('desktop:skills:list', { project, agent }),
     texts: (project, agent, names) => ipcRenderer.invoke('desktop:skills:texts', { project, agent, names }),
-    allow: (agent, name, allowed) => ipcRenderer.invoke('desktop:skills:allow', { agent, name, allowed }),
-    preview: (url) => ipcRenderer.invoke('desktop:skills:preview', { url }),
     /* a folder dropped (its path), or null: one picked in the system's dialog, with the page's words { title, button } */
-    previewFolder: (path, words) => ipcRenderer.invoke('desktop:skills:preview', { folder: typeof path === 'string' ? path : null, words }),
-    commit: (id) => ipcRenderer.invoke('desktop:skills:commit', { id }),
-    discard: (id) => ipcRenderer.invoke('desktop:skills:discard', { id }),
-    reveal: () => ipcRenderer.invoke('desktop:skills:reveal'),
   },
   /* the app's own preferences (Settings → Developer) */
   prefs: {

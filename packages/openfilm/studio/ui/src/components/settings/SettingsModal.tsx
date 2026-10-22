@@ -1,13 +1,7 @@
-/**
- * Settings, opened from the logo at the top left: a search and the sections in groups on the left, the section on the
- * right as a page of titled groups. General (the theme and the language), Agents (in an app with a chat: the agents
- * it can use), Providers (the person's own keys for media services), Models (which provider and model makes each kind
- * of media), the keyboard shortcuts and Developer; the search finds a section by any phrase on it. At the foot of the
- * nav, quietly, where OpenFilm lives: its code, the examples and the website.
- */
+/** Advertising client settings: appearance, text presets, local Codex, shortcuts and diagnostics. */
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { X, Settings2, Keyboard, Sun, Moon, Monitor, Plug, Boxes, Bot, Search, SquareTerminal, Loader2, Type } from 'lucide-react';
+import { X, Settings2, Keyboard, Sun, Moon, Monitor, Bot, Search, SquareTerminal, Loader2, Type } from 'lucide-react';
 import { LANGUAGES, phrasesUnder, useLanguage, useLanguageChoice, useT, type LanguageChoice } from '@/i18n';
 import { shortcutHint } from '@/lib/shortcut-hint';
 import { SHORTCUTS, type ShortcutKey } from '@/lib/timeline-keys';
@@ -17,27 +11,24 @@ import { hasNotes, newestVersion } from '../WhatsNew';
 import { useWebUpdate } from '../UpdateButton';
 import { api, type StudioPrefs, type StudioVersion } from '@/api';
 import { AgentsSection } from './AgentsSection';
-import { ModelsSection } from './ModelsSection';
-import { ProvidersSection } from './ProvidersSection';
 import { SettingsSelect } from './SettingsSelect';
 import { SettingsButton, SettingsGroup, SettingsItem, SettingsPage, SettingsSegmented, SettingsSwitch } from './ui';
 import { useThemeMode, type ThemeMode } from './theme';
 import { StorageGroup } from './StorageGroup';
 import { TextStylesSection } from './TextStylesSection';
 
-export type SettingsSection = 'general' | 'agents' | 'providers' | 'models' | 'textStyles' | 'developer' | 'shortcuts';
+export type SettingsSection = 'general' | 'agents' | 'textStyles' | 'developer' | 'shortcuts';
 
 /* the nav, in groups: what OpenFilm does, then help (Agents and Developer only inside an app with a chat:
    lib/host.ts `agents`, `developer`) */
 const NAV: Array<{ group: 'settings' | 'help'; sections: SettingsSection[] }> = [
-  { group: 'settings', sections: ['general', 'textStyles', ...(studioHost?.agents ? ['agents' as const] : []), 'providers', 'models'] },
+  { group: 'settings', sections: ['general', 'textStyles', ...(studioHost?.agents ? ['agents' as const] : [])] },
   { group: 'help', sections: ['shortcuts', ...(studioHost?.developer ? ['developer' as const] : [])] },
 ];
 
 /** where OpenFilm lives, linked at the foot of the nav */
 const LINKS = [
   { label: 'settings.links.github', href: 'https://github.com/openfilm/openfilm' },
-  { label: 'settings.links.examples', href: 'https://github.com/openfilm/examples' },
   { label: 'settings.links.site', href: 'https://openfilm.dev' },
 ];
 
@@ -45,8 +36,6 @@ const SECTION_ICON: Record<SettingsSection, React.ReactNode> = {
   general: <Settings2 size={18} strokeWidth={1.75} />,
   textStyles: <Type size={18} strokeWidth={1.75} />,
   agents: <Bot size={18} strokeWidth={1.75} />,
-  providers: <Plug size={18} strokeWidth={1.75} />,
-  models: <Boxes size={18} strokeWidth={1.75} />,
   developer: <SquareTerminal size={18} strokeWidth={1.75} />,
   shortcuts: <Keyboard size={18} strokeWidth={1.75} />,
 };
@@ -56,8 +45,6 @@ const SECTION_WORDS: Record<SettingsSection, string | string[]> = {
   general: ['settings.appearance', 'settings.storage', 'settings.playback'],
   textStyles: 'settings.textStyles',
   agents: 'settings.agents',
-  providers: 'settings.providers',
-  models: 'settings.models',
   developer: 'settings.developer',
   shortcuts: 'settings.shortcuts',
 };
@@ -190,8 +177,6 @@ export function SettingsModal({ open, onClose, section: opening }: SettingsModal
             {showing === 'general' && <GeneralSection />}
             {showing === 'textStyles' && <TextStylesSection />}
             {showing === 'agents' && <AgentsSection />}
-            {showing === 'providers' && <ProvidersSection />}
-            {showing === 'models' && <ModelsSection onConnect={() => { setQuery(''); setSection('providers'); }} />}
             {showing === 'developer' && <DeveloperSection />}
             {showing === 'shortcuts' && <ShortcutsSection />}
           </div>

@@ -1,5 +1,5 @@
 /**
- * Where the person's own agents are (agents.mjs AGENTS: Claude Code, Codex, Gemini CLI, …). Only real installations count: a config folder survives an
+ * Where local Codex is installed. Only real installations count: a config folder survives an
  * uninstall and is never evidence. On Windows an install by npm, pnpm or Yarn leaves a `.cmd` shim, which no program
  * can start without a shell: what it runs is used instead (cmdTarget), and one that cannot be read is started through
  * cmd.exe (agents.mjs). A program the person chose themselves (Settings → Agents → Locate) comes before any of these.
@@ -10,34 +10,8 @@ import { accessSync, closeSync, constants, lstatSync, openSync, readFileSync, re
 import { homedir } from 'node:os';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
 
-export const AGENT_DOWNLOADS = Object.freeze({
-  claude: 'https://claude.com/download',
-  codex: 'https://developers.openai.com/codex',
-  gemini: 'https://geminicli.com',
-  copilot: 'https://github.com/features/copilot/cli',
-  cursor: 'https://cursor.com/cli',
-  opencode: 'https://opencode.ai/download',
-  codebuddy: 'https://www.workbuddy.ai/docs/cli/installation',
-  qwen: 'https://github.com/QwenLM/qwen-code',
-  kimi: 'https://www.kimi.com/code',
-});
-
-/**
- * Each agent's program, by the names it installs (the first found counts), and the folders its own installer puts it
- * in beside the usual ones (HOME_BIN_CANDIDATES): those are not always on the PATH an app gets.
- */
-export const AGENT_PROGRAMS = Object.freeze({
-  claude: { names: ['claude'] },
-  codex: { names: ['codex'] },
-  gemini: { names: ['gemini'] },
-  copilot: { names: ['copilot'] },
-  cursor: { names: ['cursor-agent'] },
-  opencode: { names: ['opencode'], dirs: (home) => [join(home, '.opencode', 'bin')] },
-  codebuddy: { names: ['codebuddy', 'cbc'] },
-  qwen: { names: ['qwen'] },
-  /* Kimi Code's own installer keeps it in ~/.kimi-code/bin; kimi-cli (uv) puts it in ~/.local/bin */
-  kimi: { names: ['kimi'], dirs: (home) => [join(home, '.kimi-code', 'bin')] },
-});
+export const AGENT_DOWNLOADS = Object.freeze({ codex: 'https://developers.openai.com/codex' });
+export const AGENT_PROGRAMS = Object.freeze({ codex: { names: ['codex'] } });
 
 export function executableFile(path) {
   try { accessSync(path, constants.X_OK); return statSync(path).isFile(); } catch { return false; }
@@ -63,44 +37,6 @@ export function consoleProgram(path) {
   } finally {
     if (fd !== undefined) closeSync(fd);
   }
-}
-
-/**
- * Claude Code as the Claude app keeps it: one folder per version under Application Support, newest first, the program
- * either straight inside (`<version>/claude.app`) or one folder down (`<version>/<build>/claude.app`, newer apps).
- */
-export function claudeAppCli(home = homedir()) {
-  const root = join(home, 'Library/Application Support/Claude/claude-code');
-  const inside = (dir) => {
-    const direct = join(dir, 'claude.app/Contents/MacOS/claude');
-    if (executableFile(direct)) return direct;
-    let builds = [];
-    try { builds = readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== 'claude.app').map((d) => d.name); } catch { return null; }
-    return builds.map((b) => join(dir, b, 'claude.app/Contents/MacOS/claude')).find(executableFile) ?? null;
-  };
-  try {
-    return readdirSync(root).filter((v) => /^\d+(\.\d+)*$/.test(v))
-      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
-      .map((v) => inside(join(root, v))).find(Boolean) ?? null;
-  } catch { return null; /* the Claude app has not downloaded Claude Code */ }
-}
-
-/**
- * Which Claude Code a program is, told from where it is installed without starting it: the Claude app's and Homebrew's
- * folders and the official installer's file are named for the version (`claude-code/2.1.295/…`,
- * `Caskroom/claude-code/2.1.295/…`, `claude/versions/2.1.295`); npm's has its package.json. Null when it can't be told.
- */
-export function claudeVersion(file) {
-  let real;
-  try { real = realpathSync(file); } catch { return null; }
-  /* npm's first: its folders can be named for Node's version (Homebrew's Cellar/node/26.0.0/lib/node_modules/…) */
-  for (let dir = dirname(real), up = 0; up < 3; dir = dirname(dir), up += 1) {
-    try {
-      const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-      if (pkg.name === '@anthropic-ai/claude-code' && typeof pkg.version === 'string') return pkg.version;
-    } catch { /* not here */ }
-  }
-  return real.split(/[\\/]/).reverse().find((part) => /^\d+\.\d+\.\d+$/.test(part)) ?? null;
 }
 
 /** What versions of Codex said of themselves (`codex --version`), by program and its time: each asked once. */
@@ -309,12 +245,6 @@ export function detectAgentInstallation(id, { home = homedir(), env = process.en
   let cli = null;
   for (const name of program.names) if (!cli) cli = findExecutable(name, dirs, env, { win });
   if (cli) {
-    /* Claude Code both on the PATH (an npm install that is never updated, say) and in the Claude app, which keeps its
-       own up to date: the later one, whose models are the current ones. One whose version can't be told stays. */
-    const inApp = id === 'claude' ? claudeAppCli(home) : null;
-    if (inApp && laterVersion(claudeVersion(inApp), claudeVersion(cli))) return { installed: true, cli: inApp, source: 'app', install };
-    /* Codex the same: one installed by npm long ago beside the copy in Codex.app, ChatGPT.app or a Store app, which
-       keep theirs up to date. Its models are the ones its version is offered, so the later one is used */
     if (id === 'codex') {
       const copies = [...codexInApps(applicationDirs), ...others.filter((file) => (win ? presentFile(file) : executableFile(file)))];
       const mine = copies.length ? codexVersionOf(cli) : null;
@@ -328,7 +258,6 @@ export function detectAgentInstallation(id, { home = homedir(), env = process.en
     return { installed: true, cli, source: 'path', install };
   }
   if (id === 'codex') cli = codexInApps(applicationDirs)[0] ?? null;
-  if (!cli && id === 'claude') cli = claudeAppCli(home);
   if (!cli) cli = others.find((file) => (win ? presentFile(file) : executableFile(file))) ?? null;
   return { installed: Boolean(cli), cli, source: cli ? 'app' : null, install };
 }

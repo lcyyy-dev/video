@@ -51,8 +51,8 @@ export async function withAgentRecord(found) {
 export function readPreferences(dataDir) {
   try {
     const raw = JSON.parse(readFileSync(join(dataDir, 'preferences.json'), 'utf8'));
-    return { developer: raw.developer === true, changes: raw.changes !== false };
-  } catch { return { developer: false, changes: true }; }
+    return { developer: raw.developer === true, changes: raw.changes === true };
+  } catch { return { developer: false, changes: false }; }
 }
 
 /** how many turns' snapshots are kept at once: one per running turn, and a few whose end was never asked about */

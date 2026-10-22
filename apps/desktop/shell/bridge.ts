@@ -10,7 +10,7 @@
  * (src/preload.cjs). Imported before Studio's modules and the chat's: Studio reads its host as it loads.
  */
 import { flushSync } from 'react-dom';
-import type { CommunityItem, HostAgent, HostAsk, HostUpdate, HostUpdateState, StudioCommand, StudioHost, StudioRef, StudioSelection } from 'openfilm/studio-ui/lib/host.ts';
+import type { HostAgent, HostAsk, HostUpdate, HostUpdateState, StudioCommand, StudioHost, StudioRef, StudioSelection } from 'openfilm/studio-ui/lib/host.ts';
 
 type Listener<T> = (value: T) => void;
 type Stop = () => void;
@@ -152,8 +152,6 @@ projectReady = follow();
 const selection = signal<StudioSelection | null>(null);
 const refer = events<StudioRef>();
 /* a skill picked in the examples (Studio's ExamplesDialog), to be named in the message; and "Add a skill" there */
-const skillPicked = events<{ name: string; description: string }>();
-const skillAdd = events<void>();
 /** what the pointer is over in Studio (null: nothing), for the chat to light its pills that point at it */
 const hover = signal<StudioRef | null>(null);
 let command: ((command: StudioCommand) => void) | null = null;
@@ -208,7 +206,7 @@ let answerAsk: (id: string, allow: boolean) => void = () => {};
 
 /* ── Settings → Developer (kept by the app): Studio switches it, the chat shows each turn's log and changes by it ── */
 interface AppPrefs { developer: boolean; changes: boolean }
-const developerOf = (prefs: AppPrefs) => ({ logs: prefs.developer === true, changes: prefs.changes !== false });
+const developerOf = (prefs: AppPrefs) => ({ logs: prefs.developer === true, changes: prefs.changes === true });
 const developer = {
   get: async () => developerOf(await native.prefs.get()),
   set: (next: { logs?: boolean; changes?: boolean }) => native.prefs.set({
@@ -281,8 +279,6 @@ const host: StudioHost = {
   update,
   folders: { pick: native.pickFolder, pathOf: native.pathForFile },
   tabs: native.tabs,
-  useSkill: (skill) => skillPicked.set(skill),
-  skills: { add: () => skillAdd.set(undefined) },
 };
 (window as unknown as { openfilmHost: StudioHost }).openfilmHost = host;
 
@@ -315,7 +311,7 @@ function commandFor(ref: StudioRef): StudioCommand {
     case 'file': return { type: 'show-file', path: ref.path };
     case 'subtitle': return { type: 'show-subtitle', start: ref.start, end: ref.end };
     /* another film: the examples, where it came from */
-    case 'example': return { type: 'show-examples', open: { kind: 'example', id: ref.id } };
+    case 'example': return { type: 'seek', time: ref.start ?? 0 };
   }
 }
 const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000-\u001f]+/g, '').slice(0, 200) || 'file';
@@ -331,7 +327,7 @@ const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000
     onChange: native.agents.onChange,
   },
   localAgents: native.localAgents,
-  openSettings: (section: string) => command?.({ type: 'settings', section: section === 'providers' ? 'providers' : 'agents' }),
+  openSettings: (section: string) => command?.({ type: 'settings', section: 'agents' }),
   async hello() {
     const h = await ready;
     await projectReady;
@@ -351,18 +347,6 @@ const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000
   onSelection: (listener: Listener<StudioSelection>) => selection.on((s) => { if (s) listener(s); }),
   onFfmpeg: native.onFfmpeg,
   showInStudio: (ref: StudioRef) => command?.(commandFor(ref)),
-  /* an example's folder on this computer (Studio fetches it when needed), for a reference to one in a message sent */
-  async exampleFolder(id: string) {
-    const res = await fetch(`/api/examples/${encodeURIComponent(id)}/folder`, { method: 'POST' });
-    const body = await res.json().catch(() => ({})) as { folder?: string; error?: string };
-    if (!res.ok || !body.folder) throw new Error(body.error ?? `Studio answered ${res.status}`);
-    return body.folder;
-  },
-  /* the composer's examples button: the examples over the film, to point at one or name a skill */
-  showExamples: (open?: CommunityItem) => command?.({ type: 'show-examples', ...(open ? { open } : {}) }),
-  onUseSkill: skillPicked.on,
-  onAddSkill: skillAdd.on,
-  useSkill: (skill: { name: string; description: string }) => skillPicked.set(skill),
   /* a reference made in the chat (⌘L there, the @ menu) gets its picture as Studio's own do */
   withPicture: (ref: StudioRef) => { const done = pictured.then(() => withPicture(ref)); pictured = done.then(() => {}); return done; },
   /* what a pill hovered in the chat points at, lit in Studio while it is (null: none); and the references of the

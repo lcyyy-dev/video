@@ -14,7 +14,6 @@ import { ProjectConversation, primeStoredTranscript } from '@/components/Project
 import { ProjectStarters } from '@/components/ProjectStarters';
 import { AttachmentPreview, type AttachmentPreviewItem } from '@/components/AttachmentPreview';
 import { ModelPopover } from '@/components/ModelPopover';
-import { AddSkillDialog, type PickedSkill } from '@/components/AddSkill';
 import { CardActions, CardButton, ComposerCard } from '@/components/ComposerCard';
 import { LocalAgentQuestionCard } from '@/components/TurnQuestionCard';
 import { Tooltip } from '@/components/Tooltip';
@@ -70,6 +69,8 @@ import { inChat } from './lib/chat-layer';
 import { useProjectChat } from './lib/chat-store';
 import { ChatProjectContext, WaitingContext } from './lib/developer';
 
+interface PickedSkill { name: string; description: string }
+
 const NO_ITEMS: TranscriptItem[] = [];
 const EMPTY_STORE: LocalTranscriptStore = { get: () => NO_ITEMS, subscribe: () => () => {} };
 
@@ -82,8 +83,6 @@ const CONTEXT_NOTICE_SHARE = 0.85;
 
 /** On a video's thumbnail: it plays, it is not a picture. */
 /* between the chat's root (the add-skill dialog) and the project's chat: a skill added, a skill to make */
-const SKILLS_CHANGED = 'openfilm:skills-changed';
-const MAKE_SKILL = 'openfilm:make-skill';
 
 function PlayMark() {
   return (
@@ -118,11 +117,6 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
     return () => { for (const stop of stops) stop(); };
   }, []);
 
-  /* "Add a skill" in the examples (on a project or a new tab's launcher): its dialog, here at the root so it opens on
-     either; naming the one added and making one with the agent only where a project's chat is */
-  const [addingSkill, setAddingSkill] = React.useState(false);
-  React.useEffect(() => app.onAddSkill?.(() => setAddingSkill(true)), []);
-
   /* the project's chat record, read from its folder before its conversation shows */
   const chatReady = useProjectChat(project);
   const ffState = typeof ffmpeg === 'object' && ffmpeg ? ffmpeg : null;
@@ -137,14 +131,8 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
     </>
   );
 
-  const onProject = Boolean(project) && /^\/projects\//.test(location.pathname);
   return (
     <div className={`relative flex h-full flex-col ${assetsOpen ? '' : 'bg-[var(--dock-shell)]'}`}>
-      {addingSkill ? (
-        <AddSkillDialog onClose={() => setAddingSkill(false)} onAdded={async () => { window.dispatchEvent(new Event(SKILLS_CHANGED)); }}
-          onPick={onProject ? (skill) => app.useSkill?.(skill) : undefined}
-          onMake={onProject ? () => window.dispatchEvent(new Event(MAKE_SKILL)) : undefined} />
-      ) : null}
       {/* under Studio's top bar (it runs over this, across the window): the seam on the left is the handle */}
       <Divider />
       <div className="mb-[6px] ml-[6px] mr-[6px] flex min-h-0 flex-1 flex-col">
@@ -352,26 +340,11 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
     setSkillRefs((list) => (list.some((p) => p.id === pill.id) ? list : [...list, pill]));
     return pill;
   }, [skillWords]);
-  const pickSkill = React.useCallback((skill: PickedSkill) => {
-    const pill = skillPill(skill);
-    requestAnimationFrame(() => { composerRef.current?.insertReference(pill); composerRef.current?.focus(); });
-  }, [skillPill]);
   /* the skills a message can name: OpenFilm's, and of the agent's own those it has (let in, or all when it cannot be told) */
   const nameableSkills = React.useMemo(() => [
     ...(skillListing?.openfilm ?? []),
     ...(skillListing?.own.skills ?? []).filter((s) => !skillListing?.own.filtered || s.allowed),
   ], [skillListing]);
-  /* a skill picked in the examples (Studio's, over the film): named in the message; "Add a skill" there: its dialog */
-  React.useEffect(() => app.onUseSkill?.((skill) => pickSkill(skill)), [pickSkill]);
-  /* a skill added from the examples (AddSkillDialog, at the chat's root): the list read again; "make one with the
-     agent" there: its message put in the composer */
-  React.useEffect(() => {
-    const changed = () => { void reloadSkills(); };
-    const make = () => { composerRef.current?.setText(t('skills.makePrompt').replace('{folder}', skillListing?.mine ?? '')); composerRef.current?.focus(); };
-    window.addEventListener(SKILLS_CHANGED, changed);
-    window.addEventListener(MAKE_SKILL, make);
-    return () => { window.removeEventListener(SKILLS_CHANGED, changed); window.removeEventListener(MAKE_SKILL, make); };
-  }, [reloadSkills, skillListing, t]);
   /* the agent's own skills hidden in OpenFilm: not offered among its commands either */
   const hiddenSkills = React.useMemo(() => new Set((skillListing?.own.filtered ? skillListing.own.skills.filter((s) => !s.allowed) : []).map((s) => s.name)), [skillListing]);
 
@@ -495,7 +468,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
   const revealPill = React.useCallback((pill: { id: string; label: string; target?: Record<string, unknown> }) => {
     /* a skill: its page in the Community; anything else: where it is in Studio */
     const name = skillReferencePackage(pill.id);
-    if (name) { app.showExamples?.({ kind: 'skill', name }); return; }
+    if (name) return;
     const ref = refFromPill(pill);
     if (ref) app.showInStudio(ref);
   }, []);
@@ -723,14 +696,11 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
     const stage = selection?.stage ?? null;
     /* each reference's picture is kept in the project for the agent (the block names it), and sent to one that takes pictures */
     const skillTexts = skillNames.length ? (app.skills?.texts(project.path, agent, skillNames).catch(() => []) ?? Promise.resolve([])) : Promise.resolve([]);
-    /* an example pointed at: its folder fetched now if it is not yet (the turn waits, as it waits for its reply) */
-    const withFolders = Promise.all(refs.map(async (ref) => (ref.kind === 'example' && !ref.folder
-      ? { ...ref, folder: await app.exampleFolder?.(ref.id).catch(() => undefined) } : ref)));
-    const prepared = withFolders.then((ready) => Promise.all([referencePictures(ready, { project: project.path, turnId: id }), skillTexts])
+    const prepared = Promise.all([referencePictures(refs, { project: project.path, turnId: id }), skillTexts])
       .then(([{ pictures, images }, skills]) => ({
-        text: said + studioReferencesText(ready, { stage, pictures }) + skills.map((s) => `\n\n${s.text}`).join(''),
+        text: said + studioReferencesText(refs, { stage, pictures }) + skills.map((skill) => `\n\n${skill.text}`).join(''),
         images: [...attachedPictures(files), ...images],
-      })));
+      }));
     const opened = openTurn(id, instruction, promptDisplay ?? null, turnAttachments(files));
     if (steer && asset) steerTurn(asset.id, opened, prepared);
     else runTurn(opened, prepared);
@@ -901,14 +871,6 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
             <Plus size={16} strokeWidth={1.75} />
           </button>
         </Tooltip>
-        {app.showExamples ? (
-          <Tooltip label={t('community.tooltip')}>
-            <button type="button" onClick={() => app.showExamples?.()} className="openfilm-composer-tool" aria-label={t('community.button')}>
-              <Blocks size={16} strokeWidth={1.75} />
-            </button>
-          </Tooltip>
-        ) : null}
-
         <Tooltip label={t('project.assets')}>
           <button type="button" onClick={() => app.setAssetsOpen(!assetsOpen)} aria-pressed={assetsOpen} className="openfilm-composer-tool" aria-label={t('project.assets')}>
             <LibraryBig size={16} strokeWidth={1.75} />

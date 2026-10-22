@@ -42,7 +42,7 @@ Populate values as work proceeds:
   null is an unresolved format, never a fixed portrait/30 FPS default. Include rotation in the displayed dimensions.
 - `media[].candidates`: source `from`/`to`, observed action and framing. Reuse analysis for unchanged media; invalidate
   it when the source changes. Keep confirmed file facts alongside the analysis.
-- `voice`: `src`, measured `duration`, source (`recording` or `tts`), text used and effective provider/voice/settings.
+- `voice`: `src`, measured `duration`, source (`recording`, `local-speech` or `simulation`), text used and effective local voice/settings. Simulations must be labeled as drafts.
   Continuous recordings also need measured sentence boundaries. No secrets.
 - `selection`: media ID, source `from`/`to` and reason. Record speed or multiple shots when used.
 - `timeline`: `start`/`end` in seconds, from real voice durations and explicit pauses. Round boundaries consistently

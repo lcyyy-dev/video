@@ -6,7 +6,7 @@
 import React from 'react';
 import { app, type DeveloperPrefs } from '../app-bridge';
 
-let prefs: DeveloperPrefs = { logs: false, changes: true };
+let prefs: DeveloperPrefs = { logs: false, changes: false };
 const listeners = new Set<() => void>();
 const set = (next: DeveloperPrefs) => {
   if (next.logs === prefs.logs && next.changes === prefs.changes) return;
@@ -29,7 +29,7 @@ export function useDeveloperMode(): boolean {
 
 /** what each turn changed in the files, under its reply */
 export function useShowChanges(): boolean {
-  return React.useSyncExternalStore(subscribe, () => prefs.changes, () => true);
+  return React.useSyncExternalStore(subscribe, () => prefs.changes, () => false);
 }
 
 /** The project the chat shows (its folder): where a turn's log is. */

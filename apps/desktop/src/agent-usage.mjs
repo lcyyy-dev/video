@@ -15,6 +15,7 @@
 import { spawn } from 'node:child_process';
 import { PATH_SEP, childEnvironment, loginShellEnvironment, loginShellVariables } from './environment.mjs';
 import { resolveAgentCli } from './agents.mjs';
+import { codexArguments, codexEnvironment } from './codex-runtime.mjs';
 
 /**
  * @typedef {{ kind: 'five_hour' | 'seven_day' | 'window', minutes: number | null,
@@ -60,8 +61,8 @@ const within = (p, ms) => Promise.race([p, new Promise((done) => setTimeout(() =
 
 /** Codex's usage, on OpenFilm's sign-in: its app server asked twice, then stopped. @param {string} cli */
 async function codexUsage(cli) {
-  const shell = await loginShellVariables();
-  const child = spawn(cli, ['app-server'], { env: childEnvironment({ shell }), stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
+  const shell = codexEnvironment(await loginShellVariables());
+  const child = spawn(cli, codexArguments(['app-server']), { env: childEnvironment({ shell }), stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
   child.once('error', () => {});
   /** @type {Map<number, (message: any) => void>} */
   const waiting = new Map();

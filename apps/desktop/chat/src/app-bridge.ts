@@ -2,7 +2,7 @@
  * The parts of `window.openfilmDesktop` that are this app's own (src/preload-chat.cjs); the parts the copied chat code
  * uses (localAgents, pathForFile) are typed in lib/desktop-bridge.ts.
  */
-import type { CommunityItem, StudioRef, StudioSelection } from 'openfilm/studio-ui/lib/host.ts';
+import type { StudioRef, StudioSelection } from 'openfilm/studio-ui/lib/host.ts';
 import type { FileChange } from './lib/file-changes';
 
 /* what Studio and the chat say to each other about the film is Studio's own contract (its lib/host.ts) */
@@ -29,17 +29,6 @@ interface AppBridge {
   onFfmpeg(listener: (state: FfmpegState) => void): () => void;
   /** take the person to a reference in Studio */
   showInStudio(ref: StudioRef): void;
-  /** an example's folder on this computer, fetched when needed (a reference to one, as its message is sent) */
-  exampleFolder?(id: string): Promise<string>;
-  /** the examples over the film (Studio's), to point at one or a part of one, or name a skill */
-  /** the Community over the film; `open`: on that skill's or example's page */
-  showExamples?(open?: CommunityItem): void;
-  /** a skill picked in the examples, to be named in the message */
-  onUseSkill?(listener: (skill: { name: string; description: string }) => void): () => void;
-  /** "Add a skill" in the examples */
-  onAddSkill?(listener: () => void): () => void;
-  /** name a skill in the message being written (as one picked in the examples) */
-  useSkill?(skill: { name: string; description: string }): void;
   /** the reference with its picture: the viewer as it is now, for one that shows it (lib/host.ts StudioRefImage) */
   withPicture(ref: StudioRef): Promise<StudioRef>;
   /** light in Studio what a hovered pill points at, without moving there (null: the pointer left it) */
@@ -87,15 +76,7 @@ interface AppBridge {
     /** the skills a message names, as its agent reads each (its folder and its SKILL.md whole) */
     texts(project: string, agent: string, names: string[]): Promise<Array<{ name: string; text: string }>>;
     /** one of the agent's own skills let into OpenFilm, or not */
-    allow(agent: string, name: string, allowed: boolean): Promise<{ ok: boolean }>;
-    /** a GitHub or GitLab address fetched to be looked at; then kept (`commit`) or let go (`discard`) */
-    preview(url: string): Promise<{ ok: true; id: string; skills: SkillPreview[] } | { ok: false; error: string }>;
-    /** a folder on this computer looked at where it is: one dropped (its path), or null: picked in the system's dialog
-        with these words (cancelled: nothing to show) */
-    previewFolder(path: string | null, words?: { title: string; button: string }): Promise<{ ok: true; id: string; skills: SkillPreview[] } | { ok: false; error: string } | { ok: false; cancelled: true }>;
-    commit(id: string): Promise<{ ok: true; skills: SkillInfo[] } | { ok: false; error: string }>;
-    discard(id: string): Promise<unknown>;
-    reveal(): Promise<unknown>;
+
   };
   /** Settings → Developer: `logs`, each turn shows its full log; `changes`, what it changed in the files, under its reply */
   developer: { get(): Promise<DeveloperPrefs>; onChange(listener: (prefs: DeveloperPrefs) => void): () => void };
@@ -118,7 +99,6 @@ export interface SkillInfo {
 }
 
 /** A skill fetched from an address, before it is kept: `replaces`, one of the person's has its name. */
-export interface SkillPreview { name: string; description: string; scripts: string[]; size: number; replaces: boolean }
 
 /** A skill the person installed in their agent themselves, let into OpenFilm or not. */
 export interface OwnSkill { name: string; description: string; folder: string; allowed: boolean }

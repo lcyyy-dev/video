@@ -9,7 +9,7 @@
  * in the page (shell/bridge.ts); this process does what only the app can: the window, the agents, files on the disk,
  * ffmpeg, updates (preload.cjs). The window opens straight into the last project.
  */
-import { BaseWindow, Menu, WebContentsView, app, dialog, ipcMain, nativeTheme, safeStorage, screen, shell } from 'electron';
+import { BaseWindow, Menu, WebContentsView, app, dialog, ipcMain, nativeTheme, screen, shell } from 'electron';
 import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -21,9 +21,11 @@ import { startWindowStudio } from './studio.mjs';
 import { CHAT_MIN, STUDIO_MIN, WINDOW_MIN, placeOnDisplays, readWindowState, writeWindowState } from './window-state.mjs';
 import { applicationMenu } from './menu.mjs';
 import { registerLocalAgentIpc } from './local-agents-ipc.mjs';
-import { readPreferences, registerChatIpc } from './chat-ipc.mjs';
+import { registerChatIpc } from './chat-ipc.mjs';
 import { registerSkillsIpc } from './skills-ipc.mjs';
 import { createRoster } from './agent-roster.mjs';
+import { CLIENT_AGENTS, CLIENT_PROFILE } from 'openfilm/client-scope';
+import { configureBundledCodex } from './codex-runtime.mjs';
 import { checkAgentProgram, diagnoseAgent, listAgents, openAgentSignIn, setChosenPaths } from './agents.mjs';
 import { agentUsage, forgetAgentUsage } from './agent-usage.mjs';
 import { installOpenfilmCommand } from './openfilm-command.mjs';
@@ -31,6 +33,8 @@ import { startUpdates } from './updates.mjs';
 import { ensureFfmpeg, ffmpegDir, ffmpegDownloadable, ffmpegIn, ffmpegOnPath } from './ffmpeg-runtime.mjs';
 import { PATH_SEP } from './environment.mjs';
 import { createTabs } from './tabs.mjs';
+
+process.env.OPENFILM_CLIENT_PROFILE = CLIENT_PROFILE;
 
 const here = (path) => fileURLToPath(new URL(path, import.meta.url));
 const mac = process.platform === 'darwin';
@@ -293,13 +297,6 @@ async function openProjectFolder() {
   }
 }
 
-/* the own key, sealed with the system's keychain where there is one (macOS Keychain, Windows DPAPI) */
-const seal = (text) => (safeStorage.isEncryptionAvailable() ? Buffer.concat([Buffer.from('enc:'), safeStorage.encryptString(text)]) : Buffer.from(`raw:${text}`));
-const unseal = (data) => {
-  const kind = data.subarray(0, 4).toString();
-  return kind === 'enc:' ? safeStorage.decryptString(data.subarray(4)) : data.subarray(4).toString();
-};
-
 /** The page's theme (Studio's), for the window behind it and the system's menus and dialogs. */
 function setTheme(next) {
   theme = next === 'dark' ? 'dark' : 'light';
@@ -369,6 +366,7 @@ async function start() {
      (from source): no ffmpeg on this computer, the app's own goes first on the PATH and is downloaded once the window
      is up (they find it the moment it lands); the browser, Studio downloads the first time (studio-process.mjs) */
   const runtime = app.isPackaged ? join(process.resourcesPath, 'runtime') : here('../.dev/runtime');
+  if (app.isPackaged && process.platform === 'win32') configureBundledCodex({ runtimeDir: runtime, dataDir: DATA });
   const ownFfmpeg = runtime && ffmpegIn(join(runtime, 'ffmpeg')) ? join(runtime, 'ffmpeg') : null;
   const needFfmpeg = !ownFfmpeg && !ffmpegOnPath(env.PATH) && ffmpegDownloadable();
   const ffmpegHere = ownFfmpeg ?? (needFfmpeg ? ffmpegDir(DATA) : null);
@@ -464,33 +462,22 @@ async function start() {
     binDir: installOpenfilmCommand(DATA, { ffmpeg: ffmpegHere, env: browsers }),
     fallbackDir: ffmpegHere,
     env: { OPENFILM_HOME: env.OPENFILM_HOME, ...(env.OPENFILM_LIBRARY ? { OPENFILM_LIBRARY: env.OPENFILM_LIBRARY } : {}) },
-    harness: async (id) => roster?.harness(id) ?? null,
-    /* Developer mode: an agent whose own record lacks what its model got logs it here (agent-logs.mjs) */
-    logDir: () => (readPreferences(DATA).developer ? join(DATA, 'agent-logs') : null),
     /* each session's skills: its maker's, OpenFilm's, and of the person's own those let in (agent-skills.mjs) */
     skills: { dataDir: DATA, mine: mySkills },
   });
   /* the composer's Skills button */
   registerSkillsIpc(ipcMain, {
     trusted: fromPage,
-    projects: async () => (await studioApi('/api/projects')).projects.filter((p) => !p.missing).map((p) => p.path),
-    dataDir: DATA,
+    projects: async () => (await studioApi('/api/projects')).projects.filter((project) => !project.missing).map((project) => project.path),
     mine: mySkills,
-    oldMine: join(env.OPENFILM_HOME, 'skills'),
-    reveal: (path) => { void shell.openPath(path); },
-    pickFolder: (words) => pickFolder(words),
-    refreshSkills: (agent) => localAgents?.refreshSkills(agent),
-    log,
   });
   /* Settings → Agents (in Studio's page) and the chat's agent menu: one roster, both told of every change */
   roster = createRoster({
     dataDir: DATA,
-    localAgents: listAgents,
+    localAgents: () => listAgents(CLIENT_AGENTS),
     openSignIn: openAgentSignIn,
     /* sessions closed on connecting and disconnecting: the next look at its usage is for whichever account is used now */
     closeSessions: (id) => { forgetAgentUsage(id); localAgents?.closeAgent(id); },
-    seal,
-    unseal,
     onChange: (list) => broadcast('desktop:agents', list),
     /* the program the person points at, for an agent not found where it is looked for */
     usePaths: setChosenPaths,
@@ -513,9 +500,6 @@ async function start() {
   agentHandle('desktop:agents:locate', ({ id, words }) => roster.locate(String(id), words));
   agentHandle('desktop:agents:automatic', ({ id }) => roster.useAutomatic(String(id)));
   agentHandle('desktop:agents:diagnose', ({ id }) => roster.diagnose(String(id)));
-  agentHandle('desktop:agents:shown', ({ id, shown }) => { roster.setShown(String(id), shown === true); return { ok: true }; });
-  agentHandle('desktop:agents:own-model', ({ config }) => roster.saveOwnModel(config));
-  agentHandle('desktop:agents:own-model-remove', ({ id }) => { roster.removeOwnModel(String(id)); return { ok: true }; });
   /* a file on the disk brought into the chat goes into the project the page names, through Studio's own import (it
      shows in Studio's media at once, and the import is in the project's history); one without a path the page sends
      itself */

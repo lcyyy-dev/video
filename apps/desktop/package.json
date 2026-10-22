@@ -4,22 +4,19 @@
   "private": true,
   "type": "module",
   "productName": "OpenFilm",
-  "description": "OpenFilm for desktop: Studio, with a chat beside it for Claude Code and Codex.",
+  "description": "OpenFilm advertising editor with local Codex.",
   "main": "src/main.mjs",
   "scripts": {
     "start": "node scripts/start.mjs",
     "build:shell": "vite build --config shell/vite.config.ts",
     "test": "node --test src/*.test.mjs scripts/*.test.mjs",
-    "bench": "node bench/run.mjs",
     "typecheck": "tsc -p chat && tsc -p shell",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "release:win": "node scripts/release.mjs --platform=win --arch=x64"
   },
   "dependencies": {
-    "@agentclientprotocol/claude-agent-acp": "^0.81.2",
     "@agentclientprotocol/codex-acp": "^1.13.1",
     "@agentclientprotocol/sdk": "1.5.0",
-    "@earendil-works/pi-codemode": "1.1.0",
-    "@earendil-works/pi-coding-agent": "1.1.0",
     "diff": "9.0.0",
     "electron-updater": "6.8.9",
     "openfilm": "workspace:*"

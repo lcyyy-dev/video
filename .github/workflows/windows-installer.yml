@@ -1,0 +1,46 @@
+name: Windows installer
+
+# Manual build only. Produces a downloadable artifact; does not publish a release.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm --filter @openfilm/desktop test
+      - name: Build the Windows x64 installer with bundled Codex
+        run: pnpm release:win
+      - name: Verify native runtime programs without model calls
+        run: node apps/desktop/scripts/verify-windows.mjs apps/desktop/.release/win-x64/out/win-unpacked
+      - name: Install silently and verify the installed files
+        shell: pwsh
+        run: |
+          $installer = Resolve-Path 'apps/desktop/.release/win-x64/out/OpenFilm-Setup-x64.exe'
+          $destination = Join-Path $env:RUNNER_TEMP 'OpenFilmInstalled'
+          $setup = Start-Process -FilePath $installer -ArgumentList '/S', "/D=$destination" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw "Installer failed: $($setup.ExitCode)" }
+          node apps/desktop/scripts/verify-windows.mjs $destination
+          if ($LASTEXITCODE -ne 0) { throw 'Installed runtime verification failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenFilm-Windows-x64
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            apps/desktop/.release/win-x64/out/*.exe
+            apps/desktop/.release/win-x64/out/*.blockmap
+            apps/desktop/.release/win-x64/out/build-manifest.json
+            apps/desktop/.release/win-x64/out/latest*.yml

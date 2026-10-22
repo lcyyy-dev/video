@@ -25,10 +25,6 @@ test("the older model and mode lists (Gemini CLI's) read as the config options t
 });
 
 test('whose sign-in it is, as each program says it, never a key', () => {
-  const claude = JSON.stringify({ loggedIn: true, authMethod: 'claude.ai', email: 'a@b.test', orgName: 'Studio', subscriptionType: 'max' });
-  assert.deepEqual(readAgentStatus('claude', claude, claude), { signedIn: true, account: { method: 'claude.ai', email: 'a@b.test', org: 'Studio', plan: 'max' } });
-  const out = JSON.stringify({ loggedIn: false, authMethod: 'none' });
-  assert.deepEqual(readAgentStatus('claude', out, out), { signedIn: false, account: null });
   assert.deepEqual(readAgentStatus('codex', 'Logged in using ChatGPT\n', 'Logged in using ChatGPT\n'), { signedIn: true, account: { method: 'chatgpt' } });
   const key = 'Logged in using an API key - sk-proj-***ABCD\n';
   const read = readAgentStatus('codex', key, key);
@@ -77,15 +73,9 @@ test('the chat says it shows notices, so an agent sends its warnings as notices 
   assert.deepEqual(parsed.elicitation, { form: {} });
 });
 
-test('Claude Code is given of the shell only its PATH and the like: a key or gateway there never stands in for the subscription', () => {
-  const shell = { PATH: '/bin', HTTPS_PROXY: 'http://proxy', CLAUDE_CONFIG_DIR: '/c', LANG: 'zh_CN.UTF-8',
-    ANTHROPIC_API_KEY: 'k', ANTHROPIC_AUTH_TOKEN: 't', ANTHROPIC_BASE_URL: 'http://relay', OPENAI_API_KEY: 'o' };
-  const given = agentShell('claude', shell);
-  for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'OPENAI_API_KEY']) assert.equal(given[key], undefined, key);
-  assert.equal(given.HTTPS_PROXY, 'http://proxy');
-  assert.equal(given.CLAUDE_CONFIG_DIR, '/c', 'where its own sign-in is kept');
-  assert.equal(given.LANG, 'zh_CN.UTF-8');
-  assert.equal(agentShell('codex', shell), shell, 'the others have the shell as it is');
+test('Codex keeps the user shell connection settings', () => {
+  const shell = { PATH: '/bin', HTTPS_PROXY: 'http://proxy', CODEX_HOME: '/codex' };
+  assert.equal(agentShell('codex', shell), shell);
 });
 
 test('the chat says it signs in in Terminal, so Claude Code offers its subscription sign-in (ACP terminal auth)', async () => {
@@ -114,7 +104,7 @@ test('on Windows, Codex is started through a script that turns the console to UT
   const env = codexLaunchEnv(exe, { win: true, dir });
   assert.deepEqual(env, { CODEX_PATH: join(dir, 'codex-utf8.cmd'), OPENFILM_CODEX: exe });
   assert.equal(readFileSync(env.CODEX_PATH, 'utf8'), CODEX_UTF8_CMD);
-  assert.match(CODEX_UTF8_CMD, /^@echo off\r\nchcp 65001 >nul\r\n"%OPENFILM_CODEX%" %\*\r\n$/, 'UTF-8 first, then Codex with what the adapter asks (app-server, login)');
+  assert.match(CODEX_UTF8_CMD, /^@echo off\r\nchcp 65001 >nul\r\n"%OPENFILM_CODEX%" -c check_for_update_on_startup=false %\*\r\n$/, 'UTF-8 and centrally managed updates, then the adapter arguments');
   /* a script changed since: written again */
   writeFileSync(env.CODEX_PATH, 'echo old');
   codexLaunchEnv(exe, { win: true, dir });

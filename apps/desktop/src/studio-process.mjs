@@ -17,6 +17,9 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { startStudio } from 'openfilm/studio';
 import { launch } from 'openfilm/host';
+import { CLIENT_PROFILE } from 'openfilm/client-scope';
+
+process.env.OPENFILM_CLIENT_PROFILE = CLIENT_PROFILE;
 
 const parent = process.parentPort;
 const send = (message) => parent.postMessage(message);

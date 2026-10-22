@@ -1,21 +1,14 @@
-/**
- * The contents of the Projects popover (see ProjectsLibrary): a compact header (title, search, sort, view, new folder,
- * close), the folders and the projects as cards or a list, with "New project" as the first cell (and, under it, "Open
- * folder…" and "Get from GitHub…": an existing film), then the examples. Inside a folder a breadcrumb leads back to
- * all. Data and actions come from the popover.
- */
+/** Local project library: create, open, organize, rename and remove projects. */
 import React from 'react';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
   Check,
-  ChevronDown,
   Clock3,
   Folder,
   FolderOpen,
   FolderPlus,
   FolderSearch,
-  Github,
   LayoutGrid,
   List,
   MoreHorizontal,
@@ -27,8 +20,6 @@ import {
   Video,
   X,
 } from 'lucide-react';
-import type { Example } from '@/lib/project-sources';
-import { ExamplesSection } from './ProjectSources';
 import { useLanguage, useT, type Language } from '@/i18n';
 import { limitTitleWidth, TITLE_MAX_WIDTH } from '@/lib/title';
 import type { Project } from '@/api';
@@ -50,12 +41,7 @@ export function ProjectsView({
   creating = false,
   onNewProject,
   onOpenFolder,
-  onGetFromGitHub,
   onLocate,
-  examples = [],
-  examplesCollapsed = false,
-  onToggleExamples,
-  onOpenExample,
   onOpen,
   onRename,
   onDelete,
@@ -73,15 +59,8 @@ export function ProjectsView({
   onNewProject: () => void;
   /** "Open folder…": a folder anywhere, opened as a project (the app's own dialog, else Studio's folder browser). */
   onOpenFolder: () => void;
-  /** "Get from GitHub…": a repository or a folder in one, copied into the library and opened. */
-  onGetFromGitHub: () => void;
   /** A project whose folder is gone: pick the folder it is in now. */
   onLocate: (project: LibraryProject) => void;
-  /** The example films (none: the section is not shown), folded away or not, and opening one. */
-  examples?: Example[];
-  examplesCollapsed?: boolean;
-  onToggleExamples?: () => void;
-  onOpenExample?: (example: Example) => void;
   onOpen: (project: LibraryProject) => void;
   /** A new name for the project (its folder is renamed). Never empty. */
   onRename: (projectId: string, name: string) => void;
@@ -317,20 +296,18 @@ export function ProjectsView({
             </div>
           ) : view === 'cards' ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
-              {showNew ? <NewProjectCard creating={creating} onNewProject={onNewProject} onOpenFolder={onOpenFolder} onGetFromGitHub={onGetFromGitHub} /> : null}
+              {showNew ? <NewProjectCard creating={creating} onNewProject={onNewProject} onOpenFolder={onOpenFolder} /> : null}
               {showFolders ? levelFolders.map((folder) => <FolderCard key={`folder:${folder.id}`} {...folderProps(folder)} />) : null}
               {visible.map((project) => <ProjectCard key={project.id} {...itemProps(project)} />)}
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-[var(--border)]">
-              {showNew ? <NewProjectListRow creating={creating} onNewProject={onNewProject} onOpenFolder={onOpenFolder} onGetFromGitHub={onGetFromGitHub} /> : null}
+              {showNew ? <NewProjectListRow creating={creating} onNewProject={onNewProject} onOpenFolder={onOpenFolder} /> : null}
               {showFolders ? levelFolders.map((folder) => <FolderListRow key={`folder:${folder.id}`} {...folderProps(folder)} />) : null}
               {visible.map((project) => <ProjectListRow key={project.id} {...itemProps(project)} />)}
             </div>
           )}
-          {showNew && onOpenExample ? (
-            <ExamplesSection examples={examples} collapsed={examplesCollapsed} onToggle={() => onToggleExamples?.()} onOpen={onOpenExample} view={view} />
-          ) : null}
+
         </div>
 
         {selecting ? (
@@ -554,11 +531,10 @@ type NewProjectProps = {
   creating: boolean;
   onNewProject: () => void;
   onOpenFolder: () => void;
-  onGetFromGitHub: () => void;
 };
 
 /** The grid's first cell: start a new project, card-sized, so "new ones start here" reads at a glance. */
-function NewProjectCard({ creating, onNewProject, onOpenFolder, onGetFromGitHub }: NewProjectProps) {
+function NewProjectCard({ creating, onNewProject, onOpenFolder }: NewProjectProps) {
   const t = useT();
   return (
     <article className="group min-w-0">
@@ -576,14 +552,14 @@ function NewProjectCard({ creating, onNewProject, onOpenFolder, onGetFromGitHub 
       </button>
       {/* where the other cards have their name: starting from a film that exists */}
       <div className="mt-2 flex">
-        <ImportMenu creating={creating} onOpenFolder={onOpenFolder} onGetFromGitHub={onGetFromGitHub} className="-ml-1.5 h-7 px-1.5 text-[12.5px]" />
+        <ImportMenu creating={creating} onOpenFolder={onOpenFolder} className="-ml-1.5 h-7 px-1.5 text-[12.5px]" />
       </div>
     </article>
   );
 }
 
 /** "New project" in the list view: the same entries, as a row. */
-function NewProjectListRow({ creating, onNewProject, onOpenFolder, onGetFromGitHub }: NewProjectProps) {
+function NewProjectListRow({ creating, onNewProject, onOpenFolder }: NewProjectProps) {
   const t = useT();
   return (
     <article className="group flex min-w-0 items-center gap-3 py-4 sm:gap-4">
@@ -609,47 +585,19 @@ function NewProjectListRow({ creating, onNewProject, onOpenFolder, onGetFromGitH
           {t('projects.newProject')}
         </button>
       </div>
-      <ImportMenu creating={creating} onOpenFolder={onOpenFolder} onGetFromGitHub={onGetFromGitHub} className="h-8 px-2.5 text-[12.5px]" />
+      <ImportMenu creating={creating} onOpenFolder={onOpenFolder} className="h-8 px-2.5 text-[12.5px]" />
     </article>
   );
 }
 
-/** "Import from ⌄": the ways to start from a film that exists, a folder on this computer or a repository on GitHub. */
-function ImportMenu({ creating, onOpenFolder, onGetFromGitHub, className }: Omit<NewProjectProps, 'onNewProject'> & { className: string }) {
+/** Open an existing local project without a menu of remote sources. */
+function ImportMenu({ creating, onOpenFolder, className }: Omit<NewProjectProps, 'onNewProject'> & { className: string }) {
   const t = useT();
-  const [anchor, setAnchor] = React.useState<{ x: number; y: number; top: number } | null>(null);
-  const button = React.useRef<HTMLButtonElement>(null);
   return (
-    <>
-      <button
-        ref={button}
-        type="button"
-        disabled={creating}
-        aria-expanded={anchor != null}
-        aria-haspopup="menu"
-        onClick={(event) => {
-          const box = event.currentTarget.getBoundingClientRect();
-          setAnchor((cur) => (cur ? null : { x: box.left, y: box.bottom + 4, top: box.top - 4 }));
-        }}
-        className={`inline-flex shrink-0 items-center gap-1 rounded-md text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:opacity-60 ${className}`}
-      >
-        {t('projects.importFrom')}
-        <ChevronDown size={13} />
-      </button>
-      {anchor ? (
-        <ContextMenu
-          x={anchor.x}
-          y={anchor.y}
-          flipTo={anchor.top}
-          trigger={button}
-          onClose={() => setAnchor(null)}
-          items={[
-            { id: 'folder', icon: <FolderOpen size={14} />, label: t('projects.openFolder'), onSelect: onOpenFolder },
-            { id: 'github', icon: <Github size={14} />, label: t('projects.getFromGitHub'), onSelect: onGetFromGitHub },
-          ]}
-        />
-      ) : null}
-    </>
+    <button type="button" disabled={creating} onClick={onOpenFolder}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:opacity-60 ${className}`}>
+      <FolderOpen size={13} />{t('projects.openFolder')}
+    </button>
   );
 }
 

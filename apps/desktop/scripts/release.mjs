@@ -10,9 +10,9 @@
  *   1. the window's page (shell/: Studio's editor with the chat beside it) and Studio's editor on its own (the
  *      `openfilm` package's UI) are built (the chat's `@openfilm/shared` is bundled into the page);
  *   2. a stage folder gets the app's own files and a plain npm install of what it needs at run time: the `openfilm`
- *      package as `npm pack` makes it (what npm would publish), the agents' ACP adapters
- *      and the updater. Optional dependencies are left out: the adapters would bring the makers' own Claude Code and
- *      Codex programs (200–330 MB each), and the app uses the person's own installation instead (src/agents.mjs).
+ *      package as `npm pack` makes it (what npm would publish), the Codex ACP adapter
+ *      and the updater. Windows includes a separately checksum-pinned native Codex distribution (codex-build.json),
+ *      independent of the builder's OS and the user's global programs. Other optional npm binaries are omitted.
  *      The staged `openfilm` package gets the build's product.json;
  *   2b. the programs the app needs that are not node modules, for the platform and chip built for, in the app's
  *      resources (runtime/; src/main.mjs puts them to use): ffmpeg and ffprobe with their license (src/ffmpeg-runtime.mjs),
@@ -40,6 +40,10 @@ import { createHash } from 'node:crypto';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lockedOverrides, versionsOffLock } from './locked-versions.mjs';
+import { CODEX_BUILD, stageCodex } from './codex-bundle.mjs';
+import { verifyWindowsApp } from './verify-windows.mjs';
+import { buildFetch } from './download.mjs';
+import { windowsHostTools } from './windows-host-tools.mjs';
 
 const require = createRequire(import.meta.url);
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -48,6 +52,7 @@ const protocol = dirname(require.resolve('openfilm/package.json'));
 const asked = process.argv.find((a) => a.startsWith('--arch='))?.slice('--arch='.length);
 const arch = asked === 'x64' || asked === 'arm64' ? asked : process.arch === 'arm64' ? 'arm64' : 'x64';
 const win = process.argv.includes('--platform=win');
+if (win && arch !== 'x64') throw new Error('Windows installers currently support x64 only (Codex, FFmpeg and Chromium).');
 const work = join(desktop, '.release', win ? `win-${arch}` : arch);
 const stage = join(work, 'app');
 const out = join(work, 'out');
@@ -73,7 +78,8 @@ const updates = typeof product.desktop?.updates === 'string' ? product.desktop.u
 export const FEED = updates ? `${updates}/${win ? 'win' : 'mac'}/${arch}` : null;
 const NOTARY_PROFILE = process.env.OPENFILM_NOTARY_PROFILE || 'openfilm-notary';
 
-const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts });
+const commandOptions = (cmd) => ({ shell: process.platform === 'win32' && /^(?:npm|pnpm)$/.test(cmd) });
+const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...commandOptions(cmd), ...opts });
 const pkg = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8'));
 
 /* 1. the window's page, and Studio's editor for the package */
@@ -87,10 +93,15 @@ rmSync(work, { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });
 cpSync(join(desktop, 'src'), join(stage, 'src'), { recursive: true, filter: (from) => !from.endsWith('.test.mjs') });
 cpSync(join(desktop, 'shell/dist'), join(stage, 'shell/dist'), { recursive: true });
-const pack = (dir) => execFileSync('npm', ['pack', '--ignore-scripts', '--pack-destination', work, '--silent'], { cwd: dir, encoding: 'utf8' }).trim().split('\n').pop();
-const dependencies = { ...pkg.dependencies, openfilm: `file:../${pack(protocol)}` };
+const pack = (dir) => execFileSync('npm', ['pack', '--ignore-scripts', '--pack-destination', work, '--silent'], { ...commandOptions('npm'), cwd: dir, encoding: 'utf8' }).trim().split('\n').pop();
 /* npm takes the versions pnpm's lockfile has (locked-versions.mjs): what the tests ran with, not the latest */
-const lockedTree = JSON.parse(execFileSync('pnpm', ['list', '--prod', '--depth', 'Infinity', '--json'], { cwd: desktop, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }))[0];
+const lockedTree = JSON.parse(execFileSync('pnpm', ['list', '--prod', '--depth', 'Infinity', '--json'], { ...commandOptions('pnpm'), cwd: desktop, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }))[0];
+const dependencies = Object.fromEntries(Object.keys(pkg.dependencies).filter((name) => name !== 'openfilm').map((name) => {
+  const version = lockedTree.dependencies?.[name]?.version;
+  if (!/^\d+\.\d+\.\d+(?:-[\w.]+)?$/.test(version ?? '')) throw new Error(`No locked runtime version for ${name}. Run pnpm install --frozen-lockfile first.`);
+  return [name, version];
+}));
+dependencies.openfilm = `file:../${pack(protocol)}`;
 writeFileSync(join(stage, 'package.json'), `${JSON.stringify({
   name: 'openfilm-desktop',
   productName: NAME,
@@ -100,6 +111,7 @@ writeFileSync(join(stage, 'package.json'), `${JSON.stringify({
   author: 'OpenFilm',
   license: 'UNLICENSED',
   private: true,
+  packageManager: `npm@${execFileSync('npm', ['--version'], { ...commandOptions('npm'), encoding: 'utf8' }).trim()}`,
   type: 'module',
   main: 'src/main.mjs',
   dependencies,
@@ -115,16 +127,20 @@ cpSync(productFile, join(stage, 'node_modules/openfilm/product.json'));
 
 /* 2b. ffmpeg and the headless browser, for the platform and chip built for */
 const runtime = join(work, 'runtime');
+if (win) stageCodex(runtime, { arch, cacheDir: join(desktop, '.release/cache') });
 const { ffmpegDownloadable, fetchFfmpeg } = await import(pathToFileURL(join(desktop, 'src/ffmpeg-runtime.mjs')).href);
 const platform = win ? 'win32' : 'darwin';
-if (ffmpegDownloadable(platform, arch)) await fetchFfmpeg(join(runtime, 'ffmpeg'), { platform, arch, license: true });
+if (ffmpegDownloadable(platform, arch)) await fetchFfmpeg(join(runtime, 'ffmpeg'), { platform, arch, license: true, fetch: buildFetch, stallMs: 650_000 });
 else console.warn(`No ffmpeg build for ${platform}-${arch}: this app downloads none either; people install their own.`);
+const browserCache = join(desktop, '.release/cache', `browsers-${platform}-${arch}`);
 run(process.execPath, [join(stage, 'node_modules/playwright-core/cli.js'), 'install', 'chromium-headless-shell'], {
-  env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: join(runtime, 'ms-playwright'), PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: win ? 'win64' : arch === 'arm64' ? 'mac15-arm64' : 'mac15' },
+  env: { ...process.env, PLAYWRIGHT_BROWSERS_PATH: browserCache, PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: win ? 'win64' : arch === 'arm64' ? 'mac15-arm64' : 'mac15' },
 });
+cpSync(browserCache, join(runtime, 'ms-playwright'), { recursive: true });
 
 /* 3. the app */
 const builder = require('electron-builder');
+if (win) Object.assign(process.env, await windowsHostTools(join(desktop, '.release/cache')));
 const electronVersion = require('electron/package.json').version;
 const env = unsigned || win ? { CSC_IDENTITY_AUTO_DISCOVERY: 'false' } : { APPLE_KEYCHAIN_PROFILE: NOTARY_PROFILE, APPLE_TEAM_ID: TEAM_ID };
 Object.assign(process.env, env);
@@ -134,7 +150,10 @@ await builder.build({
   ...(win ? { win: ['nsis'] } : { mac: ['dmg', 'zip'] }),
   [arch]: true,
   config: {
-    afterPack: win ? (context) => windowsResources(context) : undefined,
+    afterPack: win ? async (context) => {
+      await windowsResources(context);
+      console.log('Windows runtime:', verifyWindowsApp(context.appOutDir));
+    } : undefined,
     /* unsigned on a Mac: signed ad hoc, whole, before the .dmg and .zip are made. Electron's fuses are written into
        its framework after the linker signed it, and an Apple chip kills a program whose pages no longer match its
        signature ("Code Signature Invalid") the moment it starts */
@@ -215,6 +234,14 @@ if (!unsigned && !win && FEED) {
 }
 console.log(`\n${readdirSync(out).filter((f) => /\.(dmg|zip|exe|yml)$/.test(f)).map((f) => join(out, f)).join('\n')}`);
 console.log(`feed: ${FEED ?? 'none (a build of this source: it never looks for updates)'}`);
+if (win) {
+  const artifacts = readdirSync(out).filter((file) => file.endsWith('.exe'));
+  if (!artifacts.length) throw new Error('No Windows installer was generated.');
+  const report = { version: pkg.version, platform: 'win32', arch, electronVersion,
+    codex: CODEX_BUILD, updates: FEED, artifacts: artifacts.map((file) => ({ file,
+      sha256: createHash('sha256').update(readFileSync(join(out, file))).digest('hex') })) };
+  writeFileSync(join(out, 'build-manifest.json'), `${JSON.stringify(report, null, 2)}\n`);
+}
 if (FEED && !existsSync(join(out, win ? 'latest.yml' : 'latest-mac.yml'))) process.exitCode = 1;
 
 /** An unsigned Mac app signed ad hoc (no identity), all of it, so it starts. @param {{ appOutDir: string }} context */

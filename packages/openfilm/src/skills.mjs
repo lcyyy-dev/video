@@ -25,6 +25,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { moveToTrash } from '../studio/server/trash.mjs';
 import { libraryDefault } from './locations.mjs';
+import { CLIENT_PROFILE, CLIENT_SKILLS } from './client-scope.mjs';
 
 const mkdirSyncSafe = (/** @type {string} */ dir) => mkdirSync(dir, { recursive: true });
 /** a folder moved to another place: renamed, else (another disk) copied and then removed */
@@ -44,7 +45,7 @@ export const SKILL_SOURCES = /** @type {const} */ (['project', 'mine', 'official
 /** @typedef {typeof SKILL_SOURCES[number]} SkillSource */
 
 /**
- * The official skills, released with this package (a copy of openfilm/skills: `pnpm skills:sync`).
+ * The advertising workflow released with this package.
  * OPENFILM_OFFICIAL_SKILLS names another folder of them: a checkout's skills/, while they are being changed.
  */
 export const officialSkillsDir = () => process.env.OPENFILM_OFFICIAL_SKILLS || join(dirname(fileURLToPath(import.meta.url)), '..', 'skills');
@@ -238,7 +239,14 @@ export function listSkills({ project = null, mine = mySkillsDir(), official = of
       else byName.set(skill.name, skill);
     }
   }
-  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+  // Package-owned workflows must remain available when development overrides the upstream skills directory.
+  if (process.env.OPENFILM_CLIENT_PROFILE === CLIENT_PROFILE) {
+    for (const name of CLIENT_SKILLS) if (!byName.has(name)) {
+      const bundled = readSkill(join(dirname(fileURLToPath(import.meta.url)), '..', 'skills', name), 'official');
+      if (bundled) byName.set(name, bundled);
+    }
+  }
+  return [...byName.values()].filter((skill) => process.env.OPENFILM_CLIENT_PROFILE !== CLIENT_PROFILE || CLIENT_SKILLS.includes(skill.name)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** One skill by name, as listSkills finds it, or null. @param {string} name @param {Parameters<typeof listSkills>[0]} [where] */

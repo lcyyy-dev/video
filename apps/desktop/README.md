@@ -1,6 +1,6 @@
 # OpenFilm for desktop
 
-Studio, with a chat beside it for Claude Code, Codex and the other agents, as an Electron app.
+An advertising-editing desktop client: Studio with local Codex chat, footage import, timeline editing, text styles, video export and editable Jianying/CapCut drafts.
 
 ## Run from source
 
@@ -13,7 +13,14 @@ npm run typecheck
 Run from source, the app is its own "OpenFilm Dev": its own name, data folder, Studio home and port, so it never
 shares anything with an installed OpenFilm. Its renamed copy of Electron lives in `.dev/` (git-ignored).
 
-Codex, Claude Code, the other agents, your own key, and Studio with your own media keys all work.
+Windows installers include a pinned Codex executable and its complete native runtime. Sign in in Settings → Codex;
+no separate Codex installation is needed. Windows uses an app-private Codex home and receives Codex updates through
+app releases. Source runs and macOS builds still use a separately installed Codex. This client carries only the `ad-editing` workflow. It does not include other agent
+runtimes, a skill marketplace, remote project galleries, or cloud media-provider configuration. For narration,
+use supplied recordings or explicitly requested local simulated audio; cloud TTS is deferred.
+
+Exports are limited to video, Jianying/CapCut drafts, and project archives/folders. The underlying film format,
+renderer and media utilities remain shared with the CLI. See [the scope record](../../docs/CLIENT_SIMPLIFICATION.zh-CN.md).
 
 On Linux, the launcher keeps the desktop session's display and audio variables. Optional development libraries in
 `.dev/linux-libs/usr/lib/x86_64-linux-gnu/` and ffmpeg in `.dev/runtime/ffmpeg/` are reused when present.
@@ -23,6 +30,9 @@ also be stored as strings in `.dev/runtime/browser.json` (git-ignored); explicit
 The external browser must enable the rendering features the film needs; its executable is not installed by OpenFilm.
 
 ## Builds
+
+For the Windows x64 installer, run `pnpm release:win` from the repository root. See
+[Windows 构建流程](../../docs/WINDOWS_INSTALLER.zh-CN.md) for prerequisites, output files, verification, CI and Codex version upgrades.
 
 `npm run release` builds the app into `.release/` (git-ignored). Without `OPENFILM_SIGN_IDENTITY` and `APPLE_TEAM_ID`
 it is unsigned. Like a run from source, it never looks for updates: the feed comes from the `openfilm` package's

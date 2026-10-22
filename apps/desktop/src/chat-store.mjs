@@ -5,14 +5,13 @@
  * the conversations, `.film/chat/`:
  *   sessions.json          the conversations (the session bar's list) and the one shown last
  *   turns/<turn>.json      each finished turn: what was asked and how it ended, and what the chat shows of it
- *   agent/                 the app's own agent's sessions (pi-agent.mjs), so a conversation goes on where it stopped
  *
  * the debug logs, `.film/logs/`:
  *   <turn>.jsonl           each turn as it happened, one event a line, untouched: the prompt and its settings, every
  *                          update the agent sent (what it said and thought, each tool call with its input and output),
  *                          every question and permission and the answer, how it ended; for whoever needs every detail
  *   <turn>.model.jsonl     each request the agent made to its model in that turn, and the answer: the app's own
- *                          agent's as Pi sends it (pi-agent.mjs); Claude Code's and Codex's read from their own records
+ *                          Codex's requests read from its own session record
  *                          once the turn ends (agent-records.mjs). A request carries the whole conversation, so a
  *                          line keeps only what is new: `prefix`, how many of the last request's messages come first,
  *                          then its own; `systemPrompt` and `tools` only when they changed
@@ -42,7 +41,6 @@ export const refsDir = (project) => join(project, '.film', 'refs');
 const REF_IMAGE_MAX = 8 * 1024 * 1024;
 const REF_MAX = 64;
 /** where the app's own agent keeps its sessions of conversations in this project */
-export const agentSessionsDir = (project) => join(chatDir(project), 'agent');
 
 function writeAtomic(file, text) {
   const tmp = `${file}.${process.pid}.tmp`;

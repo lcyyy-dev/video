@@ -1,7 +1,7 @@
 /**
  * The Projects popover (the top bar's Projects button; with the app's tabs, their `+`, and the window with no tab open):
- * a large centered dialog to switch project, start one, open a folder, get a film from GitHub, rename, delete, or
- * file projects in folders of the list; or, switched to "Examples", to start from an example (ExamplesGallery). Its
+ * a dialog to switch project, start one, open a local folder, rename, delete, or
+ * file projects in folders of the list. Its
  * projects are ProjectsView; this file holds the data and actions.
  *
  * Studio's projects are folders on disk: deleting one moves its folder to the system's Trash. One whose folder is gone
@@ -25,8 +25,7 @@ import { studioHost } from '@/lib/host';
 import { SourceError, sourcesApi } from '@/lib/project-sources';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectsView, type LibraryProject } from './ProjectsView';
-import { FolderBrowserDialog, GitHubDialog } from './ProjectSources';
-import { ExamplesGallery, TitleSwitch } from './ExamplesGallery';
+import { FolderBrowserDialog } from './ProjectSources';
 
 
 /* each card's picture: the film's middle frame, drawn by Studio (cached until film.html changes); none for a project
@@ -160,16 +159,6 @@ function useProjectLibrary(open: boolean) {
   return { projects, folders, loaded, error, flash, reload: reloadFolders, agentRunning, workingIn, deleteProjects, renameProject, createFolder, renameFolder, moveProject, deleteFolder };
 }
 
-/** The launcher's two views: the person's projects, and the examples to start from (ExamplesGallery). */
-export type LauncherView = 'projects' | 'examples';
-
-/** The switch between them, in the title row (the Community's is the same). */
-export function LauncherSwitch({ view, onView }: { view: LauncherView; onView: (view: LauncherView) => void }) {
-  const t = useT();
-  return <TitleSwitch items={[{ id: 'projects' as const, label: t('launcher.projects') }, { id: 'examples' as const, label: t('launcher.examples') }]} value={view} onChange={onView} />;
-}
-
-
 export function ProjectsPopover({
   open,
   currentProjectId,
@@ -192,16 +181,11 @@ export function ProjectsPopover({
 }) {
   const t = useT();
   const lib = useProjectLibrary(open);
-  /* each time it opens: the projects (the examples are a switch away) */
-  const [view, setView] = React.useState<LauncherView>('projects');
-  React.useEffect(() => { if (open) setView('projects'); }, [open]);
-  const showView = setView;
   const [pendingDelete, setPendingDelete] = React.useState<string[] | null>(null);
   const [pendingFolder, setPendingFolder] = React.useState<ProjectFolder | null>(null);
   const [busy, setBusy] = React.useState<'creating' | 'opening' | null>(null);
-  /* Studio's folder browser (no app to pick folders), "Get from GitHub", and a folder without a film to start one in */
+  /* Local folder browser, and confirmation before starting a project in an empty folder. */
   const [browser, setBrowser] = React.useState<{ mode: 'open' } | { mode: 'locate'; project: LibraryProject } | null>(null);
-  const [github, setGithub] = React.useState<{ url?: string; start?: boolean; title?: string } | null>(null);
   const [askStart, setAskStart] = React.useState<string | null>(null);
   const close = React.useCallback(() => onClose?.(), [onClose]);
 
@@ -345,21 +329,12 @@ export function ProjectsPopover({
         onDrop={onDrop}
       >
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          {view === 'examples' ? (
-            <ExamplesGallery
-              mode="start"
-              heading={<LauncherSwitch view={view} onView={showView} />}
-              onClose={onClose}
-              onStart={(example) => setGithub({ url: example.url, start: true, title: example.title })}
-            />
-          ) : lib.loaded ? (
+          {lib.loaded ? (
             <ProjectsView
-              heading={<LauncherSwitch view={view} onView={showView} />}
               projects={lib.projects}
               creating={busy !== null}
               onNewProject={() => void newProject()}
               onOpenFolder={() => void openFolder()}
-              onGetFromGitHub={() => setGithub({})}
               onLocate={(project) => void locate(project)}
               /* its folder is gone: there is nothing to open, and the editor would only say so */
               onOpen={(project) => (project.missing ? lib.flash(t('projects.missingOpen')) : go(project.id, 'opening'))}
@@ -425,15 +400,6 @@ export function ProjectsPopover({
           subtitle={browser.mode === 'locate' ? browser.project.path : undefined}
           onPick={(path, start) => (browser.mode === 'locate' ? locateTo(browser.project, path) : openPicked(path, start))}
           onClose={() => setBrowser(null)}
-        />
-      ) : null}
-      {github ? (
-        <GitHubDialog
-          url={github.url}
-          start={github.start}
-          title={github.title}
-          onDone={(projectId) => { setGithub(null); go(projectId, 'opening'); }}
-          onClose={() => setGithub(null)}
         />
       ) : null}
       <ConfirmDialog

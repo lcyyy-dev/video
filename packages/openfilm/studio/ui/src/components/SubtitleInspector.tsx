@@ -1,11 +1,11 @@
 import React from 'react';
-import { Loader2, MessageSquarePlus } from 'lucide-react';
+import { MessageSquarePlus } from 'lucide-react';
 import { useT } from '@/i18n';
 import { STUDIO_REF_TYPE, type StudioRef } from '@/lib/host';
 import {
   FILM_SUBTITLE_KARAOKE_DEFAULT, FILM_SUBTITLE_LANGUAGES, joinColor, matchSubtitleLook, sameFilmSubtitleLanguage, splitColor,
   SUBTITLE_DEFAULT, SUBTITLE_LOOKS, SUBTITLE_LOOK_IDS, SUBTITLE_SIZE_PCT_MAX, SUBTITLE_SIZE_PCT_MIN, subtitleCss,
-  type SubtitleCue, type SubtitleLookId, type SubtitleStyle, type SubtitleTranslateResult,
+  type SubtitleCue, type SubtitleLookId, type SubtitleStyle,
 } from '@/lib/subtitles';
 import { SUBTITLE_FONT_SYSTEM, useSubtitleFonts, type SubtitleFontOption } from '@/lib/use-subtitle-font';
 import { Tooltip } from './Tooltip';
@@ -47,8 +47,6 @@ export function SubtitleInspector({ subtitles, width, onClose }: {
   subtitles: {
     style: SubtitleStyle;
     onStyle: (next: Partial<SubtitleStyle>) => void;
-    /** Translate the film's voices into this language (useFilmSubtitles().translate). Without it, no translating. */
-    translate?: (language: string) => Promise<SubtitleTranslateResult>;
     /** The voices' language, as far as the script tells; null = can't tell. */
     sourceLanguage?: string | null;
     /** The film's lines as transcribed (with their translations), to correct; `onEditLine` writes one back (with a
@@ -58,10 +56,6 @@ export function SubtitleInspector({ subtitles, width, onClose }: {
     /** The playhead (film ms), which the lines follow, and moving it to a line. */
     timeMs?: number;
     onSeek?: (ms: number) => void;
-    /** Speech with no transcript yet, and making it (the timeline's CC button does the same with no lines at all). */
-    untranscribed?: number;
-    onMake?: () => void;
-    making?: boolean;
     refer?: SubtitleLineRefer;
   };
   width: number;
@@ -96,11 +90,11 @@ export function SubtitleInspector({ subtitles, width, onClose }: {
             ))}
           </div>
 
-          <SubtitleLanguage style={s} set={set} translate={subtitles.translate} sourceLanguage={subtitles.sourceLanguage} />
+          <SubtitleLanguage style={s} set={set} lines={subtitles.lines ?? []} sourceLanguage={subtitles.sourceLanguage} />
 
           {subtitles.lines ? (
-            <SubtitleLines lines={subtitles.lines} onEdit={subtitles.onEditLine} untranscribed={subtitles.untranscribed ?? 0}
-              onMake={subtitles.onMake} making={!!subtitles.making} timeMs={subtitles.timeMs ?? 0} onSeek={subtitles.onSeek} refer={subtitles.refer}
+            <SubtitleLines lines={subtitles.lines} onEdit={subtitles.onEditLine}
+              timeMs={subtitles.timeMs ?? 0} onSeek={subtitles.onSeek} refer={subtitles.refer}
               language={s.language && !sameFilmSubtitleLanguage(s.language, subtitles.sourceLanguage ?? null) ? s.language : null} />
           ) : null}
 
@@ -331,14 +325,6 @@ export function SubtitleInspector({ subtitles, width, onClose }: {
 
 /* ── the panel's parts (only this panel uses them) ───────────────────────── */
 
-/**
- * The subtitle language: one menu, "Original" first (named when the script tells which), then the languages it can
- * be translated into (never the voices' own). Picking one has the voices translated (seconds to a minute or two); until
- * then the original shows. Once picked, "Show: translation / original + translation".
- *
- * One status line: translating (a spinner), or could not (a plain sentence and Retry; details on hover). Done says
- * nothing: the subtitles changing on the picture is the answer.
- */
 /** How long after the person scrolls the lines themselves they stop following the playhead. */
 const FOLLOW_PAUSE_MS = 2500;
 
@@ -352,12 +338,9 @@ const lineTime = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor(
  * With a translation shown (`language`), each line is that language's, to correct, with the original faint above it
  * for reference; a line not translated yet is empty and can be written.
  */
-function SubtitleLines({ lines, onEdit, untranscribed, onMake, making, timeMs, onSeek, language, refer }: {
+function SubtitleLines({ lines, onEdit, timeMs, onSeek, language, refer }: {
   lines: readonly SubtitleCue[];
   onEdit?: (cue: SubtitleCue, text: string, language?: string) => void;
-  untranscribed: number;
-  onMake?: () => void;
-  making: boolean;
   timeMs: number;
   onSeek?: (ms: number) => void;
   language: string | null;
@@ -403,14 +386,6 @@ function SubtitleLines({ lines, onEdit, untranscribed, onMake, making, timeMs, o
   const mark = () => { touched.current = performance.now(); };
   return (
     <StyleGroup label={t('timeline.subtitleLines')} aside={<SubtitleRowToggle />}>
-      {untranscribed > 0 && onMake ? (
-        <button type="button" onClick={onMake} disabled={making}
-          className="mb-1.5 flex h-7 w-full items-center justify-center gap-1.5 rounded-md border text-[11px] disabled:opacity-60"
-          style={{ background: 'var(--fill-tsp)', borderColor: 'var(--border)', color: 'var(--text)' }}>
-          {making ? <><Loader2 size={12} className="animate-spin" aria-hidden />{t('timeline.subtitlesMaking')}</>
-            : t(untranscribed === 1 ? 'timeline.subtitleLinesMakeOne' : 'timeline.subtitleLinesMake').replace('{n}', String(untranscribed))}
-        </button>
-      ) : null}
       {lines.length ? (
         <ul ref={list} onWheel={mark} onPointerDown={mark} onTouchMove={mark}
           className="relative flex max-h-[260px] flex-col gap-0.5 overflow-y-auto pb-1">
@@ -517,62 +492,34 @@ const SubtitleLine = React.memo(function SubtitleLine({ cue, index, lit, languag
   );
 });
 
-function SubtitleLanguage({ style, set, translate, sourceLanguage }: {
+/** Display only translations already stored with the project; no cloud requests. */
+function SubtitleLanguage({ style, set, lines, sourceLanguage }: {
   style: SubtitleStyle;
   set: (next: Partial<SubtitleStyle>) => void;
-  translate?: (language: string) => Promise<SubtitleTranslateResult>;
+  lines: readonly SubtitleCue[];
   sourceLanguage?: string | null;
 }) {
   const t = useT();
-  const [state, setState] = React.useState<{ busy: boolean; error: string | null; needsTranslator: boolean }>({ busy: false, error: null, needsTranslator: false });
   const nameOf = (code: string) => FILM_SUBTITLE_LANGUAGES.find((item) => item.code === code)?.native ?? code;
-  const run = async (code: string) => {
-    if (!translate) return;
-    setState({ busy: true, error: null, needsTranslator: false });
-    const result = await translate(code);
-    setState({ busy: false, error: result.ok ? null : result.error ?? '', needsTranslator: !!result.needsTranslator });
-  };
-  const pick = (code: string) => {
-    if (!code || sameFilmSubtitleLanguage(code, sourceLanguage ?? null)) {
-      set({ language: null });
-      setState({ busy: false, error: null, needsTranslator: false });
-      return;
-    }
-    set({ language: code });
-    void run(code);
-  };
-  const targets = FILM_SUBTITLE_LANGUAGES.filter((item) => !sameFilmSubtitleLanguage(item.code, sourceLanguage ?? null));
+  const languages = new Set(lines.flatMap((line) => Object.keys(line.alt ?? {})));
+  if (style.language) languages.add(style.language);
+  const targets = [...languages].filter((code) => !sameFilmSubtitleLanguage(code, sourceLanguage ?? null));
+  if (!targets.length) return null;
   /* a saved language that is the voices' own is just the original */
   const chosen = style.language && !sameFilmSubtitleLanguage(style.language, sourceLanguage ?? null) ? style.language : null;
-  const network = state.error !== null && /fetch failed|network|socket|TLS|ECONN|timed? ?out|HTTP 5\d\d/i.test(state.error);
-  const failure = state.needsTranslator ? 'timeline.subtitleTranslateConnect' : network ? 'timeline.subtitleTranslateNetwork' : 'timeline.subtitleTranslateFailed';
   return (
     <StyleGroup label={t('timeline.subtitleLanguageGroup')}>
       <div className="flex min-h-8 items-center gap-2 py-1">
         <MenuSelect
           label={t('timeline.subtitleLanguageGroup')}
           value={chosen ?? ''}
-          disabled={state.busy}
-          onPick={pick}
+          onPick={(code) => set({ language: code || null })}
           groups={[
             { choices: [{ value: '', label: sourceLanguage ? t('timeline.subtitleLanguageOriginalNamed').replace('{lang}', nameOf(sourceLanguage)) : t('timeline.subtitleLanguageOriginal') }] },
-            { label: t('timeline.subtitleLanguageTranslate'), choices: targets.map((item) => ({ value: item.code, label: item.native })) },
+            { choices: targets.map((code) => ({ value: code, label: nameOf(code) })) },
           ]}
         />
       </div>
-      {state.busy ? (
-        <p className="flex items-center gap-1.5 pb-1 text-[11px]" role="status" style={{ color: 'var(--text-muted)' }}>
-          <Loader2 size={12} className="animate-spin" aria-hidden />
-          {t('timeline.subtitleTranslating').replace('{lang}', nameOf(chosen ?? ''))}
-        </p>
-      ) : state.error !== null && chosen ? (
-        <p className="flex items-center gap-2 pb-1 text-[11px]" role="alert" title={state.error || undefined} style={{ color: 'var(--danger, #c2410c)' }}>
-          <span className="min-w-0 flex-1">{t(failure)}</span>
-          <button type="button" className="shrink-0 underline underline-offset-2" onClick={() => void run(chosen)}>
-            {t('timeline.subtitleTranslateRetry')}
-          </button>
-        </p>
-      ) : null}
       {chosen ? (
         <Segmented
           label={t('timeline.subtitleLanguageShow')}

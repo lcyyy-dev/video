@@ -44,13 +44,12 @@ or silently fill shortages with unrelated shots. If nothing fits, identify the s
 Use supplied sentence recordings when available. Continuous recordings need real sentence boundaries from a
 transcript or listening; do not divide evenly or estimate timing from character counts.
 
-When TTS is requested, use the person's configured OpenFilm provider and voice (`npx openfilm get` shows what is
-available). Use `get tts --text ... --voice ... --out assets/voice/<sentence-id>` with the chosen service as needed;
-read its help for supported options. Reuse successful audio when text and effective voice settings are unchanged.
-Probe each file for real duration; provider text estimates are not the timeline clock. If no provider or recording
-is available, request the missing voice input while continuing analysis. Do not silently select a paid service,
-download a model, or substitute test tones for finished narration. A requested silent video can use explicitly
-recorded shot durations; label a no-narration draft accordingly.
+Cloud TTS is outside this client's current scope. Reuse supplied recordings. If the person explicitly requests local
+simulation, use available local speech synthesis or clearly labeled placeholder audio, one file per sentence, and
+measure each real file's duration. Do not install a speech model or contact a paid service implicitly. Keep simulated
+audio distinguishable in the project and delivery report; placeholder tones are timing tests, never finished narration.
+If no recording or requested simulation is available, identify the missing input while continuing footage analysis.
+A requested silent video may use explicitly recorded shot durations and must be labeled accordingly.
 
 Place each line after the previous line's actual end plus any separately specified pause. Do not add pauses already
 in the audio. Keep precision until converting boundaries to frames. Video and text cover the spoken line; narration

@@ -10,6 +10,7 @@
  * first message (the list only comes with a session).
  */
 import { create } from 'zustand';
+import { CLIENT_AGENTS } from 'openfilm/client-scope';
 import {
   desktopBridge,
   type LocalAgentId,
@@ -22,7 +23,7 @@ export type AgentPick = LocalAgentId;
 
 type ConfigOptions = NonNullable<LocalAgentSessionInfo['configOptions']>;
 
-const AGENT_IDS: readonly LocalAgentId[] = ['codex', 'claude', 'gemini', 'copilot', 'cursor', 'opencode', 'codebuddy', 'qwen', 'kimi', 'byok'];
+const AGENT_IDS = CLIENT_AGENTS as readonly LocalAgentId[];
 const isAgent = (v: unknown): v is LocalAgentId => AGENT_IDS.includes(v as LocalAgentId);
 
 interface Persisted {
@@ -59,13 +60,13 @@ const askedThisLaunch = new Set<LocalAgentId>();
 const KEY = 'openfilm.local-agents.v2';
 
 function load(): Persisted {
-  const empty: Persisted = { picked: 'claude', prefs: {}, options: {} };
+  const empty: Persisted = { picked: 'codex', prefs: {}, options: {} };
   if (typeof window === 'undefined') return empty;
   try {
     const raw = JSON.parse(window.localStorage.getItem(KEY) ?? window.localStorage.getItem('openfilm.local-agents.v1') ?? 'null') as Partial<Persisted> | null;
     if (!raw) return empty;
     return {
-      picked: isAgent(raw.picked) ? raw.picked : 'claude',
+      picked: isAgent(raw.picked) ? raw.picked : 'codex',
       prefs: raw.prefs && typeof raw.prefs === 'object' ? raw.prefs : {},
       options: raw.options && typeof raw.options === 'object' ? raw.options : {},
     };
@@ -80,65 +81,18 @@ function save(s: Persisted): void {
   } catch { /* private mode */ }
 }
 
-type OwnModel = NonNullable<RosterAgent['byok']>['models'][number];
-
-/** The own key's models, as Settings sets them up (the first one to begin with). */
-function byokModels(roster: RosterAgent[] | null): OwnModel[] {
-  return roster?.find((a) => a.id === 'byok')?.byok?.models ?? [];
-}
-
-/**
- * Which own model a pick is: its id, or, picked before each model was set up on its own, the model's name at the
- * service (that model kept its name there). Null for one no longer set up.
- */
-function ownModelPicked(models: OwnModel[], picked: unknown): OwnModel | null {
-  const value = String(picked ?? '');
-  return models.find((m) => m.id === value) ?? models.find((m) => m.model === value) ?? null;
-}
-
-const EFFORT_NAMES: Record<string, string> = { auto: 'Auto', off: 'Off', minimal: 'Minimal', low: 'Low', medium: 'Medium', high: 'High', xhigh: 'Extra high', max: 'Max' };
-
-/**
- * An agent's option list, for the menu. The own key's is its models, and the efforts of the one picked when it offers
- * more than one, from Settings: no session has to start to know them (the app's own agent reports the same `model` and
- * `effort` options, apps/desktop/src/pi-config.mjs). The person's own agents' is the one a session last reported.
- */
+/** Codex reports the available models and controls through its session. */
 export function agentOptions(state: Pick<LocalAgentStore, 'options' | 'roster'> & Partial<Pick<LocalAgentStore, 'prefs'>>, agent: LocalAgentId): ConfigOptions | undefined {
-  if (agent !== 'byok') return state.options[agent];
-  const models = byokModels(state.roster);
-  if (!models.length) return undefined;
-  const model = ownModelPicked(models, state.prefs?.byok?.model) ?? models[0]!;
-  const options: ConfigOptions = [{ id: 'model', name: 'Model', category: 'model', type: 'select', currentValue: model.id, options: models.map((m) => ({ value: m.id, name: m.name })) }];
-  if (model.levels.length > 1) {
-    options.push({ id: 'effort', name: 'Effort', category: 'thought_level', type: 'select', currentValue: model.effort,
-      options: model.levels.map((l) => ({ value: l, name: EFFORT_NAMES[l] ?? l })) });
-  }
-  return options;
+  return state.options[agent];
 }
-
-/** Which of an agent's options the menu offers. The app's own agent offers its models and their efforts, and no OpenAI fast mode. */
-export function offeredOption(agent: LocalAgentId, _roster: RosterAgent[] | null, option: { id: string; category?: string; name: string }): boolean {
-  if (agent !== 'byok') return true;
-  return !(/^(fast|fast-mode|speed)$/i.test(option.id) || option.category === 'speed');
-}
-
-/* Claude Code's own model picker shows four above its line, the newest of each family; the ones it lists after them
-   are older models */
-const CLAUDE_MODELS_OFFERED = 4;
-
-/**
- * The choices a menu row offers, in the agent's order, without a "Default" row (a default is one of the others). Of
- * Claude Code's models, the first four it lists, as its own picker shows them, and the one in use if it is further down.
- */
-export function offeredChoices<T extends { value: unknown }>(agent: LocalAgentId, option: { id: string; category?: string; options?: T[] }, chosen: unknown): T[] {
-  const choices = (option.options ?? []).filter((choice) => choice.value !== 'default');
-  if (agent !== 'claude' || (option.category !== 'model' && option.id !== 'model')) return choices;
-  return choices.filter((choice, i) => i < CLAUDE_MODELS_OFFERED || choice.value === chosen);
+export function offeredOption(_agent: LocalAgentId, _roster: RosterAgent[] | null, _option: { id: string; category?: string; name?: string }): boolean { return true; }
+export function offeredChoices<T extends { value: unknown }>(_agent: LocalAgentId, option: { id: string; category?: string; options?: T[] }, _chosen: unknown): T[] {
+  return (option.options ?? []).filter((choice) => choice.value !== 'default');
 }
 
 /** The agents the menu lists: the ones switched on in Settings, in the roster's order. */
 export function shownAgents(roster: RosterAgent[] | null): RosterAgent[] {
-  return (roster ?? []).filter((a) => a.shown);
+  return (roster ?? []).filter((a) => CLIENT_AGENTS.includes(a.id) && a.shown);
 }
 
 /** The agent the chat uses: the one picked while it is shown and ready, else the first shown one that is ready. */
@@ -152,7 +106,7 @@ export function currentAgent(state: Pick<LocalAgentStore, 'picked' | 'roster'>):
 let listening = false;
 
 export const useLocalAgents = create<LocalAgentStore>((set, get) => ({
-  picked: 'claude',
+  picked: 'codex',
   prefs: {},
   options: {},
   hydrated: false,
@@ -170,7 +124,6 @@ export const useLocalAgents = create<LocalAgentStore>((set, get) => ({
           const now = roster.find((a) => a.id === before.id);
           if (before.status === 'ready' && now?.status !== 'ready') forgetLocalAgentSessions(before.id);
           /* other models (the own key's): its sessions were closed for the next ones to use them */
-          else if (JSON.stringify(byokModels([before])) !== JSON.stringify(byokModels(now ? [now] : []))) forgetLocalAgentSessions(before.id);
         }
         set({ roster });
       });
@@ -182,6 +135,7 @@ export const useLocalAgents = create<LocalAgentStore>((set, get) => ({
     if (roster) set({ roster });
   },
   pick(picked) {
+    if (!isAgent(picked)) return;
     set({ picked });
     save(get());
   },
@@ -198,7 +152,7 @@ export const useLocalAgents = create<LocalAgentStore>((set, get) => ({
   async ensureOptions(agent, { retry = false } = {}) {
     /* the own key's are known from Settings (agentOptions); a failed probe is not tried again on every render, each
        try being a whole session of the agent's */
-    if (agent === 'byok' || probing.has(agent)) return;
+    if (probing.has(agent)) return;
     const kept = Boolean(get().options[agent]);
     if (kept && askedThisLaunch.has(agent)) return;
     if (get().optionsError[agent] && !retry) return;
@@ -226,10 +180,7 @@ export const useLocalAgents = create<LocalAgentStore>((set, get) => ({
  * are started with it (their own flags, apps/desktop/src/agents.mjs), except Kimi, whose ACP server takes no flag.
  */
 const AGENT_FORCED_PREFS: Partial<Record<LocalAgentId, Record<string, unknown>>> = {
-  claude: { mode: 'bypassPermissions' },
   codex: { mode: 'agent-full-access' },
-  kimi: { mode: 'yolo' },
-  byok: { mode: 'agent-full-access' },
 };
 
 /** picks the menu no longer offers: plan mode (Claude Code's `plan`, Codex's collaboration mode) */
@@ -249,8 +200,7 @@ export function effectivePrefs(prefs: Persisted['prefs'], agent: LocalAgentId, r
     const option = options?.find((o) => o.id === id);
     return !option?.options?.length || option.options.some((o) => o.value === value);
   };
-  const models = agent === 'byok' ? byokModels(roster ?? null) : null;
-  const own = Object.entries(prefs[agent] ?? {}).map(([id, value]): [string, unknown] => (models && id === 'model' ? [id, ownModelPicked(models, value)?.id ?? null] : [id, value]));
+  const own = Object.entries(prefs[agent] ?? {});
   const kept = Object.fromEntries(own
     .filter(([id, value]) => value !== 'default' && value !== null && !DROPPED_PREFS.has(id) && offers(id, value)));
   return { ...kept, ...(AGENT_FORCED_PREFS[agent] ?? {}) };

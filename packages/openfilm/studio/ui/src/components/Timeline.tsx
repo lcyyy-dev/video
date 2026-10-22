@@ -15,7 +15,6 @@ import {
   ClipboardPaste,
   Copy,
   CopyPlus,
-  Download,
   Eye,
   EyeOff,
   Film,
@@ -629,20 +628,12 @@ export interface TimelineProps {
     configuring?: boolean;
     /** How many subtitle lines the film has. 0 = none yet: the button is disabled and says why. */
     count: number;
-    /** Speech heard in the film with no transcript yet: the button makes subtitles for it (`onMake`). */
-    untranscribed?: number;
-    onMake?: () => void;
-    /** A transcription runs now. */
-    making?: boolean;
-    /** Why making them failed; `connect`: no service can transcribe, and the button opens Providers. */
-    problem?: { text: string; connect: boolean } | null;
+
   };
   /** A clip's waveform address, from its src. Without it no waveforms are drawn. */
   waveUrl?: (src: string) => string;
   /** Copy clips (the clipboard lives outside, so it survives across tracks and projects). */
   onCopy?: (blocks: readonly TimelineBlock[]) => void;
-  /** Export this clip alone (MG only), by film.html clip id. */
-  onExportBlock?: (clipId: string) => void;
   /**
    * Paste at a time. `lane` = the whole group onto that row (right-click); `null` = each back to its own row
    * (keyboard, nothing selected).
@@ -934,7 +925,6 @@ export const Timeline = React.memo(function Timeline({
   onDetachAudio,
   onCopy,
   onPaste,
-  onExportBlock,
   onDropAsset,
   onDropFiles,
   hasClipboard,
@@ -3393,18 +3383,6 @@ export const Timeline = React.memo(function Timeline({
         onSelect: () => { if (pasteLane) void onPaste(pasteLane, menu.atMs); },
       });
     }
-    /* exporting one clip is for MG only: its point is a transparent background, which only an MG page has */
-    if (onExportBlock && one?.kind === 'mg') {
-      out.push({
-        id: 'export',
-        label: t('timeline.menuExportClip'),
-        icon: <Download size={14} />,
-        /* a clip without an id is not on film.html and cannot be found by it */
-        disabled: !one.clipId,
-        hint: t('timeline.menuExportNoId'),
-        onSelect: () => { if (one.clipId) onExportBlock(one.clipId); },
-      });
-    }
     if (onRemove || onRemoveMany || onEditOps) {
       out.push({ id: 's2', separator: true });
       out.push({
@@ -3433,7 +3411,7 @@ export const Timeline = React.memo(function Timeline({
     }
     return out;
   }, [
-    menu, t, onSplit, onDetachAudio, onRemove, onRemoveMany, onCopy, onPaste, onExportBlock, mediaTrouble, relinkCandidates,
+    menu, t, onSplit, onDetachAudio, onRemove, onRemoveMany, onCopy, onPaste, mediaTrouble, relinkCandidates,
     onRelink, hasClipboard, runSplit, removeMany, rippleRemove, magnetRemove, onEditOps, tracks, blockMenuExtra, headEntries, withLinked,
     runPlan, closeGapOn, rippleTrimToPlayhead, linkBlocks, unlinkBlocks, transitions, onTransition, onPickTransition, transitionEntries,
   ]);
@@ -4280,17 +4258,10 @@ function ToolButton({
 function SubtitlePicker({ subtitles }: { subtitles: NonNullable<TimelineProps['subtitles']> }) {
   const t = useT();
   const none = subtitles.count === 0;
-  const n = subtitles.untranscribed ?? 0;
-  /* no lines yet and speech with no transcript: the button makes them (with some lines, it shows them, and the
-     Inspector makes the rest) */
-  const make = none && n > 0 && !!subtitles.onMake;
-  const label = subtitles.making ? t('timeline.subtitlesMaking')
-    : subtitles.problem ? (subtitles.problem.connect ? t('timeline.subtitlesConnect') : t('timeline.subtitlesFailed').replace('{error}', subtitles.problem.text))
-      : make ? t(n === 1 ? 'timeline.subtitlesMakeOne' : 'timeline.subtitlesMake').replace('{n}', String(n))
-        : !none ? t('timeline.subtitles') : t('timeline.subtitlesNone');
+  const label = t(none ? 'timeline.subtitlesNone' : 'timeline.subtitles');
   return (
     <div className="flex items-center gap-0.5">
-      <ToolButton onClick={make || subtitles.problem ? () => subtitles.onMake?.() : subtitles.onToggle} active={subtitles.on && !none && !make} disabled={subtitles.making || (none && !make && !subtitles.problem)}
+      <ToolButton onClick={subtitles.onToggle} active={subtitles.on && !none} disabled={none}
         label={label}>
         <CaptionsIcon size={19} />
       </ToolButton>

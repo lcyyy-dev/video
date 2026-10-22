@@ -12,11 +12,11 @@
     "dev": "pnpm --filter openfilm dev",
     "dev:desktop": "pnpm --filter @openfilm/desktop start",
     "build": "pnpm --filter openfilm build:ui && pnpm --filter @openfilm/desktop build:shell",
+    "release:win": "pnpm --filter @openfilm/desktop release:win",
     "test": "pnpm -r --workspace-concurrency=1 --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
     "audit:public": "node scripts/audit-public.mjs",
     "check:pack": "node scripts/check-pack.mjs",
-    "skills:sync": "node scripts/sync-skills.mjs",
     "changeset": "changeset",
     "examples:sync": "node scripts/sync-examples.mjs"
   },

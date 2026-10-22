@@ -7,7 +7,7 @@
  * Layer changes are overrides (the editor writes film.html); the clip's actions are the editor's, passed in.
  */
 import {
-  BringToFront, ClipboardPaste, Copy as CopyIcon, CopyPlus, CornerLeftUp, Download, Eye, EyeOff, Layers, Lock,
+  BringToFront, ClipboardPaste, Copy as CopyIcon, CopyPlus, CornerLeftUp, Eye, EyeOff, Layers, Lock,
   RotateCcw, Scissors, SendToBack, Trash2, Type as TypeIcon, Unlock,
 } from 'lucide-react';
 
@@ -64,7 +64,6 @@ export interface StageClipActions {
   sendToBack(clipLoc: string): void;
   /** Back to where it lands by default (its box removed). */
   resetTransform(clipLoc: string): void;
-  exportClip?(clipId: string): void;
   remove(clipLoc: string): void;
 }
 
@@ -152,11 +151,6 @@ export function stageMenu(el: StageElement, ctx: StageMenuContext, actions: Stag
     m.push({ id: 'front', label: t('stageMenu.front'), icon: <BringToFront size={14} />, disabled: trackLocked, hint: lockedHint, onSelect: () => clip.bringToFront(clipLoc) });
     m.push({ id: 'back', label: t('stageMenu.back'), icon: <SendToBack size={14} />, disabled: trackLocked, hint: lockedHint, onSelect: () => clip.sendToBack(clipLoc) });
     m.push({ id: 'reset', label: t('stageMenu.resetTransform'), icon: <RotateCcw size={14} />, disabled: trackLocked, hint: lockedHint, onSelect: () => clip.resetTransform(clipLoc) });
-    const exportClip = clip.exportClip;
-    if (exportClip && el.clipId) {
-      const id = el.clipId;
-      m.push({ id: 'export', label: t('timeline.menuExportClip'), icon: <Download size={14} />, onSelect: () => exportClip(id) });
-    }
     m.sep();
     m.push({ id: 'delete', label: t('timeline.removeBlock'), icon: <Trash2 size={14} />, danger: true, shortcut: '⌫', disabled: trackLocked, hint: lockedHint, onSelect: () => clip.remove(clipLoc) });
     return m.done();

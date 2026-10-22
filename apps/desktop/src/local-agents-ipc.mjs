@@ -41,17 +41,17 @@
  * the prompt and the session it ran in (what the agent was started and opened with, `opened`), each message exactly
  * as the agent got it (`sent`: the app's words before the first one's too; pictures kept apart, by file), every event
  * above, each answer the page gave, how it ended. Once a turn ends, the requests the agent made to its model are read
- * from its own record (agent-records.mjs), or from the log it was started with in Developer mode (agent-logs.mjs),
+ * from its own record (agent-records.mjs),
  * into `.film/logs/<turn>.model.jsonl`, as the app's own agent writes its own.
  */
+import { CLIENT_AGENTS } from 'openfilm/client-scope';
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
-import { LOG_SETTLE_MS } from './agent-logs.mjs';
 import { RECORDED_AGENTS, agentRecordCalls, compactCalls } from './agent-records.mjs';
-import { skillStore } from './agent-skills.mjs';
-import { AgentSession, HARNESS_AGENTS, isAgentId, isChatAgent, listAgents, openAgentSignIn } from './agents.mjs';
+import { AgentSession, isAgentId, isChatAgent, listAgents, openAgentSignIn } from './agents.mjs';
 import { loggedBlocks, openLog, writeModelLog } from './chat-store.mjs';
 import { loginShellVariables } from './environment.mjs';
+import { codexEnvironment } from './codex-runtime.mjs';
 
 const TURN_LOG_MAX = 5000;
 /** what the agent sends between turns, kept for a turn of its own the page may open for it */
@@ -75,11 +75,11 @@ const RECORD_SETTLE_MS = 800;
  * The agent's requests to its model from `from` to `to` (ms), read from its own record (or `agentLog`, the log it was
  * started with) into the turn's model log. Never throws: a record that cannot be read leaves the turn without one.
  */
-export async function keepAgentRecord({ agent, sessionId, cwd, turnId, from, to, agentLog = null, log = () => {}, settleMs = LOG_SETTLE_MS[agent] ?? RECORD_SETTLE_MS }) {
+export async function keepAgentRecord({ agent, sessionId, cwd, turnId, from, to, agentLog = null, log = () => {}, settleMs = RECORD_SETTLE_MS }) {
   if (!RECORDED_AGENTS.includes(agent) || !sessionId || !turnId) return;
   try {
     await new Promise((done) => setTimeout(done, settleMs));
-    const env = await loginShellVariables({ staleOk: true });
+    const env = codexEnvironment(await loginShellVariables({ staleOk: true }));
     const found = agentRecordCalls({ agent, sessionId, cwd, from, to, env, log: agentLog });
     if (found?.calls.length) writeModelLog(cwd, turnId, compactCalls(found.calls));
   } catch (e) {
@@ -98,22 +98,15 @@ function imageBlocks(images) {
 
 /**
  * @param {import('electron').IpcMain} ipcMain
- * `harness(id)` gives the app's own agent ('byok') what it runs with (agent-roster.mjs), resolved as
- * each session starts.
  * `onWorking` hears the folders agents are working in (a turn running there) each time they change; `onAsking` the
  * folders where an agent waits for the person's answer.
- * `logDir()`, as each session starts: the folder for the logs an agent is started with (Developer mode on), or null.
  * `skills`: where the app keeps its record of skills (`dataDir`) and the person's own skills (`mine`): each session has its maker's skills and MCP servers, OpenFilm's skills, and of the person's own those let
  * in (agent-skills.mjs).
  * @param {{ trusted: (event: any) => boolean, binDir?: string | null, fallbackDir?: string | null, env?: Record<string, string>,
- *           harness?: (id: string) => Promise<any>, onWorking?: (folders: string[]) => void, onAsking?: (folders: string[]) => void, logDir?: () => string | null,
+ *           onWorking?: (folders: string[]) => void, onAsking?: (folders: string[]) => void,
  *           skills?: { dataDir: string, mine: string } | null }} opts
  */
-export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbackDir = null, env = {}, harness = async () => null, log = () => {}, onWorking = () => {}, onAsking = () => {}, logDir = () => null, skills = null }) {
-  const harnessFor = async (agent) => (HARNESS_AGENTS.includes(agent) ? harness(agent) : undefined);
-  const skillRecord = skills ? skillStore(skills.dataDir) : null;
-  /** a session's skills and MCP servers: OpenFilm's, and of the person's own those let in (agent-skills.mjs) */
-  const skillsFor = (agent) => (skills && skillRecord ? { ...skills, allowed: skillRecord.allowed(agent), mcpAllowed: skillRecord.mcpAllowed(agent) } : null);
+export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbackDir = null, env = {}, log = () => {}, onWorking = () => {}, onAsking = () => {}, skills = null }) {
   /** @type {Map<string, { session: AgentSession, sender: import('electron').WebContents, pending: Map<string, (answer: any) => void>, agent: string, cwd: string, turn: any }>} */
   const sessions = new Map();
   let activePrompts = 0;
@@ -154,7 +147,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     if (entry.running > 0) onWorking(working());
   };
 
-  handle('desktop:local-agents:list', () => listAgents());
+  handle('desktop:local-agents:list', () => listAgents(CLIENT_AGENTS));
 
   handle('desktop:local-agents:sign-in', (_event, opts) => {
     const agent = opts?.agent;
@@ -172,14 +165,14 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
 
   handle('desktop:local-agents:probe', async (_event, opts) => {
     const agent = opts?.agent;
-    if (!isChatAgent(agent)) return { ok: false, error: `Unknown agent: ${String(agent)}` };
+    if (!isChatAgent(agent) || !CLIENT_AGENTS.includes(agent)) return { ok: false, error: `Unknown agent: ${String(agent)}` };
     let session;
     try {
       /* its commands too (the composer's / menu), which it says just after the session opens: waited for a moment */
       let commands = null;
       let said = () => {};
       const heard = new Promise((done) => { said = done; });
-      session = new AgentSession({ agent, cwd: homedir(), binDir, fallbackDir, env, harness: await harnessFor(agent),
+      session = new AgentSession({ agent, cwd: homedir(), binDir, fallbackDir, env,
         onUpdate: (update) => { if (update?.sessionUpdate === 'available_commands_update') { commands = update.availableCommands ?? null; said(); } } });
       const info = await session.start();
       await Promise.race([heard, new Promise((done) => setTimeout(done, PROBE_COMMANDS_MS))]);
@@ -198,7 +191,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     const agent = opts?.agent;
     const cwd = opts?.cwd;
     const resume = typeof opts?.resume === 'string' && opts.resume ? opts.resume : null;
-    if (!isChatAgent(agent)) return { ok: false, error: `Unknown agent: ${String(agent)}` };
+    if (!isChatAgent(agent) || !CLIENT_AGENTS.includes(agent)) return { ok: false, error: `Unknown agent: ${String(agent)}` };
     if (typeof cwd !== 'string' || !cwd) return { ok: false, error: 'Missing project folder.' };
     /* the conversation still open here (the page was reloaded): taken up as it is, no second process */
     const open = resume ? [...sessions].find(([, e]) => e.agent === agent && e.cwd === cwd && e.info?.sessionId === resume && e.sender === event.sender) : null;
@@ -217,9 +210,8 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
         binDir,
         fallbackDir,
         env,
-        logDir: logDir(),
-        skills: skillsFor(agent),
-        harness: await harnessFor(agent),
+        skills,
+
         onUpdate: (update) => send(entry, key, { kind: 'update', update }),
         onPermission: (params) => new Promise((resolve) => {
           const requestId = randomUUID();

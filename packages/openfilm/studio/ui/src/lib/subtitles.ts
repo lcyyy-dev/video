@@ -162,9 +162,6 @@ export type FilmCaptions = {
   untranscribed: string[];
 };
 
-/** How a translation went: `needsTranslator` when no service that translates is connected (the error says so). */
-export type SubtitleTranslateResult = { ok: boolean; error?: string; needsTranslator?: boolean };
-
 const subtitlesApi = (projectId: string, rest: string) => `/api/projects/${encodeURIComponent(projectId)}/${rest}`;
 
 export async function fetchFilmCaptions(projectId: string, signal?: AbortSignal): Promise<FilmCaptions> {
@@ -188,21 +185,6 @@ export async function saveSubtitleStyle(projectId: string, style: SubtitleStyle)
   if (!res.ok) throw new Error(`Studio answered ${res.status}`);
 }
 
-/** How making subtitles went: `needsTranscriber` when no service can transcribe (the error says so). */
-export type SubtitleTranscribeResult = { ok: boolean; error?: string; needsTranscriber?: boolean };
-
-/** Transcribe the speech heard in the film that has no transcript yet (each gets a WebVTT beside it). */
-export async function requestSubtitleTranscription(projectId: string): Promise<SubtitleTranscribeResult> {
-  try {
-    const res = await fetch(subtitlesApi(projectId, 'subtitles/transcribe'), { method: 'POST' });
-    const body = await res.json().catch(() => null) as { failed?: { error: string }[]; error?: string; code?: string } | null;
-    if (!res.ok) return { ok: false, error: body?.failed?.[0]?.error ?? body?.error ?? `HTTP ${res.status}`, ...(body?.code === 'no-transcriber' ? { needsTranscriber: true } : {}) };
-    return body?.failed?.length ? { ok: false, error: body.failed[0]!.error } : { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
 /**
  * The person's correction of one line: it goes back into the transcript it comes from (or its translation into
  * `language`); with `part` (a cue's), into that subtitle's words of the spoken line only.
@@ -212,20 +194,6 @@ export async function saveSubtitleLine(projectId: string, change: { src: string;
     method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(change),
   }).catch(() => null);
   return Boolean(res?.ok);
-}
-
-/** Translate the film's voices into `language` (the lines then carry it; the style shows it). */
-export async function requestSubtitleTranslation(projectId: string, language: string): Promise<SubtitleTranslateResult> {
-  try {
-    const res = await fetch(subtitlesApi(projectId, 'subtitles/translate'), {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ language }),
-    });
-    const body = await res.json().catch(() => null) as { failed?: { error: string }[]; error?: string; code?: string } | null;
-    if (!res.ok) return { ok: false, error: body?.failed?.[0]?.error ?? body?.error ?? `HTTP ${res.status}`, ...(body?.code === 'no-translator' ? { needsTranslator: true } : {}) };
-    return body?.failed?.length ? { ok: false, error: body.failed[0]!.error } : { ok: true };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
 }
 
 /* ── the subtitle row's edits of one source (studio/server/subtitle-edits.mjs) ── */

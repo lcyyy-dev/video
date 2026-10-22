@@ -1,0 +1,30 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { bundledCodex, codexArguments, codexEnvironment, configureBundledCodex } from './codex-runtime.mjs';
+import { resolveAgentCli, setChosenPaths, agentShell } from './agents.mjs';
+
+test('the installed client uses its own Codex and account even when a global program/home was selected', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'openfilm-bundled-'));
+  t.after(() => { configureBundledCodex(); setChosenPaths({}); rmSync(dir, { recursive: true, force: true }); });
+  const runtimeDir = join(dir, '应用 程序');
+  const dataDir = join(dir, '用户 数据');
+  const bin = join(runtimeDir, 'codex/bin');
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, 'codex.exe'), 'test executable');
+  setChosenPaths({ codex: process.execPath });
+  configureBundledCodex({ runtimeDir, dataDir });
+  assert.deepEqual(resolveAgentCli('codex'), { path: join(bin, 'codex.exe'), source: 'bundled' });
+  const home = join(dataDir, 'codex');
+  assert.equal(agentShell('codex', { CODEX_HOME: '/external', PATH: 'global' }).CODEX_HOME, home);
+  assert.equal(codexEnvironment({ CODEX_HOME: '/external' }).CODEX_HOME, home);
+  assert.match(readFileSync(join(home, 'config.toml'), 'utf8'), /check_for_update_on_startup = false/);
+  writeFileSync(join(home, 'config.toml'), 'model = "user-choice"\n');
+  configureBundledCodex({ runtimeDir, dataDir });
+  assert.equal(readFileSync(join(home, 'config.toml'), 'utf8'), 'model = "user-choice"\n');
+  assert.deepEqual(codexArguments(['login', 'status']), ['-c', 'check_for_update_on_startup=false', 'login', 'status']);
+  assert.throws(() => configureBundledCodex({ runtimeDir: join(dir, 'broken'), dataDir }), /reinstall/);
+  assert.equal(bundledCodex(), null);
+});

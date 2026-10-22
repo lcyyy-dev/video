@@ -62,14 +62,6 @@ export interface StudioHost {
     setWidth?: (width: number, done?: boolean) => void;
     onChange: (listener: (state: { open: boolean; width: number; assets?: { open: boolean; bottom: number } }) => void) => void;
   };
-  /**
-   * The app's chat names a skill in the message being written: the examples (opened from the chat, `show-examples`)
-   * call this for a skill picked in them.
-   */
-  useSkill?: (skill: { name: string; description: string }) => void;
-  /** The person's own skills, where the app keeps them: one added, the app's own way (from a link, a folder, or made
-      with the agent). The Community's skills offer it. */
-  skills?: { add: () => void };
   /** Let the app ask Studio to show something: Studio calls this once with its listener. */
   onCommand?: (listener: (command: StudioCommand) => void) => void;
   /**
@@ -86,7 +78,6 @@ export interface StudioHost {
     disconnect: (id: HostAgentId) => Promise<unknown>;
     /** Codex: what is left of its plan, as it says for the account signed in (null: it can't say; other agents, null) */
     usage?: (id: HostAgentId, fresh?: boolean) => Promise<HostAgentUsage | null>;
-    setShown: (id: HostAgentId, shown: boolean) => Promise<unknown>;
     locate?: (id: HostAgentId, words?: { title?: string; button?: string }) => Promise<{ ok: boolean; error?: string; code?: 'not-a-program' | 'did-not-start' | string }>;
     useAutomatic?: (id: HostAgentId) => Promise<unknown>;
     diagnose?: (id: HostAgentId) => Promise<HostAgentDiagnosis | null>;
@@ -94,17 +85,11 @@ export interface StudioHost {
      * One of the person's own models set up (no `id`) or changed: checked before it is kept. A key left empty keeps its
      * own, or takes the one of another model on the same address.
      */
-    saveOwnModel: (config: HostOwnModelConfig) => Promise<{ ok: true; id: string } | { ok: false; error: string; code?: string }>;
-    removeOwnModel: (id: string) => Promise<unknown>;
     /**
      * The MCP servers the person added to an agent themselves (its maker's not among them), each let into the app or
      * not: hidden there until let in. `filtered` false: the agent cannot be told, and has them all.
      */
-    mcp?: (id: HostAgentId) => Promise<{ filtered: boolean; servers: Array<{ name: string; detail: string; allowed: boolean }> }>;
-    allowMcp?: (id: HostAgentId, name: string, allowed: boolean) => Promise<unknown>;
     /** The same for the skills the person installed in an agent themselves (OpenFilm's own skill for terminal agents is never among them). */
-    skills?: (id: HostAgentId) => Promise<{ filtered: boolean; skills: Array<{ name: string; description: string; allowed: boolean }> }>;
-    allowSkill?: (id: HostAgentId, name: string, allowed: boolean) => Promise<unknown>;
     onChange: (listener: (agents: HostAgent[]) => void) => () => void;
   };
   /**
@@ -202,7 +187,6 @@ export type HostAgentId = 'codex' | 'claude' | 'gemini' | 'copilot' | 'cursor' |
 export interface HostAgentDiagnosis { found: string | null; program?: string; hint: 'chosen-missing' | 'wsl' | 'unusable' | 'none' | null; text: string }
 
 /** The API a person's own key is for: OpenAI's Responses or Chat Completions, or Anthropic's Messages. */
-export type HostByokFormat = 'responses' | 'chat' | 'anthropic';
 
 /**
  * One agent as the app has it. `status`: ready · off (disconnected in the app; its own sign-in is kept) · sign-in (its
@@ -221,30 +205,13 @@ export interface HostAgent {
   /** The program used (the person's own agents), and the one the person chose for it, if they did. */
   path?: string | null;
   chosen?: string | null;
+  /** The app ships and updates this program. */
+  managed?: boolean;
   error?: string;
   /** Found, but it cannot read its own settings (Codex's config file), as it says: no session starts until fixed. */
   problem?: string;
   account?: HostAgentAccount;
-  /** The own key's models, each set up on its own; the first is the one a conversation starts on. */
-  byok?: { models: HostOwnModel[] };
 }
-
-/**
- * One of the person's own models: its `id` (the app's), the `name` the chat's menu shows, its service (API `format`
- * and `baseUrl`), the `model` asked for there, its efforts, and the last four characters of its key.
- */
-export interface HostOwnModel extends HostByokEffort { id: string; name: string; format: HostByokFormat; baseUrl: string; model: string; last4: string }
-
-/** What setting up one of the person's own models sends: `id` to change one, no `key` to keep its key. */
-export interface HostOwnModelConfig { id?: string; name?: string; format: HostByokFormat; baseUrl: string; model: string; key?: string; levels: HostByokEffortLevel[]; effort: HostByokEffortLevel }
-
-/**
- * The reasoning efforts a model of the person's own key offers, in this order (`auto`: none is sent, the service decides),
- * and the one a conversation starts on. A model given none offers `auto` alone.
- */
-export const BYOK_EFFORTS = ['auto', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
-export type HostByokEffortLevel = (typeof BYOK_EFFORTS)[number];
-export interface HostByokEffort { levels: HostByokEffortLevel[]; effort: HostByokEffortLevel }
 
 /**
  * What is left of an agent's plan: each window's share used (0–100), how long it is (minutes) and when it resets (ms);
@@ -349,13 +316,7 @@ export type StudioCommand =
   | { type: 'highlight'; ref: StudioRef | null }
   | { type: 'draft-refs'; refs: StudioRef[] }
   /* the app's chat sends the person to Settings (an agent to set up) */
-  | { type: 'settings'; section?: 'agents' | 'providers' }
-  /* the app's chat opens the examples over the film, to point at one or a part of one, or name a skill; `open`: on
-     that skill's or example's page (a pill of one clicked) */
-  | { type: 'show-examples'; open?: CommunityItem };
-
-/** A skill or an example in the Community, to open on its page. */
-export type CommunityItem = { kind: 'skill'; name: string } | { kind: 'example'; id: string };
+  | { type: 'settings'; section?: 'agents' };
 
 export const studioHost: StudioHost | null = (globalThis as { openfilmHost?: StudioHost }).openfilmHost ?? null;
 

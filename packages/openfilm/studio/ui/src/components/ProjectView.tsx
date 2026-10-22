@@ -7,7 +7,7 @@
  * are written one at a time (see editor/use-film.ts); the agent's writes come in through the folder's events.
  */
 import * as React from 'react';
-import { BookmarkPlus, ClipboardCopy, ClipboardPaste, GalleryVerticalEnd, Layers, LibraryBig, MessageSquarePlus, MonitorDown, Settings2, TriangleAlert } from 'lucide-react';
+import { BookmarkPlus, ClipboardCopy, ClipboardPaste, GalleryVerticalEnd, Layers, LibraryBig, MessageSquarePlus, Settings2, TriangleAlert } from 'lucide-react';
 import { applyOps } from '../../../server/ops.mjs';
 import { api, ApiError, PREFS_EVENT, projectEvents, type Clip, type Film, type Listing, type Op, type ProjectFilm, type ProjectSettings } from '@/api';
 import { useT } from '@/i18n';
@@ -49,9 +49,8 @@ import { factsOfProbe, mediaListingOf, resourceKindOf, srcHitsAsset, warmProject
 import { BrandLoadingScreen } from './BrandLoadingScreen';
 import { BrandLogo } from './BrandLogo';
 import { SettingsModal, type SettingsSection } from './settings/SettingsModal';
-import { DesktopDialog } from './DesktopDialog';
 import type { ContextMenuEntry } from './ContextMenu';
-import { studioHost, useHostPanel, type CommunityItem, type HostPanel, type StageBox, type StudioCommand, type StudioRef } from '../lib/host';
+import { studioHost, useHostPanel, type HostPanel, type StageBox, type StudioCommand, type StudioRef } from '../lib/host';
 import { clipRef, fileRef, layerRef, markRange, momentRef, rangeRef, regionRef, stillUrl, subtitleRef, trackRef, type ClipFrameSource, type FilmRange } from '@/lib/studio-refs';
 import { boxNow, chatPointOf, draftBoxesAt, draftMarksOf, sameClip, NO_DRAFT, type DraftMarks, type PictureMarks } from '@/lib/chat-marks';
 import { shortcutHint } from '@/lib/shortcut-hint';
@@ -65,7 +64,6 @@ import { DEFAULT_INSPECTOR, DOCK_GAP, DockPaneDivider, MIN_DOCK_H, MIN_INSPECTOR
 import { PANE_BAR, PANE_BTN_ON, PANE_TOGGLE, PANE_TOGGLE_ICON } from './dock-pane-bar';
 import { Tooltip } from './Tooltip';
 import { TabStrip } from './TabStrip';
-import { ExamplesDialog } from './ExamplesGallery';
 import { UpdateButton, WebUpdateButton } from './UpdateButton';
 import { MediaPool, type ImportProgress } from './MediaPool';
 import type { SubtitleRowSpec } from './SubtitleRow';
@@ -1348,8 +1346,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   hostCommands.current = (command) => {
     if (command.type === 'highlight') { setChatRef(command.ref ?? null); return; }
     if (command.type === 'draft-refs') { setDraftMarks(draftMarksOf(Array.isArray(command.refs) ? command.refs : [])); return; }
-    if (command.type === 'settings') { setSettingsOpen(command.section ?? 'agents'); return; }
-    if (command.type === 'show-examples') { setExamplesOpen(command.open ?? true); return; }
+    if (command.type === 'settings') { setSettingsOpen('agents'); return; }
     if (command.type === 'seek' && Number.isFinite(command.time)) { pause(); seek(command.time * 1000); return; }
     if ((command.type === 'show-range' || command.type === 'show-subtitle') && Number.isFinite(command.start) && Number.isFinite(command.end)) {
       /* a subtitle's span marked, and the subtitle panel open: the playhead at its start lights the line there */
@@ -1623,7 +1620,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     if (!clip) return null;
     return { css: typeof clip.style === 'string' ? clip.style : '', look: spans.find((s) => s.id === clip.id)?.look ?? null, cls: clip.class ?? '' };
   }, [spans]);
-  const openClipExportRef = React.useRef<(clipId: string) => void>(() => {});
   /* the picture's menu is built before Duplicate is: it reaches it through a ref */
   const duplicateRef = React.useRef<(blocks: readonly TimelineBlock[]) => Promise<string | null>>(async () => null);
   /* the whole clip's actions in the picture's menu: the timeline's own */
@@ -1667,7 +1663,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
         if (at) void editBlocks([{ loc: clipLoc, prop: 'trackOrder', value: { from: at.track, to: last } }]);
       },
       resetTransform: (clipLoc) => { void editBlocks([{ loc: clipLoc, prop: 'box', value: null }]); },
-      exportClip: (clipId) => openClipExportRef.current(clipId),
       remove: (clipLoc) => { const b = blockAt(clipLoc); if (b) { void removeBlocks(withLinkedBlocks(b)); setStageElement(null); } },
     },
   }, t), [editStageOverrides, selectStageParent, selectStageClip, splitBlocks, copyBlocks, clipboard, timelineTracks, pasteAt, editBlocks, removeBlocks, t, toast]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2436,18 +2431,8 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     }
   };
   const [projectsOpen, setProjectsOpen] = React.useState(false);
-  /* the examples over the film, opened from the app's chat */
-  /* the Community over the film: closed, open on its list (true), or on one skill's or example's page */
-  const [examplesOpen, setExamplesOpen] = React.useState<boolean | CommunityItem>(false);
+
   const [settingsOpen, setSettingsOpen] = React.useState<SettingsSection | null>(null);
-  /* making subtitles: what went wrong, shown on the CC button; with no service to transcribe, it opens Providers */
-  const [subtitleProblem, setSubtitleProblem] = React.useState<{ text: string; connect: boolean } | null>(null);
-  const makeSubtitles = React.useCallback(() => {
-    if (subtitleProblem?.connect) { setSettingsOpen('providers'); setSubtitleProblem(null); return; }
-    setSubtitleProblem(null);
-    void subs.transcribe().then((r) => { if (!r.ok) setSubtitleProblem({ text: r.error ?? '', connect: !!r.needsTranscriber }); });
-  }, [subs, subtitleProblem]);
-  const [desktopOpen, setDesktopOpen] = React.useState(false);
   const headerOpsRef = React.useRef<HTMLDivElement>(null);
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [historyAnchor, setHistoryAnchor] = React.useState<{ x: number; y: number } | null>(null);
@@ -2479,21 +2464,8 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     setHistoryOpen((v) => !v);
   };
   const [exportOpen, setExportOpen] = React.useState(false);
-  const [exportClipId, setExportClipId] = React.useState<string | null>(null);
   /* the picture's menu is built before this: it reaches export through a ref */
   const exportTrayRef = React.useRef<ExportTrayHandle>(null);
-  const openClipExport = React.useCallback((clipId: string) => {
-    if (!(totalMs > 0)) { toast.show(t('project.filmNotReady')); return; }
-    setExportClipId(clipId);
-    setExportOpen(true);
-  }, [totalMs, toast, t]);
-  openClipExportRef.current = openClipExport;
-  const mgBlocks = React.useMemo(() => timelineTracks
-    .filter((tr) => !tr.hidden)
-    .flatMap((tr) => tr.blocks)
-    .filter((b) => b.kind === 'mg' && b.clipId && b.endMs > b.startMs)
-    .sort((a, b) => a.startMs - b.startMs)
-    .map((b) => ({ clipId: b.clipId!, label: b.title || b.clipId!, startMs: b.startMs, durMs: b.endMs - b.startMs })), [timelineTracks]);
   const exportFilm = React.useMemo(
     () => (film.film ? filmShape(film.film as unknown as FilmDoc, info?.spans ?? [], mediaFacts) : null),
     [film.film, info, mediaFacts],
@@ -2561,13 +2533,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
               </Tooltip>}
               <UpdateButton />
               <WebUpdateButton />
-              {!studioHost && <Tooltip label={t('desktop.title')} side="bottom">
-                <button type="button" aria-haspopup="dialog" onClick={() => setDesktopOpen(true)}
-                  className={`flex h-[26px] shrink-0 items-center gap-1.5 rounded-md px-2 text-[12px] text-[var(--text-dim)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text)] ${desktopOpen ? 'bg-[var(--bg-hover)] text-[var(--text)]' : ''}`}>
-                  <MonitorDown size={14} />
-                  {t('nav.desktop')}
-                </button>
-              </Tooltip>}
+
             </div>
             {inTabs ? (
               <TabStrip onRename={startRename} onNew={() => setProjectsOpen(true)} editor={renaming ? (
@@ -2850,7 +2816,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                     <ResourceInspector file={inspectorContent} url={(pickedSaved && inspectorContent === pickedMedia ? savedSources : mediaSources).file(inspectorContent)} width={inspectorShownWidth} onClose={closeInspector} />
                   ) : inspectorContent === 'subtitles' ? (
                     <SubtitleInspector
-                      subtitles={{ style: subs.style, onStyle: subs.patchStyle, translate: subs.translate, sourceLanguage: subs.sourceLanguage, lines: subs.captions?.cues ?? [], onEditLine: (cue, text, language) => void subs.setLine(cue, text, language), timeMs, onSeek: seek, untranscribed: subs.captions?.untranscribed.length ?? 0, onMake: makeSubtitles, making: subs.transcribing, ...(subtitleRefer ? { refer: subtitleRefer } : {}) }}
+                      subtitles={{ style: subs.style, onStyle: subs.patchStyle, sourceLanguage: subs.sourceLanguage, lines: subs.captions?.cues ?? [], onEditLine: (cue, text, language) => void subs.setLine(cue, text, language), timeMs, onSeek: seek, ...(subtitleRefer ? { refer: subtitleRefer } : {}) }}
                       width={inspectorShownWidth}
                       onClose={closeInspector}
                     />
@@ -2960,11 +2926,10 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                     onPaste={pasteAt}
                     onDropAsset={dropAsset}
                     onDropFiles={dropFiles}
-                    onExportBlock={openClipExport}
                     hasClipboard={clipboard.length > 0}
                     selected={selectedIds}
                     onSelectedChange={onTimelineSelected}
-                    subtitles={{ on: subs.style.on, onToggle: subs.toggle, count: subs.count, untranscribed: subs.captions?.untranscribed.length ?? 0, onConfigure: configureSubtitles, configuring: inspectorShown && inspectorContent === 'subtitles', onMake: makeSubtitles, making: subs.transcribing, problem: subtitleProblem }}
+                    subtitles={{ on: subs.style.on, onToggle: subs.toggle, count: subs.count, onConfigure: configureSubtitles, configuring: inspectorShown && inspectorContent === 'subtitles' }}
                     subtitleRow={subtitleRow}
                     waveUrl={waveUrl}
                     history={timelineHistory}
@@ -2981,11 +2946,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
 
       <ProjectHistoryControls projectId={projectId} history={history} open={historyOpen} anchor={historyAnchor} onClose={() => setHistoryOpen(false)} />
       <ProjectsPopover open={projectsOpen} currentProjectId={projectId} onOpen={(id) => { setProjectsOpen(false); onProject(id); }} onCurrentRemoved={onLeave} onClose={() => setProjectsOpen(false)} />
-      {examplesOpen ? (
-        <ExamplesDialog projectId={projectId} open={examplesOpen === true ? undefined : examplesOpen} onClose={() => setExamplesOpen(false)}
-          /* a film started from an example: in a tab of its own where there are tabs, else here */
-          onStarted={(id) => { if (studioHost?.tabs) studioHost.tabs.open(id); else onProject(id); }} />
-      ) : null}
       <SettingsModal open={settingsOpen !== null} section={settingsOpen ?? undefined} onClose={() => setSettingsOpen(null)} />
       {/* the host app's media drawer (panel.assets): over its panel, under Studio's top bar, down to the `bottom` px the
           panel keeps for itself (the panel goes on below it, so the two read as one) */}
@@ -2996,19 +2956,15 @@ export function ProjectView({ projectId, onProject, onLeave }: {
           {mediaPool()}
         </div>
       ) : null}
-      <DesktopDialog open={desktopOpen} onClose={() => setDesktopOpen(false)} />
       <ExportCenter
         open={exportOpen}
-        onClose={() => { setExportOpen(false); setExportClipId(null); }}
+        onClose={() => setExportOpen(false)}
         projectId={projectId}
         title={title || 'video'}
         durationMs={totalMs}
         stage={stage}
         frame="native"
         film={exportFilm as never}
-        playheadMs={timeMs}
-        mgBlocks={mgBlocks}
-        {...(exportClipId ? { focusClipId: exportClipId } : {})}
         onQueued={(jobs) => exportTrayRef.current?.push(jobs)}
         projectFps={projectFps}
         missingFiles={[...mediaTrouble].flatMap(([src, why]) => (why === 'missing' ? [src] : []))}
