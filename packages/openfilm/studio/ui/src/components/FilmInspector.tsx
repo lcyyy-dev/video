@@ -15,6 +15,8 @@
  * banner.
  */
 import * as React from 'react';
+import SpotlightCard from './react-bits/SpotlightCard';
+import overviewStyles from './FilmOverview.module.css';
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalDistributeCenter,
   AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, ArrowRightToLine, AudioLines, Captions,
@@ -415,19 +417,34 @@ function FilmPanel({
     if (size.w === kept.w && size.h === kept.h) { onCanvasPreview?.(null); return; }
     onCanvas?.(filmFrameOf(size), size);
   };
-  const info = (label: string, value: string) => (
-    <div className="flex h-6 items-center justify-between gap-2 text-[11px]">
-      <span className="text-[var(--text-muted)]">{label}</span>
-      <span className="tabular-nums text-[var(--text)]">{value}</span>
-    </div>
-  );
   return (
-    <>
-      <Header
-        icon={<Film size={13} />}
-        name={film?.title || t('inspector.film')}
-        meta={`${stage.w} × ${stage.h}${film ? ` · ${formatTimecode(film.durationMs)}` : ''}`}
-      />
+    <div className={overviewStyles.overview}>
+      <SpotlightCard className={overviewStyles.hero} spotlightColor="var(--tl-accent)" intensity={0.12} borderGlow={0.45} proximity={0}>
+        <div className={overviewStyles.heroTop}>
+          <span className={overviewStyles.projectIcon}><Clapperboard size={20} /></span>
+          <span className={overviewStyles.eyebrow}>{t('inspector.film')}</span>
+          <span className={overviewStyles.ratioBadge}>{preset ? canvasRatioLabel(t, preset) : t('viewer.frameCustom')}</span>
+        </div>
+        <div className={overviewStyles.heroBody}>
+          <div className={overviewStyles.projectHeading}>
+            <h2 title={film?.title || t('inspector.film')}>{film?.title || t('inspector.film')}</h2>
+            <p>{stage.w} × {stage.h}<span>px</span></p>
+          </div>
+          <div className={overviewStyles.canvasDiagram} aria-hidden="true">
+            <div style={{ aspectRatio: `${stage.w} / ${stage.h}` }}><span /><span /><span /><span /></div>
+          </div>
+        </div>
+        {film ? <div className={overviewStyles.stats}>
+          {[
+            { icon: <Film size={13} />, label: t('inspector.duration'), value: formatTimecode(film.durationMs) },
+            { icon: <AlignStartVertical size={13} />, label: t('inspector.tracks'), value: String(film.tracks) },
+            { icon: <Scissors size={13} />, label: t('inspector.clipsCount'), value: String(film.clips) },
+          ].map(item => <div key={item.label} className={overviewStyles.stat}>
+            <span className={overviewStyles.statLabel}>{item.icon}{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>)}
+        </div> : null}
+      </SpotlightCard>
       <Section id="film-stage" title={t('inspector.stage')}>
         {canvas ? (
           <MenuSelect
@@ -462,22 +479,14 @@ function FilmPanel({
           <p className="text-[10.5px] leading-[15px] text-[var(--text-faint)]">{t(rate.fromFootage ? 'inspector.frameRateFootage' : 'inspector.frameRateNote')}</p>
         </Section>
       ) : null}
-      {film ? (
-        <Section id="film-info" title={t('inspector.filmInfo')}>
-          <div className="flex flex-col">
-            {info(t('inspector.duration'), formatTimecode(film.durationMs))}
-            {info(t('inspector.tracks'), String(film.tracks))}
-            {info(t('inspector.clipsCount'), String(film.clips))}
-          </div>
-        </Section>
-      ) : null}
-      <div className="flex flex-col items-center px-6 pt-8 text-center">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--fill-tsp)] text-[var(--text-muted)]">
-          <MousePointerClick size={15} strokeWidth={1.75} />
+      <div className={overviewStyles.emptyHint}>
+        <div className={overviewStyles.selectionArt} aria-hidden="true">
+          <span className={overviewStyles.selectionBox}><span /><span /><span /><span /></span>
+          <MousePointerClick size={22} strokeWidth={1.5} />
         </div>
-        <p className="mt-2 text-[11.5px] leading-relaxed text-[var(--text-faint)]">{t('inspector.empty')}</p>
+        <p>{t('inspector.empty')}</p>
       </div>
-    </>
+    </div>
   );
 }
 

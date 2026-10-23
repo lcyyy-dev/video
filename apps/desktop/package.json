@@ -12,7 +12,8 @@
     "test": "node --test src/*.test.mjs scripts/*.test.mjs",
     "typecheck": "tsc -p chat && tsc -p shell",
     "release": "node scripts/release.mjs",
-    "release:win": "node scripts/release.mjs --platform=win --arch=x64"
+    "release:win": "node scripts/release.mjs --platform=win --arch=x64",
+    "perf:animations": "node scripts/animation-benchmark.mjs"
   },
   "dependencies": {
     "@agentclientprotocol/codex-acp": "^1.13.1",

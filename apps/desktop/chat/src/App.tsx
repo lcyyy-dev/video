@@ -11,6 +11,7 @@ import { buildPromptDisplay, type Turn } from '@openfilm/shared';
 import { useT, useUiLocale } from '@/i18n';
 import { ConversationSessionBar } from '@/components/ConversationSessionBar';
 import { ProjectConversation, primeStoredTranscript } from '@/components/ProjectConversation';
+import { EditTemplateBuilder } from '@/components/EditTemplateBuilder';
 import { ProjectStarters } from '@/components/ProjectStarters';
 import { AttachmentPreview, type AttachmentPreviewItem } from '@/components/AttachmentPreview';
 import { ModelPopover } from '@/components/ModelPopover';
@@ -907,6 +908,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
                   onRenameSession={onRenameSession}
                   busy={active}
                 />
+                <EditTemplateBuilder projectKey={projectKey} />
                 <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
                   {/* the first message well below the session bar, as a chat app opens a conversation */}
                   <div

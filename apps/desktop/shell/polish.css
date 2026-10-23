@@ -1,0 +1,53 @@
+/* Desktop typography only. Colors come from the original Studio and chat themes. */
+:root, .of-chat { --font-sans: 'Inter Variable', 'Inter', 'Microsoft YaHei UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif; }
+body, .of-chat { font-family: var(--font-sans); }
+/* Readable desktop type scale, independent of pane geometry and film text. */
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[9px]"] { font-size: 12px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[9.5px]"] { font-size: 12px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[10px]"] { font-size: 13px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[10.5px]"] { font-size: 13px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[11px]"] { font-size: 14px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[11.5px]"] { font-size: 14px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[12px]"] { font-size: 14px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[12.5px]"] { font-size: 15px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[13px]"] { font-size: 15px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[13.5px]"] { font-size: 15px; }
+:is(.of-chat, [data-film-inspector], [data-titlebar], .desktop-pane-bar, [role="dialog"]) [class~="text-[14px]"] { font-size: 16px; }
+
+.desktop-pane-title { font-size: 14px; }
+[data-film-inspector] input, [data-film-inspector] button[aria-haspopup='listbox'] { font-size: 14px; }
+[data-film-inspector] [class*='eyebrow_'], [data-film-inspector] [class*='ratioBadge_'], [data-film-inspector] [class*='statLabel_'] { font-size: 13px; }
+[data-film-inspector] [class*='projectHeading_'] h2 { font-size: 24px; }
+[data-film-inspector] [class*='projectHeading_'] p { font-size: 14px; }
+[data-film-inspector] [class*='stat_'] strong { font-size: 20px; }
+[data-film-inspector] [class*='overview_'] > section > div:first-child button { font-size: 14px; }
+[data-film-inspector] [class*='emptyHint_'] p { font-size: 14px; }
+[data-timeline-scope] [class~='text-[10px]'], [data-timeline-scope] [class~='text-[10.5px]'], [data-timeline-scope] [class~='text-[11px]'] { font-size: 12px; }
+[data-track-name] { font-size: 12px; }
+.of-chat .starter-spotlight { font-size: 15px; }
+.of-chat .starter-heading { font-size: 24px; }
+.of-chat [contenteditable='true'] { font-size: 15px; }
+.of-chat .edit-template-trigger { font-size: 14px; }
+.of-chat .edit-template-tag { font-size: 12px; }
+.of-chat .edit-template-header h2 { font-size: 26px; }
+.of-chat .edit-template-header p, .of-chat .edit-template-options h3, .of-chat .edit-template-toggle, .of-chat .edit-template-fields label { font-size: 15px; }
+.of-chat .edit-template-eyebrow, .of-chat .edit-template-options h3 > span, .of-chat .edit-template-type small, .of-chat .edit-template-preview-tags span { font-size: 12px; }
+.of-chat .edit-template-type strong, .of-chat .edit-template-chips button, .of-chat .edit-template-preview-name p, .of-chat .edit-template-preview pre, .of-chat .edit-template-footer > span { font-size: 14px; }
+.of-chat .edit-template-help { font-size: 13px; }
+.of-chat .edit-template-dialog input:not([type='checkbox']), .of-chat .edit-template-dialog textarea, .of-chat .edit-template-dialog select, .of-chat .edit-template-save { font-size: 15px; }
+.of-chat .edit-template-preview > h3 { font-size: 21px; }
+
+
+.of-chat .edit-template-header, .of-chat .edit-template-footer { flex-shrink: 0; }
+
+/* Use one system cursor on hover and throughout the captured resize gesture. */
+[role='separator'][aria-orientation='vertical'],
+[role='separator'][aria-orientation='vertical'] *,
+html[data-resize-axis='vertical'], html[data-resize-axis='vertical'] * {
+  cursor: ew-resize !important;
+}
+[role='separator'][aria-orientation='horizontal'],
+[role='separator'][aria-orientation='horizontal'] *,
+html[data-resize-axis='horizontal'], html[data-resize-axis='horizontal'] * {
+  cursor: ns-resize !important;
+}

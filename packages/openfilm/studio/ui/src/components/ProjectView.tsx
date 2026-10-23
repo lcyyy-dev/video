@@ -7,6 +7,7 @@
  * are written one at a time (see editor/use-film.ts); the agent's writes come in through the folder's events.
  */
 import * as React from 'react';
+import { useFrameLatest } from '@/lib/use-frame-latest';
 import { BookmarkPlus, ClipboardCopy, ClipboardPaste, GalleryVerticalEnd, Layers, LibraryBig, MessageSquarePlus, Settings2, TriangleAlert } from 'lucide-react';
 import { applyOps } from '../../../server/ops.mjs';
 import { api, ApiError, PREFS_EVENT, projectEvents, type Clip, type Film, type Listing, type Op, type ProjectFilm, type ProjectSettings } from '@/api';
@@ -2876,7 +2877,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
 
             {timelineOpen ? <DockPaneDivider height={timelineShownHeight} onResize={commitTimelineHeight} containerRef={dockColRef} label={t('timeline.resize')} /> : null}
             {timelineOpen && value ? (
-              <div className={`${PANE} shrink-0 bg-[var(--dock-pane)]`} style={{ height: timelineShownHeight }}>
+              <div data-timeline-pane="" className={`${PANE} shrink-0 bg-[var(--dock-pane)]`} style={{ height: timelineShownHeight }}>
                 <div className="absolute inset-0 flex min-h-0 min-w-0 flex-col" data-timeline-scope="main" style={{ right: METERS_W }}
                   onPointerDownCapture={() => { setBarAt('timeline'); if (pickedMedia) pickMedia(null); }}>
                   <Timeline
@@ -3005,24 +3006,26 @@ function LiveGeometryInspector({ store, ...props }: Omit<React.ComponentProps<ty
  */
 function PanelSeam({ panel, bottom }: { panel: HostPanel; bottom: number }) {
   const drag = React.useRef<{ x: number; width: number } | null>(null);
+  const resize = useFrameLatest((width: number) => panel.setWidth(width));
   return (
     <div role="separator" aria-orientation="vertical" aria-label={panel.label} tabIndex={0}
       className="fixed z-[31] w-[10px] cursor-col-resize outline-none focus-visible:bg-[var(--border-strong)]"
-      style={{ top: HOST_PANEL_TOP, bottom, right: panel.width - 10 }}
+      style={{ cursor: 'ew-resize', top: HOST_PANEL_TOP, bottom, right: panel.width - 10 }}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.currentTarget.setPointerCapture(e.pointerId);
         drag.current = { x: e.screenX, width: panel.width };
-        document.body.style.cursor = 'col-resize';
+        document.body.style.cursor = 'ew-resize';
       }}
-      onPointerMove={(e) => { if (drag.current) panel.setWidth(drag.current.width + (drag.current.x - e.screenX)); }}
+      onPointerMove={(e) => { if (drag.current) resize.enqueue(drag.current.width + (drag.current.x - e.screenX)); }}
       onPointerUp={(e) => {
         if (!drag.current) return;
+        resize.cancel();
         panel.setWidth(drag.current.width + (drag.current.x - e.screenX), true);
         drag.current = null;
         document.body.style.cursor = '';
       }}
-      onPointerCancel={() => { drag.current = null; document.body.style.cursor = ''; }}
+      onPointerCancel={() => { resize.flush(); drag.current = null; document.body.style.cursor = ''; }}
       onKeyDown={(e) => {
         if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
         e.preventDefault();

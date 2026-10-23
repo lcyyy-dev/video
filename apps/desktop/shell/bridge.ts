@@ -100,8 +100,8 @@ function setChatOpen(open: boolean) {
 }
 function setChatWidth(width: number, done = false) {
   if (!Number.isFinite(width)) return;
-  layout.width = Math.round(Math.max(layout.min, Math.min(width, innerWidth - layout.studioMin)));
-  place();
+  const next = Math.round(Math.max(layout.min, Math.min(width, innerWidth - layout.studioMin)));
+  if (next !== layout.width) { layout.width = next; place(); }
   if (done) native.saveLayout({ chatOpen: layout.open, chatWidth: layout.width });
 }
 function setAssetsOpen(open: boolean) {

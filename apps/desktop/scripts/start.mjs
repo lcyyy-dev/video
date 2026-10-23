@@ -20,6 +20,14 @@ const identity = FLAVORS.dev;
 const require = createRequire(import.meta.url);
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2).filter((a) => a !== '--no-build');
+/* Use WSLg's native compositor for source runs. Keep explicit backend choices
+   intact (e.g. --ozone-platform=x11), and leave other Linux sessions alone. */
+if (process.platform === 'linux' && process.env.WAYLAND_DISPLAY
+    && existsSync('/mnt/wslg/runtime-dir')
+    && !args.some((arg) => arg === '--ozone-platform' || arg.startsWith('--ozone-platform='))) {
+  args.push('--ozone-platform=wayland');
+}
+
 
 if (!process.argv.includes('--no-build')) {
   const vite = join(dirname(require.resolve('vite/package.json')), 'bin', 'vite.js');

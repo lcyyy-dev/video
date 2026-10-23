@@ -22,7 +22,7 @@ use supplied recordings or explicitly requested local simulated audio; cloud TTS
 Exports are limited to video, Jianying/CapCut drafts, and project archives/folders. The underlying film format,
 renderer and media utilities remain shared with the CLI. See [the scope record](../../docs/CLIENT_SIMPLIFICATION.zh-CN.md).
 
-On Linux, the launcher keeps the desktop session's display and audio variables. Optional development libraries in
+On Linux, the launcher keeps the desktop session's display and audio variables. WSLg source runs default to the native Wayland backend; pass `--ozone-platform=x11` to the launcher to override it. Optional development libraries in
 `.dev/linux-libs/usr/lib/x86_64-linux-gnu/` and ffmpeg in `.dev/runtime/ffmpeg/` are reused when present.
 To use an already running Chromium browser, set `OPENFILM_BROWSER_CDP_URL` to its local CDP address. Set
 `OPENFILM_SKIP_BROWSER_DOWNLOAD=1` to report a missing browser instead of downloading one. These two settings can

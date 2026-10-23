@@ -1,0 +1,48 @@
+.overview {
+  --overview-color: var(--tl-accent);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  container-type: inline-size;
+  animation: overview-enter 300ms ease-out;
+}
+.hero.hero {
+  padding: 18px;
+  border-radius: 16px;
+  --spotlight-card-surface: var(--surface) !important;
+  --spotlight-card-border: color-mix(in srgb, var(--overview-color) 23%, var(--border)) !important;
+  --spotlight-card-shadow: 0 8px 24px #00000008 !important;
+  background-image: radial-gradient(ellipse at 100% 0%, color-mix(in srgb, var(--overview-color) 10%, transparent), transparent 65%);
+}
+.heroTop { display: flex; align-items: center; gap: 9px; }
+.projectIcon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; color: var(--overview-color); background: color-mix(in srgb, var(--overview-color) 12%, transparent); }
+.eyebrow { font-size: 11px; color: var(--text-muted); }
+.ratioBadge { margin-left: auto; border: 1px solid color-mix(in srgb, var(--overview-color) 20%, transparent); border-radius: 6px; padding: 3px 7px; font-size: 10px; color: var(--overview-color); }
+.heroBody { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0 20px; }
+.projectHeading { min-width: 0; }
+.projectHeading h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; line-height: 1.4; font-weight: 600; letter-spacing: -.025em; color: var(--text); }
+.projectHeading p { margin-top: 5px; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.projectHeading p span { margin-left: 5px; color: var(--text-faint); }
+.canvasDiagram { display: grid; place-items: center; flex-shrink: 0; width: 80px; height: 76px; border-radius: 12px; background: repeating-linear-gradient(0deg, transparent 0 11px, var(--border) 11px 12px), repeating-linear-gradient(90deg, transparent 0 11px, var(--border) 11px 12px); }
+.canvasDiagram > div { position: relative; max-width: 54px; max-height: 54px; height: 54px; border: 1px solid var(--overview-color); background: color-mix(in srgb, var(--overview-color) 12%, var(--surface)); box-shadow: 0 0 20px color-mix(in srgb, var(--overview-color) 12%, transparent); }
+.canvasDiagram span, .selectionBox span { position: absolute; width: 4px; height: 4px; background: var(--surface); border: 1px solid var(--overview-color); }
+.canvasDiagram span:nth-child(1), .selectionBox span:nth-child(1) { left: -2px; top: -2px; }
+.canvasDiagram span:nth-child(2), .selectionBox span:nth-child(2) { right: -2px; top: -2px; }
+.canvasDiagram span:nth-child(3), .selectionBox span:nth-child(3) { left: -2px; bottom: -2px; }
+.canvasDiagram span:nth-child(4), .selectionBox span:nth-child(4) { right: -2px; bottom: -2px; }
+.stats { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid var(--border); padding-top: 15px; gap: 12px; }
+.stat { min-width: 0; }
+.statLabel { display: flex; gap: 5px; align-items: center; color: var(--text-muted); font-size: 10px; }
+.stat strong { display: block; margin-top: 7px; font-size: 17px; font-weight: 500; letter-spacing: -.025em; font-variant-numeric: tabular-nums; color: var(--text); }
+.overview > section { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: var(--surface); }
+.overview > section > div:first-child { margin-bottom: 5px; }
+.overview > section > div:first-child button { font-size: 12px; }
+.emptyHint { display: flex; flex-direction: column; align-items: center; padding: 24px 16px; text-align: center; }
+.emptyHint p { max-width: 280px; margin-top: 14px; font-size: 11px; line-height: 1.8; color: var(--text-muted); }
+.selectionArt { position: relative; width: 68px; height: 58px; }
+.selectionBox { position: absolute; left: 5px; top: 3px; width: 42px; height: 35px; border: 1px solid color-mix(in srgb, var(--overview-color) 50%, transparent); border-radius: 3px; background: linear-gradient(135deg, color-mix(in srgb, var(--overview-color) 10%, transparent), transparent); }
+.selectionArt > svg { position: absolute; right: 7px; bottom: 7px; color: var(--overview-color); filter: drop-shadow(0 2px 5px var(--surface)); }
+@container (max-width: 290px) { .hero.hero { padding: 14px; } .stats { gap: 8px; } .stat strong { font-size: 13px; } .canvasDiagram { width: 60px; } }
+@keyframes overview-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .overview { animation: none; } }

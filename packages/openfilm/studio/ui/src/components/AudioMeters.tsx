@@ -65,6 +65,19 @@ export function AudioMeters({ levels, playing }: {
     return () => ro.disconnect();
   }, []);
 
+  const theme = useThemeChanges();
+  const colors = React.useRef({ faint: 'rgba(128,128,128,0.6)', lane: 'rgba(128,128,128,0.06)' });
+  const gradients = React.useRef<{ height: number; dpr: number; peak: CanvasGradient; rms: CanvasGradient } | null>(null);
+  React.useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const css = getComputedStyle(canvas);
+    colors.current = {
+      faint: css.getPropertyValue('--tl-faint').trim() || 'rgba(128,128,128,0.6)',
+      lane: css.getPropertyValue('--tl-lane').trim() || 'rgba(128,128,128,0.06)',
+    };
+  }, [theme]);
+
   /** One picture of the bars and the scale. */
   const draw = React.useCallback(() => {
     const canvas = canvasRef.current;
@@ -80,10 +93,10 @@ export function AudioMeters({ levels, playing }: {
     ctx.clearRect(0, 0, size.w, size.h);
     const h = size.h - TOP - BOTTOM;
     const y = (db: number) => TOP + h * (1 - meterPosition(db));
-    const styles = getComputedStyle(canvas);
-    const faint = styles.getPropertyValue('--tl-faint').trim() || 'rgba(128,128,128,0.6)';
-    const lane = styles.getPropertyValue('--tl-lane').trim() || 'rgba(128,128,128,0.15)';
-    /* the scale: a line and a number every 6 dB, a number every 12 */
+    const { faint, lane } = colors.current;
+    if (!gradients.current || gradients.current.height !== h || gradients.current.dpr !== dpr) {
+      gradients.current = { height: h, dpr, peak: paint(ctx, TOP, h, 0.45), rms: paint(ctx, TOP, h, 1) };
+    }
     ctx.font = '8px ui-sans-serif, system-ui, sans-serif';
     ctx.textBaseline = 'middle';
     const scaleX = BARS_X + 2 * BAR_W + BAR_GAP + 3;
@@ -98,9 +111,9 @@ export function AudioMeters({ levels, playing }: {
       ctx.fillStyle = lane;
       ctx.fillRect(x, TOP, BAR_W, h);
       /* peak: the light bar; RMS: the solid one */
-      ctx.fillStyle = paint(ctx, TOP, h, 0.45);
+      ctx.fillStyle = gradients.current!.peak;
       ctx.fillRect(x, y(ch.peak), BAR_W, TOP + h - y(ch.peak));
-      ctx.fillStyle = paint(ctx, TOP, h, 1);
+      ctx.fillStyle = gradients.current!.rms;
       ctx.fillRect(x, y(ch.rms), BAR_W, TOP + h - y(ch.rms));
       if (ch.held.shown > METER_FLOOR_DB) {
         ctx.fillStyle = ch.held.shown >= -6 ? '#e5484d' : ch.held.shown >= -18 ? '#e8c547' : '#d9f2e2';
@@ -109,9 +122,7 @@ export function AudioMeters({ levels, playing }: {
     });
   }, [size]);
 
-  /* its colors are the theme's, read as it draws: when the theme changes it draws again, or it would keep the old
-     theme's bars until the film plays */
-  const theme = useThemeChanges();
+  /* Cache theme colors outside the frame loop and redraw immediately on changes. */
   React.useEffect(() => { draw(); }, [draw, theme]);
 
   /* while playing (and while the bars fall back after), once a frame; nothing otherwise */

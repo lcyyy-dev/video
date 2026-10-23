@@ -22,12 +22,13 @@
  * one-off action; having to drag it again for every film would defeat the point.
  */
 import React from 'react';
+import { useFrameLatest } from '@/lib/use-frame-latest';
 
 /** Gap between panes (px); the workspace's outer margin uses the same value so the seams line up. */
 export const DOCK_GAP = 6;
 
-/** A 6px seam is too thin to grab with a mouse, so the grab area is widened to 14px using negative margins, without taking layout space. */
-const GRAB = 14;
+/** A 6px seam is too thin to grab with a mouse, so the grab area is widened to 18px using negative margins, without taking layout space. */
+const GRAB = 18;
 const BLEED = (GRAB - DOCK_GAP) / 2;
 
 /**
@@ -96,15 +97,26 @@ export function usePaneSize(storageKey: string, fallback = 420, min = 0) {
     setWidth(Math.max(min, has ? stored : fallback));
   }, [storageKey, fallback, min]);
 
+  const pending = React.useRef<number | null>(null);
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persist = React.useCallback(() => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+    if (pending.current === null) return;
+    try { localStorage.setItem(storageKey, String(pending.current)); } catch { /* storage may be unavailable */ }
+    pending.current = null;
+  }, [storageKey]);
+  React.useEffect(() => {
+    window.addEventListener('pagehide', persist);
+    return () => { window.removeEventListener('pagehide', persist); persist(); };
+  }, [persist]);
   const commit = React.useCallback((next: number) => {
     setSaved(true);
     setWidth(next);
-    try {
-      localStorage.setItem(storageKey, String(Math.round(next)));
-    } catch {
-      // Writes fail in private mode. Not worth surfacing an error for a width; it works for this session.
-    }
-  }, [storageKey]);
+    pending.current = Math.round(next);
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = setTimeout(persist, 160);
+  }, [persist]);
 
   return { width, commit, saved };
 }
@@ -143,6 +155,8 @@ export function PaneDivider({
     onResize(clampAside(next, box.width, min, minRest));
   }, [containerRef, fromEnd, onResize, min, minRest]);
 
+  const resize = useFrameLatest(applyFromClientX);
+
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     // Capture the pointer so that when the drag passes over the player iframe, events still
@@ -154,12 +168,13 @@ export function PaneDivider({
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    applyFromClientX(event.clientX);
+    resize.enqueue(event.clientX);
   };
 
   const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    event.currentTarget.releasePointerCapture(event.pointerId);
+    resize.flush();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     setDragging(false);
   };
 
@@ -188,7 +203,7 @@ export function PaneDivider({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onKeyDown={onKeyDown}
-      style={{ width: GRAB, marginLeft: -BLEED, marginRight: -BLEED }}
+      style={{ cursor: 'ew-resize', width: GRAB, marginLeft: -BLEED, marginRight: -BLEED }}
       /* pointer-events-auto is for canvas mode: the whole pane layer then ignores the mouse
          (see ProjectView), so the seam must opt back in or the side pane could not be resized. */
       className={`group pointer-events-auto relative z-10 flex shrink-0 cursor-col-resize touch-none items-stretch justify-center outline-none ${
@@ -235,6 +250,8 @@ export function DockPaneDivider({
     onResize(clampDock(box.bottom - clientY, box.height, min, minRest));
   }, [containerRef, onResize, min, minRest]);
 
+  const resize = useFrameLatest(applyFromClientY);
+
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -243,12 +260,13 @@ export function DockPaneDivider({
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    applyFromClientY(event.clientY);
+    resize.enqueue(event.clientY);
   };
 
   const endDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    event.currentTarget.releasePointerCapture(event.pointerId);
+    resize.flush();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     setDragging(false);
   };
 
@@ -278,7 +296,7 @@ export function DockPaneDivider({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onKeyDown={onKeyDown}
-      style={{ height: GRAB, marginTop: -BLEED, marginBottom: -BLEED }}
+      style={{ cursor: 'ns-resize', height: GRAB, marginTop: -BLEED, marginBottom: -BLEED }}
       className={`group relative z-10 flex shrink-0 cursor-row-resize touch-none items-center justify-stretch outline-none ${
         dragging ? 'select-none' : ''
       }`}
