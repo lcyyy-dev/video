@@ -7,7 +7,7 @@ const textSchema = object({ text: string, x: number, y: number, width: number, f
 const clipSchema = object({ id: string, assetId: nullable(string), text: nullable(textSchema), start: number, end: number, at: number, speed: number, volume: number, muted: boolean,
   box: nullable(object({ x: number, y: number, w: number, h: number })) });
 const filmSchema = object({ stage: object({ w: number, h: number, fps: number }), tracks: { type: 'array', items: object({ id: string, locked: boolean, hidden: boolean, muted: boolean, clips: { type: 'array', items: clipSchema } }) } });
-export const VIDEO_INTENT_SCHEMA = object({ allowed: boolean, category: { type: 'string', enum: ['video', 'unsafe', 'unrelated', 'needs_video_context'] } });
+export const VIDEO_INTENT_SCHEMA = object({ allowed: boolean, category: { type: 'string', enum: ['video', 'harmless', 'unsafe', 'unrelated', 'needs_video_context'] } });
 export const VIDEO_PLAN_SCHEMA = object({ status: { type: 'string', enum: ['edit', 'question', 'refuse'] }, message: string, film: nullable(filmSchema), export: { type: 'string', enum: ['none', 'jianying', 'mp4'] } });
 
 const record = (value, keys) => value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).every(key => keys.includes(key)) && keys.every(key => key in value);
@@ -18,7 +18,7 @@ export function readVideoJson(text) {
   try { return JSON.parse(text); } catch { throw new VideoPolicyError('视频规划器没有返回有效的结构化结果，未执行任何修改。'); }
 }
 export function validateVideoIntent(value) {
-  if (!record(value, ['allowed', 'category']) || typeof value.allowed !== 'boolean' || !['video', 'unsafe', 'unrelated', 'needs_video_context'].includes(value.category)) throw new VideoPolicyError();
+  if (!record(value, ['allowed', 'category']) || typeof value.allowed !== 'boolean' || !['video', 'harmless', 'unsafe', 'unrelated', 'needs_video_context'].includes(value.category)) throw new VideoPolicyError();
   return value.allowed && value.category === 'video';
 }
 

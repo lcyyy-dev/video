@@ -61,3 +61,16 @@ test('private HTTP gateway denies unknown routes and browser origins and inspect
     assert.equal(gateway.state.responses, 1); assert.equal(gateway.state.blocked, 1);
   } finally { await gateway.close(); }
 });
+
+test('hosted forwarding maps the private Codex route to Sub2API and replaces auth', async () => {
+  const seen = [];
+  const gateway = await createVideoModelGateway({ secure: false, upstreamBaseUrl: 'https://sub2api.example/v1', upstreamHeaders: { authorization: 'Bearer product-key' }, forward: async (path, request) => {
+    seen.push({ path, authorization: request.upstreamHeaders?.authorization });
+    return { status: 200, headers: { 'content-type': 'text/event-stream' }, body: event({ type: 'response.completed', response: { output: [{ type: 'message', role: 'assistant' }] } }) };
+  } });
+  try {
+    const response = await fetch(`${gateway.baseUrl}/codex/responses`, { method: 'POST', body: JSON.stringify({ input: [{ role: 'user', content: 'edit' }] }) });
+    assert.equal(response.status, 200);
+    assert.equal(seen[0].path, '/backend-api/codex/responses');
+  } finally { await gateway.close(); }
+});

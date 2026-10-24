@@ -24,23 +24,25 @@ export function plannerEnvironment(source, { home }) {
 }
 
 /** One private config and inference gateway per session; never use a project as Codex's cwd. */
-export function createPlannerRuntime({ dataDir, authHome, baseUrl, certificate, model } = {}) {
-  if (!dataDir || !authHome || !/^https:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/backend-api$/.test(baseUrl ?? '') || !certificate?.startsWith('-----BEGIN CERTIFICATE-----')) throw new VideoPolicyError('视频隔离环境初始化失败。');
+export function createPlannerRuntime({ dataDir, authHome, baseUrl, certificate, model, hosted = false } = {}) {
+  if (!dataDir || (!hosted && !authHome) || !/^https:\/\/127\.0\.0\.1:\d+\/[a-f0-9]{64}\/backend-api$/.test(baseUrl ?? '') || !certificate?.startsWith('-----BEGIN CERTIFICATE-----')) throw new VideoPolicyError('视频隔离环境初始化失败。');
   const base = join(dataDir, 'video-planners');
   mkdirSync(base, { recursive: true, mode: 0o700 });
   if (lstatSync(base).isSymbolicLink()) throw new VideoPolicyError('视频隔离环境不能是链接。');
   const folder = join(base, randomUUID());
   const home = join(folder, 'codex'), cwd = join(folder, 'workspace');
   mkdirSync(home, { recursive: true, mode: 0o700 }); mkdirSync(cwd, { mode: 0o700 });
-  const source = join(authHome, 'auth.json');
+  const source = authHome ? join(authHome, 'auth.json') : null;
   let original;
-  try { original = authBytes(source); }
-  catch (error) { rmSync(folder, { recursive: true, force: true }); throw error.code === 'ENOENT' ? new VideoPolicyError('请在设置中重新登录 Codex，视频模式使用应用独立凭据。') : error; }
-  writeFileSync(join(home, 'auth.json'), original, { mode: 0o600 });
+  if (!hosted) {
+    try { original = authBytes(source); }
+    catch (error) { rmSync(folder, { recursive: true, force: true }); throw error.code === 'ENOENT' ? new VideoPolicyError('请在设置中重新登录 Codex，视频模式使用应用独立凭据。') : error; }
+    writeFileSync(join(home, 'auth.json'), original, { mode: 0o600 });
+  }
   const caFile = join(home, 'planner-ca.pem');
   writeFileSync(caFile, [certificate, ...getCACertificates('default'), ...getCACertificates('system')].join('\n'), { mode: 0o600 });
   const config = [
-    'chatgpt_base_url = "https://chatgpt.com/backend-api"', 'model_provider = "openfilm-video"',
+    ...(hosted ? ['model_provider = "openfilm-video-hosted"'] : ['chatgpt_base_url = "https://chatgpt.com/backend-api"', 'model_provider = "openfilm-video"']),
     ...(typeof model === 'string' && /^[\w.-]+$/.test(model) ? [`model = ${JSON.stringify(model)}`] : []),
     'cli_auth_credentials_store = "file"', 'approval_policy = "never"', 'sandbox_mode = "read-only"',
     'check_for_update_on_startup = false', 'web_search = "disabled"', 'project_doc_max_bytes = 0',
@@ -51,8 +53,8 @@ export function createPlannerRuntime({ dataDir, authHome, baseUrl, certificate, 
     'hooks = false', 'codex_hooks = false', 'skill_search = false', 'workspace_dependencies = false',
     'enable_request_compression = false', 'responses_websockets = false', 'responses_websockets_v2 = false',
     'code_mode = false', 'code_mode_host = false', 'view_image = false', 'skip_host_skill_discovery = true',
-    '[model_providers.openfilm-video]', 'name = "OpenFilm Video Planner"', `base_url = ${JSON.stringify(`${baseUrl}/codex`)}`,
-    'wire_api = "responses"', 'requires_openai_auth = true', 'supports_websockets = false', 'request_max_retries = 0', 'stream_max_retries = 0',
+    `[model_providers.${hosted ? 'openfilm-video-hosted' : 'openfilm-video'}]`, 'name = "OpenFilm Video Planner"', `base_url = ${JSON.stringify(`${baseUrl}/codex`)}`,
+    'wire_api = "responses"', `requires_openai_auth = ${hosted ? 'false' : 'true'}`, 'supports_websockets = false', 'request_max_retries = 0', 'stream_max_retries = 0',
     '[tools]', 'view_image = false',
     '[shell_environment_policy]', 'inherit = "none"',
   ].join('\n') + '\n';
@@ -64,6 +66,7 @@ export function createPlannerRuntime({ dataDir, authHome, baseUrl, certificate, 
       if (closed) return; closed = true;
       // Propagate only an authentication refresh, and only if the original login has not changed meanwhile.
       try {
+        if (hosted) { if (existsSync(folder)) rmSync(folder, { recursive: true, force: true }); return; }
         const refreshed = authBytes(join(home, 'auth.json'));
         if (hash(refreshed) !== hash(original) && hash(authBytes(source)) === hash(original)) {
           const temp = join(authHome, `.video-auth-${randomUUID()}.tmp`);

@@ -12,7 +12,7 @@
 
 ## 模型与账号隔离
 
-`video-planner-runtime.mjs` 为每个会话建立独立 `CODEX_HOME` 和空工作目录，只临时镜像宿主的 ChatGPT 登录缓存。不会继承用户/工程的配置、MCP、插件、hooks、其他 skills、外部 API 密钥和 shell 启动变量。认证刷新仅在原账号未被其他登录替换时回写；会话关闭后删除私有运行目录。宿主负责登录，模型没有账号读取接口。
+`video-planner-runtime.mjs` 为每个会话建立独立 `CODEX_HOME` 和空工作目录。视频规划使用客户端保存的 Sub2API 域名和用户 Key，由主进程在安全边界外转发；不会读取或继承本机 ChatGPT 登录缓存，也不会把 Sub2API Key 写入 Codex 配置。不会继承用户/工程的配置、MCP、插件、hooks、其他 skills、外部 API 密钥和 shell 启动变量；会话关闭后删除私有运行目录。
 
 `video-app-server-proxy.mjs` 强制真实的 `read-only` / `never` 策略，拒绝命令、文件、登录管理、权限变更、旧会话恢复及自主后台任务等 RPC。不能只相信 ACP 中名为 `read-only` 的预设：适配器的该预设曾实际请求 `workspaceWrite`，现在在原生协议层覆盖为只读。
 

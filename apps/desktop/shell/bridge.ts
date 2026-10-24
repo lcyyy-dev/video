@@ -34,6 +34,7 @@ interface Native {
   /* the composer's Skills button (src/skills-ipc.mjs) */
   skills: Record<string, (...args: never[]) => Promise<unknown>>;
   prefs: { get(): Promise<AppPrefs>; set(next: Partial<AppPrefs>): Promise<unknown>; onChange(listener: Listener<AppPrefs>): Stop };
+  sub2api: { get(): Promise<{ baseUrl: string; model: string; configured: boolean }>; set(input: { baseUrl: string; apiKey: string; model?: string }): Promise<{ baseUrl: string; model: string; configured: boolean }>; test(input: { baseUrl: string; apiKey: string }): Promise<{ ok: true; baseUrl: string; model: string }> };
   saveLayout(layout: { chatOpen: boolean; chatWidth: number }): void;
   setTheme(theme: Theme): void;
   onFullScreen(listener: Listener<boolean>): Stop;
@@ -327,6 +328,7 @@ const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000
     connect: native.agents.connect,
     onChange: native.agents.onChange,
   },
+  sub2api: native.sub2api,
   localAgents: native.localAgents,
   openSettings: (section: string) => command?.({ type: 'settings', section: 'agents' }),
   async hello() {

@@ -40,3 +40,15 @@ test('a new sign-in is not replaced by an older planner refresh; API-key fallbac
   writeFileSync(join(source, 'auth.json'), JSON.stringify({ OPENAI_API_KEY: 'test-key' }));
   assert.throws(() => createPlannerRuntime({ dataDir: base, authHome: source, certificate, baseUrl: `https://127.0.0.1:1234/${'a'.repeat(64)}/backend-api` }), /ChatGPT/);
 });
+
+test('hosted Sub2API mode has no ChatGPT auth file and uses a key-free Codex child', () => {
+  const base = mkdtempSync(join(tmpdir(), 'of-planner-hosted-'));
+  const runtime = createPlannerRuntime({ dataDir: base, hosted: true, certificate, model: 'gpt-6.1-sol', baseUrl: `https://127.0.0.1:1234/${'b'.repeat(64)}/backend-api` });
+  const config = readFileSync(join(runtime.home, 'config.toml'), 'utf8');
+  assert.doesNotMatch(config, /chatgpt\.com|auth\.json/);
+  assert.match(config, /requires_openai_auth = false/);
+  assert.match(config, /gpt-6\.1-sol/);
+  assert.equal(existsSync(join(runtime.home, 'auth.json')), false);
+  runtime.close();
+  assert.equal(existsSync(runtime.home), false);
+});

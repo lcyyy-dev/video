@@ -63,19 +63,21 @@ const decode = (body, encoding) => {
 /** Only a fixed official upstream is reachable; no model/user URLs or redirects. */
 export async function officialForward(path, options) {
   if (!/^\/backend-api\/(?:codex\/(?:responses|models)|wham\/(?:accounts\/check|settings\/user))(?:\?|$)/.test(path)) throw new VideoPolicyError();
+  const upstreamBaseUrl = options.upstreamBaseUrl ?? 'https://chatgpt.com';
+  const upstreamPath = upstreamBaseUrl === 'https://chatgpt.com' ? path : path.replace(/^\/backend-api\/codex\//, '/v1/');
   for (let attempt = 0; ; attempt++) {
     options.signal?.throwIfAborted();
-    try { return await forwardOnce(path, options); }
+    try { return await forwardOnce(upstreamPath, { ...options, upstreamBaseUrl }); }
     catch (error) {
       if (attempt >= 2 || options.signal?.aborted || !['ECONNRESET', 'ETIMEDOUT', 'EPIPE'].includes(error.code)) throw error;
     }
   }
 }
 
-function forwardOnce(path, { method, headers, body, signal, proxyEnv = process.env }) {
+function forwardOnce(path, { method, headers, body, signal, proxyEnv = process.env, upstreamBaseUrl = 'https://chatgpt.com', upstreamHeaders = {} }) {
   return new Promise((done, fail) => {
     const agent = new Agent({ proxyEnv, ca: [...getCACertificates('default'), ...getCACertificates('system')] });
-    const req = request(new URL(path, 'https://chatgpt.com'), { method, headers, agent, signal, timeout: 180_000 }, res => {
+    const req = request(new URL(path, upstreamBaseUrl), { method, headers: { ...headers, ...upstreamHeaders }, agent, signal, timeout: 180_000 }, res => {
       const chunks = []; let length = 0;
       res.on('data', chunk => { length += chunk.length; if (length > MAX_BODY) req.destroy(new VideoPolicyError()); else chunks.push(chunk); });
       res.on('error', error => { error.responseBytes = length; error.responseType = String(res.headers['content-type'] ?? ''); fail(error); });
@@ -92,7 +94,7 @@ function forwardOnce(path, { method, headers, body, signal, proxyEnv = process.e
   });
 }
 
-export async function createVideoModelGateway({ forward = officialForward, proxyEnv, secure = true } = {}) {
+export async function createVideoModelGateway({ forward = officialForward, proxyEnv, secure = true, upstreamBaseUrl, upstreamHeaders } = {}) {
   const capability = randomBytes(32).toString('hex');
   const state = { requests: 0, responses: 0, blocked: 0, unauthorized: 0, tlsErrors: {}, deniedRoutes: {}, failures: [], inputTypes: [] };
   let schema;
@@ -128,7 +130,7 @@ export async function createVideoModelGateway({ forward = officialForward, proxy
         headers['content-type'] = 'application/json'; headers.accept = 'text/event-stream';
         state.requests++;
       }
-      const answer = await forward(`${path}${url.search}`, { method: req.method, headers, body, signal: abort.signal, proxyEnv });
+      const answer = await forward(`${path}${url.search}`, { method: req.method, headers, body, signal: abort.signal, proxyEnv, upstreamBaseUrl, upstreamHeaders });
       state.lastTransport = { status: answer.status, contentType: String(answer.headers['content-type'] ?? ''), bytes: Buffer.byteLength(answer.body), format: /^\s*(?:data:|event:|:)/.test(String(answer.body)) ? 'sse' : /^\s*[\[{]/.test(String(answer.body)) ? 'json' : 'other' };
       if (answer.status < 200 || answer.status >= 300) return reply(answer.status === 401 ? 401 : 502, { error: { message: answer.status === 401 ? 'Sign in to Codex again.' : 'Video planner is temporarily unavailable.' } });
       const contentType = inference && state.lastTransport.format === 'sse' ? 'text/event-stream' : String(answer.headers['content-type'] ?? 'application/json');

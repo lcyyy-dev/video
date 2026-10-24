@@ -1,6 +1,6 @@
 # OpenFilm for desktop
 
-An advertising-editing desktop client: Studio with local Codex chat, footage import, timeline editing, text styles, video export and editable Jianying/CapCut drafts.
+An advertising-editing desktop client: Studio with one video-editing chat, footage import, timeline editing, text styles, video export and editable Jianying/CapCut drafts.
 
 Templates are saved by the native process to each project's `.film/edit-template.json`. The advertising template is fixed to `ad-editing`; prompt and steering requests always load it before reaching Codex. Unimplemented template types are disabled. See [the workflow](../../docs/CLIENT_EDIT_WORKFLOW.zh-CN.md).
 
@@ -17,8 +17,9 @@ npm run typecheck
 Run from source, the app is its own "OpenFilm Dev": its own name, data folder, Studio home and port, so it never
 shares anything with an installed OpenFilm. Its renamed copy of Electron lives in `.dev/` (git-ignored).
 
-Windows installers include a pinned Codex executable and its complete native runtime. Sign in in Settings → Codex;
-no separate Codex installation is needed. Windows uses an app-private Codex home and receives Codex updates through
+Windows installers include a pinned Codex executable and its complete native runtime. For video planning, configure a
+Sub2API domain and user key as described in [the hosted Codex guide](../../docs/SUB2API_HOSTED_CODEX.zh-CN.md);
+the video planner does not inherit the user's ChatGPT credentials. Windows uses an app-private Codex home and receives Codex updates through
 app releases. Source runs and macOS builds still use a separately installed Codex. This client carries only the `ad-editing` workflow. It does not include other agent
 runtimes, a skill marketplace, remote project galleries, or cloud media-provider configuration. For narration,
 use supplied recordings or explicitly requested local simulated audio; cloud TTS is deferred.

@@ -34,6 +34,7 @@ import { startUpdates } from './updates.mjs';
 import { ensureFfmpeg, ffmpegDir, ffmpegDownloadable, ffmpegIn, ffmpegOnPath } from './ffmpeg-runtime.mjs';
 import { PATH_SEP } from './environment.mjs';
 import { createTabs } from './tabs.mjs';
+import { checkSub2ApiConfig, publicSub2ApiConfig, saveSub2ApiConfig } from './sub2api-config.mjs';
 
 process.env.OPENFILM_CLIENT_PROFILE = CLIENT_PROFILE;
 
@@ -406,8 +407,14 @@ async function start() {
   ipcMain.on('desktop:theme', (event, next) => { if (fromPage(event)) setTheme(next); });
   ipcMain.handle('desktop:hello', (event) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
-    return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()) };
+    return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()), sub2api: publicSub2ApiConfig(DATA) };
   });
+  ipcMain.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA) : null);
+  ipcMain.handle('desktop:sub2api:set', (event, input) => {
+    if (!fromPage(event)) throw new Error('not the window\'s page');
+    return saveSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? 'gpt-6.1-sol') });
+  });
+  ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? '') }) : null);
   /* the chat's column as the person left it (the page sizes it; the window keeps it for next time) */
   ipcMain.on('desktop:layout', (event, next) => {
     if (!fromPage(event) || !next || typeof next !== 'object') return;

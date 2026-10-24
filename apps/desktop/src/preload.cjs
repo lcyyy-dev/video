@@ -100,6 +100,11 @@ contextBridge.exposeInMainWorld('openfilmNative', {
     set: (next) => ipcRenderer.invoke('desktop:prefs:set', next),
     onChange: on('desktop:prefs'),
   },
+  sub2api: {
+    get: () => ipcRenderer.invoke('desktop:sub2api:get'),
+    set: (input) => ipcRenderer.invoke('desktop:sub2api:set', input),
+    test: (input) => ipcRenderer.invoke('desktop:sub2api:test', input),
+  },
   /* a file on the disk brought into the project (the page has no way to read it) */
   importFile: (request) => ipcRenderer.invoke('desktop:import-file', request),
   /* the chat's column as the person left it, kept for the next launch */

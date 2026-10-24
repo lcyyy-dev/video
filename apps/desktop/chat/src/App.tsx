@@ -6,7 +6,7 @@
  * (lib/local-agent-run's saved turns).
  */
 import React from 'react';
-import { ArrowDown, Coins, CornerDownLeft, LibraryBig, Loader2, Plus, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
+import { ArrowDown, Coins, CornerDownLeft, KeyRound, LibraryBig, Loader2, Plus, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
 import { buildPromptDisplay, type Turn } from '@openfilm/shared';
 import { useT, useUiLocale } from '@/i18n';
 import { ConversationSessionBar } from '@/components/ConversationSessionBar';
@@ -58,6 +58,7 @@ import { referencePictures } from '@/lib/ref-pictures';
 import type { TurnFileChanges } from '@/lib/file-changes';
 import { readBalance, type TurnBalance } from '@/lib/balance';
 import { BalanceNotice } from '@/components/BalanceNotice';
+import { Sub2ApiSettings } from '@/components/Sub2ApiSettings';
 import { readStudioFilm } from '@/lib/studio-film';
 import { studioRefsFromTransfer, transferHasStudioRefs } from '@/lib/studio-transfer';
 import { agentModelSummary, agentOptions, currentAgent, effectivePrefs, offeredOption, useLocalAgents } from '@/state/local-agent-store';
@@ -144,6 +145,7 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
 function ChatPane({ project, banners, selection, assetsOpen }: { project: Project; banners: React.ReactNode; selection: StudioSelection | null; assetsOpen: boolean }) {
   const t = useT();
   const projectKey = project.path;
+  const [sub2apiOpen, setSub2apiOpen] = React.useState(false);
 
   /* ── sessions ── */
   const [sessions, setSessions] = React.useState<ProjectSessionItem[]>(() => loadSessions(projectKey));
@@ -706,7 +708,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
   }
 
   const editComposerCard = (
-    <AnimatedContent trigger="mount" distance={10} duration={0.45} className="creative-workbench flex flex-col gap-1">
+    <AnimatedContent trigger="mount" distance={10} duration={0.45} className="creative-workbench relative flex flex-col gap-1">
       <div className="creative-workflow" aria-label={t('workspace.session')}>
         <span className={composerFiles.files.some(file => file.state === 'ready') ? 'is-ready' : 'is-current'}><i>01</i>{t('workspace.materials')}</span>
         <span><i>02</i>{t('workspace.template')}</span>
@@ -823,7 +825,11 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
             <LibraryBig size={16} strokeWidth={1.75} />
           </button>
         </Tooltip>
+        <Tooltip label="Sub2API 连接设置">
+          <button type="button" onClick={() => setSub2apiOpen(open => !open)} className="openfilm-composer-tool" aria-label="Sub2API 连接设置"><KeyRound size={16} strokeWidth={1.75} /></button>
+        </Tooltip>
       </div>
+      {sub2apiOpen ? <Sub2ApiSettings onClose={() => setSub2apiOpen(false)} /> : null}
     </AnimatedContent>
   );
 
