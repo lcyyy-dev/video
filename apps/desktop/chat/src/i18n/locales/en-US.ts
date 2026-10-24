@@ -120,6 +120,8 @@ export const enUS = {
     previewFailed: 'This file could not be read',
   },
   composer: {
+    exportDraft: 'Export Jianying draft',
+    exportDraftBusy: 'Export once the current edit finishes',
     contextFull: 'This conversation is getting long. A new one will work better.',
     contextFullNew: 'New conversation',
     commands: 'Commands',

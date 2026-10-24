@@ -121,6 +121,8 @@ export const zhCN: Words = {
     previewFailed: '无法读取此文件',
   },
   composer: {
+    exportDraft: '导出剪映草稿',
+    exportDraftBusy: '影片生成完成后可导出草稿',
     contextFull: '这段对话已经很长了，开个新对话效果更好。',
     contextFullNew: '新对话',
     commands: '命令',

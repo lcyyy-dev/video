@@ -807,3 +807,38 @@ test('a hardware encoder is used only when this ffmpeg has it and it works', ffm
     assert.equal(await hardwareEncoder('hevc', have), have.has('hevc_videotoolbox') ? 'hevc_videotoolbox' : null);
   }
 });
+
+
+test('chosen draft folders override installed editor defaults for single and batch exports', { timeout: 120_000 }, async () => {
+  const source = join(scratch, 'ChosenDraftSource');
+  const installed = join(scratch, 'Installed editor drafts');
+  const chosen = join(scratch, 'User chosen drafts');
+  mkdirSync(source, { recursive: true });
+  mkdirSync(installed, { recursive: true });
+  writeFileSync(join(source, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 1,
+    texts: [{ text: 'Editable', x: 160, y: 90, fontSize: 24, color: '#ffffff' }] }));
+  writeFileSync(join(source, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
+    { clips: [{ id: 'title-one', src: 'title.html', time: [0, 1] }] },
+    { clips: [{ id: 'title-two', src: 'title.html', time: [0, 1] }] },
+  ] }));
+  const exports = createExports({ drafts: () => installed, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
+  const ask = { kind: 'nle', format: 'jianying', fps: 24, audio: 'clips', media: 'copy', subtitles: true };
+  const first = await ended(exports, exports.start(project('UserDraft', source), ask, { folder: chosen }));
+  assert.equal(first.status, 'done', first.error);
+  assert.equal(first.out, join(chosen, 'UserDraft', 'draft_info.json'));
+  const before = readFileSync(first.out, 'utf8');
+  const json = JSON.parse(before);
+  assert.equal(json.tracks.length, 2);
+  assert.equal(json.materials.texts.length, 2);
+  const metadata = JSON.parse(readFileSync(join(chosen, 'UserDraft', 'draft_meta_info.json'), 'utf8'));
+  assert.equal(metadata.draft_root_path, chosen);
+  const [queued] = exports.startAll(project('UserDraft', source), { folder: chosen, jobs: [ask] });
+  const second = await ended(exports, queued);
+  assert.equal(second.status, 'done', second.error);
+  assert.equal(second.out, join(chosen, 'UserDraft 2', 'draft_info.json'));
+  assert.equal(readFileSync(first.out, 'utf8'), before, 'a repeated export never overwrites the earlier draft');
+  assert.deepEqual(readdirSync(installed), [], 'an installed editor cannot divert explicitly selected exports');
+  const automatic = await ended(exports, exports.start(project('AutomaticDraft', source), ask));
+  assert.equal(automatic.status, 'done', automatic.error);
+  assert.equal(automatic.out, join(installed, 'AutomaticDraft', 'draft_info.json'));
+});

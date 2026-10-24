@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { prefsOf, writePrefs } from './prefs.mjs';
+import { prefsOf, readPrefs, writePrefs } from './prefs.mjs';
 
 test('the version whose notes were last shown: a version, else none', () => {
   assert.equal(prefsOf(null).seenVersion, null, 'a new install has none');
@@ -25,6 +25,26 @@ test('what a newer OpenFilm keeps in prefs.json stays when this one writes it', 
     assert.equal(written.theme, 'dark');
     assert.equal(written.proxies.codec, 'h265');
     assert.equal(written.proxies.on, false);
+  } finally {
+    if (was === undefined) delete process.env.OPENFILM_HOME; else process.env.OPENFILM_HOME = was;
+  }
+});
+
+
+test('a chosen draft export folder survives preference reads and unrelated updates', () => {
+  const home = mkdtempSync(join(tmpdir(), 'of-draft-prefs-'));
+  const was = process.env.OPENFILM_HOME;
+  process.env.OPENFILM_HOME = home;
+  try {
+    const chosen = join(home, 'Deliveries');
+    assert.equal(prefsOf(null).draftExportFolder, null);
+    assert.equal(prefsOf({ draftExportFolder: 'relative/path' }).draftExportFolder, null);
+    writePrefs({ draftExportFolder: chosen });
+    assert.equal(readPrefs().draftExportFolder, chosen);
+    writePrefs({ proxies: { on: false } });
+    assert.equal(readPrefs().draftExportFolder, chosen);
+    writePrefs({ draftExportFolder: null });
+    assert.equal(readPrefs().draftExportFolder, null);
   } finally {
     if (was === undefined) delete process.env.OPENFILM_HOME; else process.env.OPENFILM_HOME = was;
   }

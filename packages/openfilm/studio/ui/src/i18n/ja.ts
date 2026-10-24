@@ -1,3 +1,4 @@
+import { en } from './en.ts';
 import type { Words } from './words.ts';
 
 /** what the system's file manager is called here */
@@ -5,6 +6,7 @@ const FILES = typeof navigator !== 'undefined' && /^win/i.test(navigator.platfor
   : typeof navigator !== 'undefined' && /^mac/i.test(navigator.platform) ? 'Finder' : 'ファイル';
 
 export const ja: Words = {
+  draftExport: en.draftExport,
   nav: {
     projects: 'プロジェクト',
   },

@@ -79,7 +79,7 @@ async function call<T>(path: string, init: RequestInit & { json?: unknown } = {}
 const p = (id: string) => `projects/${encodeURIComponent(id)}`;
 
 /** Studio's own preferences, the same for every project (studio/server/prefs.mjs). */
-export interface StudioPrefs { proxies: { on: boolean; height: 540 | 720 | 1080 }; seenVersion: string | null; projectsFolder: string | null }
+export interface StudioPrefs { proxies: { on: boolean; height: 540 | 720 | 1080 }; seenVersion: string | null; projectsFolder: string | null; draftExportFolder: string | null }
 /** Where new projects and exports go (src/locations.mjs): the folder, its default, whether the person chose it, the free space on its disk. */
 export interface StudioLocation { path: string; default: string; chosen: boolean; free: number | null }
 export interface StudioLocations { projects: StudioLocation }
@@ -102,7 +102,7 @@ export const api = {
   locations: () => call<StudioLocations>('locations'),
   /** one of them in the system's file manager */
   openLocation: (which: keyof StudioLocations) => call<{ ok: true }>(`locations/${which}`, { method: 'POST', json: {} }),
-  setPrefs: (patch: { proxies?: Partial<StudioPrefs['proxies']>; seenVersion?: string; projectsFolder?: string | null }) => call<StudioPrefs>('prefs', { method: 'PATCH', json: patch }).then((prefs) => {
+  setPrefs: (patch: { proxies?: Partial<StudioPrefs['proxies']>; seenVersion?: string; projectsFolder?: string | null; draftExportFolder?: string | null }) => call<StudioPrefs>('prefs', { method: 'PATCH', json: patch }).then((prefs) => {
     window.dispatchEvent(new Event(PREFS_EVENT));
     return prefs;
   }),

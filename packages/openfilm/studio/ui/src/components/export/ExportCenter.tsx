@@ -279,11 +279,8 @@ export function ExportCenter(props: ExportCenterProps) {
      any other language; always by its own name */
   const known: 'jianying' | 'capcut' = language === 'zh-CN' ? 'jianying' : 'capcut';
   const draftApp = draftApps[known] || !draftApps[known === 'jianying' ? 'capcut' : 'jianying'] ? known : known === 'jianying' ? 'capcut' : 'jianying';
-  const draftHere = draftApps[draftApp];
   /** a translation naming the draft's app */
   const tApp = (path: string) => t(path).replaceAll('{app}', DRAFT_APP_NAME[draftApp]);
-  /* a draft goes into its app's drafts folder, whatever folder is picked */
-  const toDrafts = dest === 'nle' && draftHere;
   const codecName = (c: ExportVideoCodec) => CODEC_LABEL[c] + (c === 'png' ? ` ${t('exportCenter.sequence')}` : '');
 
   /* the parts of the project asked that it has (a part it has none of is left out) */
@@ -371,7 +368,7 @@ export function ExportCenter(props: ExportCenterProps) {
     }
     setWorking(t('exportCenter.queueing'));
     try {
-      const queued = await startExports(props.projectId, jobs, s.folder || undefined);
+      const queued = await startExports(props.projectId, jobs, folder);
       props.onQueued?.(queued);
       onClose();
     } catch (e) {
@@ -589,7 +586,7 @@ export function ExportCenter(props: ExportCenterProps) {
                   {captions > 0 && (
                     <Toggle checked={s.nle.subtitles} onChange={(subtitles) => patch('nle', { subtitles })} label={t('exportCenter.nleSubs')} />
                   )}
-                  <Hint>{tApp(draftHere ? 'exportCenter.nleHintDraft' : 'exportCenter.nleHintDraftNone')}</Hint>
+                  <Hint>{t('draftExport.note')}</Hint>
                 </>
               )}
 
@@ -693,17 +690,7 @@ export function ExportCenter(props: ExportCenterProps) {
 
           {/* bottom: where it goes (the folder, a click changes it), what comes out, and the primary button */}
           <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 border-t border-[var(--border-soft)] bg-[color-mix(in_srgb,var(--surface-2)_45%,transparent)] px-5 py-3.5">
-            {toDrafts ? (
-              <div className="-ml-2 flex min-w-0 max-w-[340px] flex-1 items-center gap-2.5 px-2 py-1.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-2)] text-[var(--text-muted)] ring-1 ring-[var(--border)]">
-                  <Clapperboard size={15} />
-                </span>
-                <span className="flex min-w-0 items-baseline gap-1.5">
-                  <span className="shrink-0 text-[11px] text-[var(--text-faint)]">{t('exportCenter.saveTo')}</span>
-                  <span className="truncate text-[13px] font-medium text-[var(--text)]">{tApp('exportCenter.nleDraftTitle')}</span>
-                </span>
-              </div>
-            ) : folderDraft != null ? (
+            {folderDraft != null ? (
               <input
                 autoFocus
                 value={folderDraft}

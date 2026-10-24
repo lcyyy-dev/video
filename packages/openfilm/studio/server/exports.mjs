@@ -146,6 +146,13 @@ const defaultDrafts = (app) => draftsRoot(app, { home: homedir(), localAppData: 
 /** Which of 剪映 and CapCut are on this computer (their drafts folders are there): an editing project goes into its drafts. */
 export const draftApps = () => ({ jianying: Boolean(defaultDrafts('jianying')), capcut: Boolean(defaultDrafts('capcut')) });
 
+/** Suggested locations also work before an editor has created its drafts directory. */
+export const draftFolders = () => {
+  const suggested = (/** @type {'jianying' | 'capcut'} */ app) => defaultDrafts(app)
+    ?? draftsRoot(app, { home: homedir(), localAppData: process.env.LOCALAPPDATA, exists: () => true });
+  return { jianying: suggested('jianying'), capcut: suggested('capcut') };
+};
+
 /* ── delivery frames (the same arithmetic as the editor's lib/film-frame.ts) ── */
 
 /** A frame written `W:H` ("16:9", "2.39:1"), from 1:4 to 4:1: its width ÷ height, or null. @param {unknown} frame */
@@ -321,7 +328,7 @@ function checked(/** @type {ExportAsk} */ ask) {
 }
 
 /** Where to write: the folder asked (absolute, or under ~), else the exports folder. */
-function folderOf(/** @type {unknown} */ folder) {
+export function exportFolderOf(/** @type {unknown} */ folder) {
   if (folder === undefined || folder === null || folder === '') return exportsRoot();
   if (typeof folder !== 'string') throw new ExportError('folder: a path');
   const path = folder === '~' ? homedir() : folder.startsWith('~/') ? join(homedir(), folder.slice(2)) : folder;
@@ -739,7 +746,7 @@ async function rasterize(browser, file, w, h, out) {
 export function createExports({ onChange = () => {}, captions = subtitlesForExport, drafts = defaultDrafts } = {}) {
   /** @type {ExportJob[]} */
   const jobs = [];
-  /** @type {Map<string, { root: string, folder: string, abort: AbortController }>} */
+  /** @type {Map<string, { root: string, folder: string, explicitFolder: boolean, abort: AbortController }>} */
   const work = new Map();
   let running = false;
 
@@ -1067,12 +1074,13 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
    * (see nle.mjs), or a 剪映 or CapCut draft (jianying.mjs) in the app's drafts folder. Made in a hidden folder beside it and moved
    * into place when whole.
    * @param {ExportJob} job @param {string} root @param {string} out @param {AbortSignal} signal
+   * @param {boolean} explicitFolder
    */
-  async function exportNle(job, root, out, signal) {
+  async function exportNle(job, root, out, signal, explicitFolder = false) {
     const ask = /** @type {NleAsk} */ (job.ask);
     const app = ask.format === 'jianying' || ask.format === 'capcut' ? ask.format : null;
-    /* a draft goes where its app lists its drafts, when the app is on this computer */
-    const dir = (app && drafts(app)) || out;
+    /* An explicitly chosen destination wins over an installed editor's draft directory. */
+    const dir = explicitFolder ? out : (app && drafts(app)) || out;
     const fps = nleFps(ask.fps ?? 30);
     const mode = ask.audio ?? 'clips';
     const title = safeName(job.name);
@@ -1331,7 +1339,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
     const job = jobs.findLast((j) => j.status === 'waiting');
     if (!job) return;
     running = true;
-    const { root, folder, abort } = /** @type {{ root: string, folder: string, abort: AbortController }} */ (work.get(job.id));
+    const { root, folder, explicitFolder, abort } = /** @type {{ root: string, folder: string, explicitFolder: boolean, abort: AbortController }} */ (work.get(job.id));
     try {
       await mkdir(folder, { recursive: true });
       update(job, { status: 'running', phase: 'preparing', startedAt: Date.now() });
@@ -1341,7 +1349,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       else if (kind === 'audio') await exportSound(job, root, folder, abort.signal);
       else if (kind === 'subtitles') await exportSubtitles(job, root, folder);
       else if (kind === 'slides') await exportSlides(job, root, folder, abort.signal);
-      else if (kind === 'nle') await exportNle(job, root, folder, abort.signal);
+      else if (kind === 'nle') await exportNle(job, root, folder, abort.signal, explicitFolder);
       else if (kind === 'project') await exportProject(job, root, folder, abort.signal);
       else await exportStills(job, root, folder, abort.signal);
       if (abort.signal.aborted) throw new Error('cancelled');
@@ -1360,7 +1368,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
   }
 
   /** @param {{ id: string, name: string, path: string }} project @param {ExportAsk} ask @param {string} folder */
-  function queue(project, ask, folder) {
+  function queue(project, ask, folder, explicitFolder = false) {
     /** @type {ExportJob} */
     const job = {
       id: randomBytes(6).toString('hex'), project: project.id, name: project.name, label: ask.label ?? '', kind: ask.kind, ask,
@@ -1368,7 +1376,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       outputs: [], bytes: null, alpha: null, at: Date.now(), startedAt: null, finishedAt: null,
     };
     jobs.unshift(job);
-    work.set(job.id, { root: project.path, folder, abort: new AbortController() });
+    work.set(job.id, { root: project.path, folder, explicitFolder, abort: new AbortController() });
     onChange({ ...job, outputs: [] });
     return job;
   }
@@ -1376,7 +1384,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
   return {
     /** Queue an export of the project at `root`. @param {{ id: string, name: string, path: string }} project @param {ExportAsk} ask @param {{ folder?: string }} [where] */
     start(project, ask, where = {}) {
-      const job = queue(project, checked(ask), folderOf(where.folder));
+      const job = queue(project, checked(ask), exportFolderOf(where.folder), where.folder != null && where.folder !== '');
       next();
       return { ...job };
     },
@@ -1387,8 +1395,8 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
     startAll(project, body) {
       if (!Array.isArray(body?.jobs) || !body.jobs.length || body.jobs.length > 24) throw new ExportError('jobs: a list of 1 to 24 exports');
       const asks = body.jobs.map((ask) => checked(/** @type {ExportAsk} */ (ask)));
-      const folder = folderOf(body.folder);
-      const queued = asks.map((ask) => queue(project, ask, folder));
+      const folder = exportFolderOf(body.folder);
+      const queued = asks.map((ask) => queue(project, ask, folder, body.folder != null && body.folder !== ''));
       next();
       return queued.map((job) => ({ ...job }));
     },

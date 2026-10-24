@@ -306,6 +306,7 @@ export interface StudioSelection {
  * (empty: sent or cleared).
  */
 export type StudioCommand =
+  | { type: 'export-draft' }
   | { type: 'select-clip'; id?: string | null; loc?: string | null; seek?: boolean }
   | { type: 'seek'; time: number }
   | { type: 'show-range'; start: number; end: number }

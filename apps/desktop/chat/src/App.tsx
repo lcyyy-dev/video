@@ -906,6 +906,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
                   onNewSession={onNewSession}
                   onSelectSession={onSelectSession}
                   onRenameSession={onRenameSession}
+                  onExport={() => app.exportDraft()}
                   busy={active}
                 />
                 <EditTemplateBuilder projectKey={projectKey} />

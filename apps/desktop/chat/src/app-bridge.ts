@@ -44,6 +44,7 @@ interface AppBridge {
   onSelection(listener: (selection: StudioSelection) => void): () => void;
   setChatWidth(width: number, done?: boolean): void;
   setChatOpen(open: boolean): void;
+  exportDraft(): void;
   /** the project's assets, drawn by Studio over this column while open (main.mjs `assets`) */
   assetsOpen(): boolean;
   setAssetsOpen(open: boolean): void;

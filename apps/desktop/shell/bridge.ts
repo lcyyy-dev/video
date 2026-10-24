@@ -375,6 +375,7 @@ const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000
   },
   setChatWidth: (width: number, done?: boolean) => setChatWidth(width, done === true),
   setChatOpen,
+  exportDraft: () => command?.({ type: 'export-draft' }),
   assetsOpen: () => assets.open,
   setAssetsOpen,
   onAssets: assetsSignal.on,

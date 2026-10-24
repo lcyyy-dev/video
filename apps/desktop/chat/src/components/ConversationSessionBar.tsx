@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { History, Plus } from 'lucide-react';
+import { Clapperboard, History, Plus } from 'lucide-react';
 import { limitTitleWidth, SESSION_TITLE_MAX_WIDTH } from '@openfilm/shared';
 import { Tooltip } from './Tooltip';
 import { useT } from '@/i18n';
@@ -44,6 +44,7 @@ export function ConversationSessionBar({
   onNewSession,
   onSelectSession,
   onRenameSession,
+  onExport,
   busy = false,
 }: {
   sessions: ProjectSessionItem[];
@@ -56,6 +57,7 @@ export function ConversationSessionBar({
   onNewSession?: () => void;
   onSelectSession?: (sessionId: string) => void;
   onRenameSession?: (title: string) => Promise<void>;
+  onExport?: () => void;
 }) {
   const t = useT();
   const current = sessions.find((item) => item.id === currentSessionId);
@@ -192,6 +194,10 @@ export function ConversationSessionBar({
       ) : null}
       <span className="min-w-0 flex-1" />
       <div className="flex shrink-0 items-center gap-1">
+        {onExport ? <button type="button" className="conversation-export-button" disabled={busy}
+          title={busy ? t('composer.exportDraftBusy') : t('composer.exportDraft')} onClick={onExport}>
+          <Clapperboard size={14} aria-hidden="true" />{t('composer.exportDraft')}
+        </button> : null}
         {/* These buttons sit at the top edge, so tooltips open downwards. */}
         {onNewSession ? (
           <Tooltip label={busy ? t('project.sessionBusy') : t('projectMenu.newSession')} side="bottom">

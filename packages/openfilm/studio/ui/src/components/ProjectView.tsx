@@ -89,6 +89,7 @@ import { LiveTime, type PlaybackClock } from './LiveTime';
 import { Toast, useToast } from './Toast';
 import { SpendAsks } from './SpendAsks';
 import { ExportCenter } from './export/ExportCenter';
+import { JianyingExportDialog } from './export/JianyingExportDialog';
 import { PasteAttrsDialog } from './PasteAttrsDialog';
 import { ExportTray, type ExportTrayHandle } from './export/ExportTray';
 import { FilmStageSelect, type FilmStageControl, type LayerGeometry, type StageClipEdit, type StagePick } from './FilmStageSelect';
@@ -1347,6 +1348,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   hostCommands.current = (command) => {
     if (command.type === 'highlight') { setChatRef(command.ref ?? null); return; }
     if (command.type === 'draft-refs') { setDraftMarks(draftMarksOf(Array.isArray(command.refs) ? command.refs : [])); return; }
+    if (command.type === 'export-draft') { setDraftExportOpen(true); return; }
     if (command.type === 'settings') { setSettingsOpen('agents'); return; }
     if (command.type === 'seek' && Number.isFinite(command.time)) { pause(); seek(command.time * 1000); return; }
     if ((command.type === 'show-range' || command.type === 'show-subtitle') && Number.isFinite(command.start) && Number.isFinite(command.end)) {
@@ -2465,6 +2467,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     setHistoryOpen((v) => !v);
   };
   const [exportOpen, setExportOpen] = React.useState(false);
+  const [draftExportOpen, setDraftExportOpen] = React.useState(false);
   /* the picture's menu is built before this: it reaches export through a ref */
   const exportTrayRef = React.useRef<ExportTrayHandle>(null);
   const exportFilm = React.useMemo(
@@ -2957,6 +2960,10 @@ export function ProjectView({ projectId, onProject, onLeave }: {
           {mediaPool()}
         </div>
       ) : null}
+      <JianyingExportDialog open={draftExportOpen} onClose={() => setDraftExportOpen(false)}
+        projectId={projectId} title={title || t('project.untitled')} durationMs={totalMs} fps={projectFps}
+        missingFiles={[...mediaTrouble].flatMap(([src, why]) => why === 'missing' ? [src] : [])}
+        beforeExport={() => film.settled()} onQueued={jobs => exportTrayRef.current?.push(jobs)} />
       <ExportCenter
         open={exportOpen}
         onClose={() => setExportOpen(false)}
