@@ -6,23 +6,25 @@
  * (lib/local-agent-run's saved turns).
  */
 import React from 'react';
-import { ArrowDown, Coins, CornerDownLeft, LibraryBig, Loader2, Play, Plus, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
+import { ArrowDown, Coins, CornerDownLeft, LibraryBig, Loader2, Plus, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
 import { buildPromptDisplay, type Turn } from '@openfilm/shared';
 import { useT, useUiLocale } from '@/i18n';
 import { ConversationSessionBar } from '@/components/ConversationSessionBar';
 import { ProjectConversation, primeStoredTranscript } from '@/components/ProjectConversation';
 import { EditTemplateBuilder } from '@/components/EditTemplateBuilder';
+import { MaterialUploadArea } from '@/components/MaterialUploadArea';
+import { MaterialAttachmentList } from '@/components/MaterialAttachmentList';
+import AnimatedContent from '@/components/react-bits/AnimatedContent';
 import { ProjectStarters } from '@/components/ProjectStarters';
 import { AttachmentPreview, type AttachmentPreviewItem } from '@/components/AttachmentPreview';
-import { ModelPopover } from '@/components/ModelPopover';
+import { ModelDisplay } from '@/components/ModelDisplay';
 import { CardActions, CardButton, ComposerCard } from '@/components/ComposerCard';
 import { LocalAgentQuestionCard } from '@/components/TurnQuestionCard';
 import { Tooltip } from '@/components/Tooltip';
 import { StickToBottomContext, useStickToBottom, useTailSpacer } from '@/components/useStickToBottom';
 import { PromptEditor, PromptPill, PromptPillHoverContext, PromptPillRevealContext, fileReferenceId, fileReferencePath, promptReferenceToken, resolvePromptReferences, skillReferencePackage, splitPromptReferenceText, type MentionProvider, type PromptEditorHandle, type PromptEditorState, type PromptPillHover, type PromptReference } from '@/components/prompt-editor';
 import { filesFromTransfer, transferHasFiles } from '@/lib/composer-attachments';
-import { attachmentIcon } from '@/lib/project-resources';
-import { attachedPictures, attachedText, attachmentBlocker, formatFileSize, turnAttachments, useDesktopAttachments } from '@/lib/desktop-attachments';
+import { attachedPictures, attachedText, attachmentBlocker, formatFileSize, turnAttachments, useDesktopAttachments, type DesktopAttachment } from '@/lib/desktop-attachments';
 import { deriveProjectTurns } from '@/lib/project-versions';
 import { makePlaceholder, mergeAssetLists } from '@/lib/asset-lists';
 import { isEmptyBackgroundTurn } from '@/lib/unprompted';
@@ -81,16 +83,7 @@ const KEEP_RUNNING_MS = 1500;
 /** how full the agent's context gets before the chat says a new conversation would work better */
 const CONTEXT_NOTICE_SHARE = 0.85;
 
-/** On a video's thumbnail: it plays, it is not a picture. */
 /* between the chat's root (the add-skill dialog) and the project's chat: a skill added, a skill to make */
-
-function PlayMark() {
-  return (
-    <span aria-hidden className="pointer-events-none absolute inset-0 m-auto flex h-4 w-4 items-center justify-center rounded-full bg-black/55">
-      <Play size={8} className="translate-x-[0.5px] fill-white text-white" />
-    </span>
-  );
-}
 
 export function App({ initialProject, initialSelection, initialFfmpeg }: {
   initialProject: Project | null;
@@ -699,8 +692,35 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
 
   const agentName = agent === 'byok' ? t('composer.agentOwnKey') : la.roster?.find((a) => a.id === agent)?.name ?? agent;
 
+  function describeMaterial(file: DesktopAttachment) {
+    if (file.state !== 'ready' || !file.path) return;
+    const label = t('composer.materialNumber').replace('{number}', String(file.labelNumber));
+    const pill: PromptReference = { id: fileReferenceId(file.path), kind: 'file', label: `${label} · ${file.name}`, detail: formatFileSize(file.size) };
+    setFileRefs(list => [...list.filter(ref => ref.id !== pill.id), pill]);
+    requestAnimationFrame(() => {
+      if (followUp.trim()) composerRef.current?.insertText('\n');
+      composerRef.current?.insertReference(pill);
+      composerRef.current?.insertText(t('composer.materialDescribeSeparator'));
+      composerRef.current?.focus();
+    });
+  }
+
   const editComposerCard = (
-    <div className="flex flex-col gap-1">
+    <AnimatedContent trigger="mount" distance={10} duration={0.45} className="creative-workbench flex flex-col gap-1">
+      <div className="creative-workflow" aria-label={t('workspace.session')}>
+        <span className={composerFiles.files.some(file => file.state === 'ready') ? 'is-ready' : 'is-current'}><i>01</i>{t('workspace.materials')}</span>
+        <span><i>02</i>{t('workspace.template')}</span>
+        <span><i>03</i>{t('workspace.create')}</span>
+      </div>
+      <MaterialUploadArea files={composerFiles.files} onFiles={composerFiles.add} onChoose={() => attachInputRef.current?.click()}>
+        {composerFiles.files.length > 0 ? <MaterialAttachmentList files={composerFiles.files}
+          onRemove={composerFiles.drop} onDescribe={describeMaterial}
+          onChoose={() => attachInputRef.current?.click()} onFiles={composerFiles.add}
+          onPreview={file => { if (file.previewUrl) setOpenedFile({ name: file.name, kind: file.kind, url: file.previewUrl, ...(file.mediaType ? { mediaType: file.mediaType } : {}) }); }}
+        /> : null}
+        {openedFile ? <AttachmentPreview item={openedFile} onClose={() => setOpenedFile(null)} /> : null}
+      </MaterialUploadArea>
+      <EditTemplateBuilder key={project.path} projectPath={project.path} busy={active} onSaved={() => composerRef.current?.focus()} />
       {contextFull ? (
         <div className="flex items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface-2)] py-1.5 pl-3 pr-1.5 text-[12px] text-[var(--text-muted)]">
           <span className="min-w-0 flex-1">{t('composer.contextFull')}</span>
@@ -746,56 +766,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
           dropping ? 'border-[var(--accent)]' : 'border-[var(--composer-border)] focus-within:border-[var(--composer-border-active)]'
         }`}
       >
-        {composerFiles.files.length > 0 && (
-          /* whole rows: up to three show at once (a message's twelve files fit in two), only more than that scrolls */
-          <div className="flex max-h-[144px] flex-wrap gap-1.5 overflow-y-auto px-3.5 pt-3">
-            {composerFiles.files.map((file) => {
-              const Icon = attachmentIcon({ name: file.name, mediaType: file.mediaType });
-              const remove = (
-                <span
-                  role="button"
-                  tabIndex={-1}
-                  onClick={(event) => { event.stopPropagation(); composerFiles.drop(file.id); }}
-                  aria-label={t(file.kind === 'image' ? 'composer.removeImage' : 'composer.removeFile')}
-                  className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
-                >
-                  <X size={10} />
-                </span>
-              );
-              const busy = file.state === 'importing' ? <Loader2 size={12} className="absolute inset-0 m-auto animate-spin text-white drop-shadow" /> : null;
-              /* a picture shows itself; a video, a frame of itself with a play mark (once one is had) */
-              const picture = file.kind === 'image' ? file.previewUrl : file.thumb;
-              /* clicked, it opens to look at: a picture large, a video played, a text read */
-              const open = file.previewUrl ? {
-                role: 'button' as const,
-                tabIndex: 0,
-                'aria-label': t('composer.openAttachment').replace('{name}', file.name),
-                onClick: () => setOpenedFile({ name: file.name, kind: file.kind, url: file.previewUrl!, ...(file.mediaType ? { mediaType: file.mediaType } : {}) }),
-                onKeyDown: (event: React.KeyboardEvent) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); (event.currentTarget as HTMLElement).click(); } },
-              } : {};
-              return picture ? (
-                <div key={file.id} title={file.error ?? file.name} {...open}
-                  className={`group relative h-10 w-10 overflow-hidden rounded-[8px] border bg-[var(--surface-2)] transition ${file.previewUrl ? 'cursor-pointer' : ''} ${file.state === 'failed' ? 'border-[var(--danger)]' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
-                  <img src={picture} alt={file.name} className={`h-full w-full object-cover transition ${file.state === 'ready' ? '' : 'opacity-45'}`} />
-                  {file.kind !== 'image' && !busy ? <PlayMark /> : null}
-                  {busy}
-                  {remove}
-                </div>
-              ) : (
-                <div key={file.id} title={file.error ?? file.name} {...open}
-                  className={`group relative flex h-10 min-w-0 max-w-[150px] items-center gap-1.5 overflow-hidden rounded-[8px] border bg-[var(--surface-2)] py-1 pl-2 pr-5 transition ${file.previewUrl ? 'cursor-pointer' : ''} ${file.state === 'failed' ? 'border-[var(--danger)]' : 'border-[var(--border)] hover:border-[var(--border-strong)]'}`}>
-                  {file.state === 'importing' ? <Loader2 size={13} className="shrink-0 animate-spin text-[var(--text-muted)]" /> : <Icon size={13} className="shrink-0 text-[var(--text-muted)]" />}
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-[11.5px] leading-tight text-[var(--text-muted)]">{file.name}</span>
-                    <span className="truncate text-[10.5px] leading-tight text-[var(--text-faint)]">{file.state === 'failed' ? 'Not added' : formatFileSize(file.size)}</span>
-                  </span>
-                  {remove}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {openedFile ? <AttachmentPreview item={openedFile} onClose={() => setOpenedFile(null)} /> : null}
+        <div className="creative-prompt-heading"><span className="workspace-step-label"><span className="workspace-step-number" aria-hidden="true">03</span>{t('workspace.promptTitle')}</span><span>{t('workspace.promptHint')}</span></div>
         <div className="flex items-end gap-1 py-2.5 pl-3.5 pr-2">
           <div className="min-w-0 flex-1">
             <PromptEditor
@@ -809,8 +780,8 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
               onTransferReferences={onTransferReferences}
               revealLabel={t('library.revealReference')}
               removeLabel={t('library.removeReference')}
-              placeholder={t(blank ? 'project.composerPlaceholderBlank' : 'project.composerPlaceholder')}
-              minHeight={22}
+              placeholder={composerFiles.files.length ? t('composer.materialPromptPlaceholder') : t('workspace.promptExample')}
+              minHeight={48}
               maxHeight={158}
               contentClassName="text-[14px] leading-[22px] text-[var(--chat-text)]"
               onPasteFiles={(files) => composerFiles.add(files)}
@@ -824,7 +795,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
               type="button"
               onClick={stopping ? () => { if (asset) void cancelLocalAgentTurn(asset.id); } : submitFollowUp}
               disabled={stopping ? false : !followUpFilled}
-              className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[6px] text-[var(--text-dim)] transition-colors duration-150 hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:text-[var(--text-faint)] disabled:hover:bg-transparent"
+              className="creative-send-button flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] text-[var(--text-dim)] transition-colors duration-150 hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:text-[var(--text-faint)] disabled:hover:bg-transparent"
               aria-label={stopping ? t('project.stop') : t('project.sendFollowUp')}
             >
               {stopping ? <Square size={14} /> : <CornerDownLeft size={14} />}
@@ -833,7 +804,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
         </div>
       </div>
       <div className="flex items-center gap-0.5 px-0.5">
-        <ModelPopover placement="top" align="start" />
+        <ModelDisplay />
         <div className="min-w-0 flex-1" />
         <input
           ref={attachInputRef}
@@ -853,7 +824,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
           </button>
         </Tooltip>
       </div>
-    </div>
+    </AnimatedContent>
   );
 
   /* Esc stops the turn while it runs (the send button's other half) */
@@ -884,7 +855,6 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
                   onExport={() => app.exportDraft()}
                   busy={active}
                 />
-                <EditTemplateBuilder key={project.path} projectPath={project.path} busy={active} onSaved={() => composerRef.current?.focus()} />
                 <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
                   {/* the first message well below the session bar, as a chat app opens a conversation */}
                   <div
@@ -929,7 +899,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
                 </div>
               </div>
 
-              <div ref={composerBlockRef} className={`relative flex shrink-0 flex-col px-4 pb-1.5 ${assetsOpen ? 'pt-2' : ''}`}>
+              <div ref={composerBlockRef} className={`conversation-compose-area relative flex shrink-0 flex-col px-4 pb-1.5 ${assetsOpen ? 'pt-2' : ''}`}>
                 <div className="flex flex-col gap-2">
                   {spendAsk ? (
                     <ComposerCard role="alertdialog" icon={<Coins size={14} />} title={spendAsk.title}

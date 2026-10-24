@@ -13,6 +13,7 @@ import { mountChat } from '../chat/src/mount';
 import './shell.css';
 import '../chat/src/chat.css';
 import './polish.css';
+import './workspace-theme.css';
 
 applyStudioHost();
 createRoot(document.getElementById('root')!).render(<StrictMode><FocusNav /><App /><ResizeCursor /></StrictMode>);

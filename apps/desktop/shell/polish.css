@@ -19,7 +19,7 @@ body, .of-chat { font-family: var(--font-sans); }
 [data-film-inspector] [class*='eyebrow_'], [data-film-inspector] [class*='ratioBadge_'], [data-film-inspector] [class*='statLabel_'] { font-size: 13px; }
 [data-film-inspector] [class*='projectHeading_'] h2 { font-size: 24px; }
 [data-film-inspector] [class*='projectHeading_'] p { font-size: 14px; }
-[data-film-inspector] [class*='stat_'] strong { font-size: 20px; }
+[data-film-inspector] [class*='stat_'] strong { font-size: clamp(13px, 4.5cqi, 20px); }
 [data-film-inspector] [class*='overview_'] > section > div:first-child button { font-size: 14px; }
 [data-film-inspector] [class*='emptyHint_'] p { font-size: 14px; }
 [data-timeline-scope] [class~='text-[10px]'], [data-timeline-scope] [class~='text-[10.5px]'], [data-timeline-scope] [class~='text-[11px]'] { font-size: 12px; }

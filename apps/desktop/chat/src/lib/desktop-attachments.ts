@@ -16,6 +16,8 @@ import { attachedPicture } from '@/lib/ref-pictures';
 
 export interface DesktopAttachment {
   id: string;
+  /** Stable within a draft: removing a file never renumbers the others. */
+  labelNumber: number;
   name: string;
   kind: 'image' | 'document';
   mediaType: string;
@@ -48,6 +50,7 @@ export function useDesktopAttachments() {
   const [notice, setNotice] = React.useState<string | null>(null);
   const patch = (id: string, next: Partial<DesktopAttachment>) => setFiles((list) => list.map((f) => (f.id === id ? { ...f, ...next } : f)));
 
+  const sequence = React.useRef(0);
   const count = React.useRef(0);
   count.current = files.length;
   const add = React.useCallback((incoming: File[]) => {
@@ -58,6 +61,7 @@ export function useDesktopAttachments() {
       const image = isImageAttachment(file);
       const item: DesktopAttachment = {
         id: `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+        labelNumber: ++sequence.current,
         name: file.name || (image ? 'image.png' : 'file'),
         kind: image ? 'image' : 'document',
         mediaType: file.type,
@@ -103,6 +107,7 @@ export function useDesktopAttachments() {
     for (const f of taken) if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
     current.current = [];
     count.current = 0;
+    sequence.current = 0;
     setFiles([]);
     return taken;
   }, []);
@@ -121,7 +126,7 @@ export function attachmentBlocker(files: readonly DesktopAttachment[]): string |
 export function attachedText(files: readonly DesktopAttachment[]): string {
   const placed = files.filter((f) => f.path);
   if (!placed.length) return '';
-  return `\n\nAttached files (in this project folder):\n${placed.map((f) => `- ${f.path} (${attachmentKind({ name: f.name, mediaType: f.mediaType })}, ${formatFileSize(f.size)})`).join('\n')}`;
+  return `\n\nAttached files (in this project folder):\n${placed.map((f) => `- [Material ${f.labelNumber}] ${f.path} (${attachmentKind({ name: f.name, mediaType: f.mediaType })}, ${formatFileSize(f.size)})`).join('\n')}`;
 }
 
 /** The pictures among them, as their agent is sent them. */

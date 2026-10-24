@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Clapperboard, History, Plus } from 'lucide-react';
+import { Clapperboard, History, Plus, Sparkles } from 'lucide-react';
 import { limitTitleWidth, SESSION_TITLE_MAX_WIDTH } from '@openfilm/shared';
 import { Tooltip } from './Tooltip';
 import { useT } from '@/i18n';
@@ -142,7 +142,11 @@ export function ConversationSessionBar({
   const groups = groupSessionsByRecency(visible);
 
   return (
-    <div className={PANE_BAR}>
+    <div className={`conversation-session-bar ${PANE_BAR}`}>
+      <span className="creative-assistant-mark" aria-hidden="true"><Sparkles size={18} strokeWidth={1.5} /></span>
+      <div className="creative-assistant-heading">
+      <strong>{t('workspace.assistant')}</strong>
+      <div className="creative-assistant-session">
       {label ? (
         renaming ? (
           <input
@@ -191,7 +195,9 @@ export function ConversationSessionBar({
             {label}
           </span>
         )
-      ) : null}
+      ) : <span className="creative-assistant-subtitle">{t('workspace.session')}</span>}
+      </div>
+      </div>
       <span className="min-w-0 flex-1" />
       <div className="flex shrink-0 items-center gap-1">
         {onExport ? <button type="button" className="conversation-export-button" disabled={busy}

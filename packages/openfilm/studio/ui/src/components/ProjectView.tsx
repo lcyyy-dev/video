@@ -65,6 +65,7 @@ import { DEFAULT_INSPECTOR, DOCK_GAP, DockPaneDivider, MIN_DOCK_H, MIN_INSPECTOR
 import { PANE_BAR, PANE_BTN_ON, PANE_TOGGLE, PANE_TOGGLE_ICON } from './dock-pane-bar';
 import { Tooltip } from './Tooltip';
 import { TabStrip } from './TabStrip';
+import { ThemeToggle } from './ThemeToggle';
 import { UpdateButton, WebUpdateButton } from './UpdateButton';
 import { MediaPool, type ImportProgress } from './MediaPool';
 import type { SubtitleRowSpec } from './SubtitleRow';
@@ -2577,6 +2578,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                   else toast.show(t('project.filmNotReady'));
                 }}
                 onReveal={() => reveal('')} />
+              <ThemeToggle />
             </div>
             <div aria-hidden className="shrink-0 self-stretch" style={{ width: 'var(--titlebar-right-x)' }} />
           </div>
@@ -2652,6 +2654,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                       <Layers size={PANE_TOGGLE_ICON} />
                     </button>
                   </Tooltip>
+                  <span className="workspace-viewer-heading"><GalleryVerticalEnd size={13} aria-hidden="true" />{t('inspector.film')}</span>
                   <span className="min-w-0 flex-1" />
                   <Tooltip label={t(inspectorOpen ? 'inspector.hide' : 'inspector.show')} side="bottom">
                     <button type="button" onClick={() => setInspectorOpen(!inspectorOpen)}

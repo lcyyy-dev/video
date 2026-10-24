@@ -8,6 +8,7 @@ import { BrandLogo } from './BrandLogo';
 import { ProjectsPopover } from './ProjectsLibrary';
 import { SettingsModal, type SettingsSection } from './settings/SettingsModal';
 import { Tooltip } from './Tooltip';
+import { ThemeToggle } from './ThemeToggle';
 import { useT } from '@/i18n';
 
 export function Launcher({ onOpen }: { onOpen: (projectId: string) => void }) {
@@ -23,6 +24,9 @@ export function Launcher({ onOpen }: { onOpen: (projectId: string) => void }) {
             <BrandLogo size={15} />
           </button>
         </Tooltip>
+        <div className="min-w-0 flex-1" />
+        <ThemeToggle />
+        <div aria-hidden className="shrink-0 self-stretch" style={{ width: 'var(--titlebar-right-x)' }} />
       </div>
       <ProjectsPopover open currentProjectId="" onOpen={onOpen} onCurrentRemoved={() => {}} />
       <SettingsModal open={settings !== null} section={settings ?? undefined} onClose={() => setSettings(null)} />
