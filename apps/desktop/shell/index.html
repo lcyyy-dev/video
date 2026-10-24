@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,6 +12,9 @@
     try { t = localStorage.getItem('openfilm.theme') || 'dark'; } catch (e) {}
     if (t === 'system') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light';
+    /* OpenFilm is currently delivered as a Chinese-first product. Keep Studio and
+       the assistant on the same language before either tree renders. */
+    try { localStorage.setItem('openfilm.language', 'zh-CN'); } catch (e) {}
   })();
 </script>
 </head>

@@ -613,7 +613,11 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   const viewerRowRef = React.useRef<HTMLDivElement | null>(null);
   const { width: storedTimelineHeight, commit: commitTimelineHeight, saved: timelineHeightSaved } = usePaneSize('openfilm.project.timelineH', TIMELINE_H, MIN_DOCK_H);
   const { width: inspectorWidth, commit: commitInspectorWidth } = usePaneSize('openfilm.project.inspectorW', DEFAULT_INSPECTOR, MIN_INSPECTOR);
-  const [assetsPaneOpen, setAssetsPaneOpen] = useKeptFlag('openfilm.project.assets');
+  const hostPanel = useHostPanel();
+  const leftAssets = hostPanel?.assets?.placement === 'left' ? hostPanel.assets : null;
+  const [localAssetsPaneOpen, setLocalAssetsPaneOpen] = useKeptFlag('openfilm.project.assets');
+  const assetsPaneOpen = leftAssets?.open ?? localAssetsPaneOpen;
+  const setAssetsPaneOpen = leftAssets?.setOpen ?? setLocalAssetsPaneOpen;
   const [assetsWidth, setAssetsWidth] = React.useState(280);
   /* the Layers panel (components/LayersPanel), left of the picture, after the assets */
   const [layersPaneOpen, setLayersPaneOpen] = useKeptFlag('openfilm.project.layers', false);
@@ -703,7 +707,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   const inspectorIdle = inspectorContent === 'selection' && !stageElement && !selectedBlocks.length;
   const inspectorShown = inspectorOpen && !(rowNarrow && inspectorIdle);
   const inspectorWanted = inspectorWidth ?? DEFAULT_INSPECTOR;
-  const assetsRoom = rowWidth - (inspectorShown ? inspectorWanted : 0) - VIEWER_BESIDE_ASSETS - 16;
+  const assetsRoom = rowWidth - (inspectorShown ? inspectorWanted : 0) - (leftAssets ? MIN_VIEWER : VIEWER_BESIDE_ASSETS) - 16;
   const assetsShownWidth = rowWidth ? Math.min(assetsWidth, assetsRoom) : assetsWidth;
   const assetsFit = !rowWidth || assetsShownWidth >= 200;
   const inspectorShownWidth = rowWidth && inspectorShown ? Math.max(200, Math.min(inspectorWanted, rowWidth - MIN_VIEWER - 8)) : inspectorWanted;
@@ -1179,10 +1183,9 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   }, [setSelectedLocs]);
 
   /* ── the app Studio is embedded in (lib/host.ts): what the person points at, handed to it; what it asks to be shown ── */
-  const hostPanel = useHostPanel();
   /* an app that hosts Studio can keep the media in a drawer of its own panel (window.openfilmHost panel.assets): no
      left pane then, the viewer first on the left */
-  const hostAssets = hostPanel?.assets ?? null;
+  const hostAssets = hostPanel?.assets?.placement === 'left' ? null : hostPanel?.assets ?? null;
   const assetsShown = !hostAssets && assetsPaneOpen && assetsFit;
   const layersRoom = rowWidth - (inspectorShown ? inspectorShownWidth : 0) - (assetsShown ? assetsShownWidth : 0) - MIN_VIEWER - 16;
   const layersShownWidth = rowWidth ? Math.min(layersWidth, layersRoom) : layersWidth;

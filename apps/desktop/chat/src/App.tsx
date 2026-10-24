@@ -126,7 +126,7 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
   );
 
   return (
-    <div className={`relative flex h-full flex-col ${assetsOpen ? '' : 'bg-[var(--dock-shell)]'}`}>
+    <div className="relative flex h-full flex-col bg-[var(--dock-shell)]">
       {/* under Studio's top bar (it runs over this, across the window): the seam on the left is the handle */}
       <Divider />
       <div className="mb-[6px] ml-[6px] mr-[6px] flex min-h-0 flex-1 flex-col">
@@ -847,11 +847,9 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
       <PromptPillHoverContext.Provider value={pillHover.hover}>
         <WaitingContext.Provider value={Boolean(localTurn?.state.question || localTurn?.state.permission || spendAsk)}>
           <StickToBottomContext.Provider value={thread}>
-            {/* with the assets open only the composer shows, at the bottom: the drawer above it is Studio's, and the two
-                read as one pane */}
-            <aside className={`relative flex min-h-0 flex-col overflow-hidden bg-[var(--dock-pane)] ${assetsOpen ? 'mt-auto shrink-0 rounded-b-[7px]' : 'flex-1 rounded-[7px]'}`}>
-              {assetsOpen ? null : banners}
-              <div className={`relative min-h-0 min-w-0 flex-1 flex-col ${assetsOpen ? 'hidden' : 'flex'}`}>
+            <aside className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[7px] bg-[var(--dock-pane)]">
+              {banners}
+              <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
                 <ConversationSessionBar
                   sessions={shownSessions}
                   currentSessionId={sessionId}
@@ -905,7 +903,7 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
                 </div>
               </div>
 
-              <div ref={composerBlockRef} className={`conversation-compose-area relative flex shrink-0 flex-col px-4 pb-1.5 ${assetsOpen ? 'pt-2' : ''}`}>
+              <div ref={composerBlockRef} className="conversation-compose-area relative flex shrink-0 flex-col px-4 pb-1.5">
                 <div className="flex flex-col gap-2">
                   {spendAsk ? (
                     <ComposerCard role="alertdialog" icon={<Coins size={14} />} title={spendAsk.title}

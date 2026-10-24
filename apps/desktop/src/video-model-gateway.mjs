@@ -1,5 +1,5 @@
 /** A private inference boundary: neither requests nor responses can contain executable tools. */
-import { createServer as createHttpServer } from 'node:http';
+import { createServer as createHttpServer, request as httpRequest, Agent as HttpAgent } from 'node:http';
 import { createServer as createHttpsServer, request, Agent } from 'node:https';
 import { getCACertificates } from 'node:tls';
 import { randomBytes } from 'node:crypto';
@@ -76,8 +76,11 @@ export async function officialForward(path, options) {
 
 function forwardOnce(path, { method, headers, body, signal, proxyEnv = process.env, upstreamBaseUrl = 'https://chatgpt.com', upstreamHeaders = {} }) {
   return new Promise((done, fail) => {
-    const agent = new Agent({ proxyEnv, ca: [...getCACertificates('default'), ...getCACertificates('system')] });
-    const req = request(new URL(path, upstreamBaseUrl), { method, headers: { ...headers, ...upstreamHeaders }, agent, signal, timeout: 180_000 }, res => {
+    const url = new URL(path, upstreamBaseUrl);
+    const localHttp = url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
+    if (url.protocol !== 'https:' && !localHttp) throw new VideoPolicyError('Sub2API 生产地址必须使用 HTTPS。');
+    const agent = localHttp ? new HttpAgent() : new Agent({ proxyEnv, ca: [...getCACertificates('default'), ...getCACertificates('system')] });
+    const req = (localHttp ? httpRequest : request)(url, { method, headers: { ...headers, ...upstreamHeaders }, agent, signal, timeout: 180_000 }, res => {
       const chunks = []; let length = 0;
       res.on('data', chunk => { length += chunk.length; if (length > MAX_BODY) req.destroy(new VideoPolicyError()); else chunks.push(chunk); });
       res.on('error', error => { error.responseBytes = length; error.responseType = String(res.headers['content-type'] ?? ''); fail(error); });

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { request } from 'node:https';
+import { createServer } from 'node:http';
 import { createVideoModelGateway, plannerRequest, plannerResponse } from './video-model-gateway.mjs';
 
 test('the inference request has no native, dynamic, MCP, browser or shell tools', () => {
@@ -73,4 +74,37 @@ test('hosted forwarding maps the private Codex route to Sub2API and replaces aut
     assert.equal(response.status, 200);
     assert.equal(seen[0].path, '/backend-api/codex/responses');
   } finally { await gateway.close(); }
+});
+
+test('the real forwarder reaches a local HTTP Sub2API with the configured key', async () => {
+  let seen;
+  const upstream = createServer(async (req, res) => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    seen = { path: req.url, auth: req.headers.authorization, body: JSON.parse(Buffer.concat(chunks)) };
+    res.writeHead(200, { 'content-type': 'text/event-stream' });
+    res.end(event({ type: 'response.completed', response: { output: [{ type: 'message', role: 'assistant' }] } }));
+  });
+  await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
+  let gateway;
+  try {
+    gateway = await createVideoModelGateway({ secure: false,
+      upstreamBaseUrl: `http://127.0.0.1:${upstream.address().port}/v1`,
+      upstreamHeaders: { authorization: 'Bearer product-key' },
+      proxyEnv: { HTTP_PROXY: 'http://127.0.0.1:1' },
+    });
+    const response = await fetch(`${gateway.baseUrl}/codex/responses`, {
+      method: 'POST', headers: { authorization: 'Bearer local-placeholder' },
+      body: JSON.stringify({ input: [{ role: 'user', content: 'edit' }], tools: [{ name: 'shell' }] }),
+    });
+    assert.equal(response.status, 200);
+    assert.equal(seen.path, '/v1/responses');
+    assert.equal(seen.auth, 'Bearer product-key');
+    assert.deepEqual(seen.body.tools, []);
+    assert.equal(gateway.state.responses, 1);
+  } finally {
+    await gateway?.close();
+    upstream.closeAllConnections();
+    await new Promise(resolve => upstream.close(resolve));
+  }
 });

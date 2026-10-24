@@ -47,7 +47,8 @@ export interface StudioHost {
    * shortcuts leave the keys pressed in it alone. `onChange` tells Studio of a new width, or of the panel opened or
    * closed from the app.
    *
-   * `assets`, when the app has it, is where the project's media lives instead of Studio's own left pane (the viewer is
+   * `assets.placement = 'left'` keeps media in Studio's left pane, independently of the chat.
+   * Otherwise `assets`, when the app has it, is where the project's media lives instead of Studio's own left pane (the viewer is
    * then first on the left): a button in the panel opens them over it, and Studio draws them there, above the bottom
    * `bottom` px the panel keeps (its composer). `setAssetsOpen` opens or closes them from Studio; `setWidth` sizes the
    * panel from the seam beside them (the panel's own seam is under them then); `done` ends a drag.
@@ -56,11 +57,11 @@ export interface StudioHost {
     label: string;
     open: boolean;
     width: number;
-    assets?: { open: boolean; bottom: number };
+    assets?: { open: boolean; bottom: number; placement?: 'left' };
     setOpen: (open: boolean) => void;
     setAssetsOpen?: (open: boolean) => void;
     setWidth?: (width: number, done?: boolean) => void;
-    onChange: (listener: (state: { open: boolean; width: number; assets?: { open: boolean; bottom: number } }) => void) => void;
+    onChange: (listener: (state: { open: boolean; width: number; assets?: { open: boolean; bottom: number; placement?: 'left' } }) => void) => void;
   };
   /** Let the app ask Studio to show something: Studio calls this once with its listener. */
   onCommand?: (listener: (command: StudioCommand) => void) => void;
@@ -341,16 +342,17 @@ export type HostPanel = {
   width: number;
   setOpen: (open: boolean) => void;
   /** null: the app keeps no assets of its own (Studio's left pane holds them) */
-  assets: { open: boolean; bottom: number; setOpen: (open: boolean) => void } | null;
+  assets: { open: boolean; bottom: number; placement?: 'left'; setOpen: (open: boolean) => void } | null;
   setWidth: (width: number, done?: boolean) => void;
 };
 
 export function useHostPanel(): HostPanel | null {
   const panel = studioHost?.panel;
-  const read = (next: { open: boolean; width: number; assets?: { open: boolean; bottom: number } }) => ({
+  const read = (next: { open: boolean; width: number; assets?: { open: boolean; bottom: number; placement?: 'left' } }) => ({
     open: Boolean(next.open),
     width: Math.max(0, Number(next.width) || 0),
     assetsOpen: Boolean(next.assets?.open),
+    placement: next.assets?.placement,
     bottom: Math.max(0, Number(next.assets?.bottom) || 0),
   });
   const [state, setState] = React.useState(() => (panel ? read(panel) : null));
@@ -363,7 +365,7 @@ export function useHostPanel(): HostPanel | null {
     width: state.width,
     setOpen: (open) => panel.setOpen(open),
     setWidth: (width, done) => panel.setWidth?.(width, done),
-    assets: setAssetsOpen ? { open: state.open && state.assetsOpen, bottom: state.bottom, setOpen: (open) => setAssetsOpen(open) } : null,
+    assets: setAssetsOpen ? { open: (state.placement === 'left' || state.open) && state.assetsOpen, bottom: state.bottom, placement: state.placement, setOpen: (open) => setAssetsOpen(open) } : null,
   };
 }
 

@@ -61,19 +61,20 @@ function signal<T>(value: T) {
 }
 const events = <T,>() => signal<T>(undefined as T);
 
-/* ── the chat's column: open or not, how wide, and the assets drawer over it ── */
+/* ── the chat's column and the independent material pane on Studio's left ── */
 const TOP_BAR = 32;
 const column = document.getElementById('of-chat')!;
 const layout = { open: true, width: 420, min: 340, studioMin: 640 };
-/** the assets open in the column (Studio draws them, above the composer); `bottom`: the composer's height, all the
-    chat shows then */
-const assets = { open: false, bottom: 120 };
-const assetsSignal = signal(false);
+/* The material library is the starting point of an editing project, so keep it
+   visible when a project opens. The person can still collapse it from the
+   library toggle without changing the editor's material data. */
+const assets = { open: true, bottom: 120 };
+const assetsSignal = signal(assets.open);
 const chatOpenSignal = signal(true);
 
 /** The column's width as the window allows it: Studio keeps its least width, the chat its own while it fits. */
 const shownWidth = () => (layout.open ? Math.max(Math.min(layout.width, innerWidth - layout.studioMin), Math.min(layout.min, innerWidth)) : 0);
-const panelState = () => ({ open: layout.open, width: shownWidth(), assets: { open: assets.open && layout.open, bottom: assets.bottom } });
+const panelState = () => ({ open: layout.open, width: shownWidth(), assets: { open: assets.open, bottom: assets.bottom, placement: 'left' as const } });
 const panelListeners = new Set<Listener<ReturnType<typeof panelState>>>();
 
 /** The page shows a project (not a new tab's launcher): only then is there a chat to show. */
@@ -82,9 +83,6 @@ function place() {
   column.hidden = !layout.open || !onProject();
   column.style.width = `${shownWidth()}px`;
   column.style.top = `${TOP_BAR}px`;
-  /* the column never moves or resizes for the assets: the chat shows only its composer then, and the rest of the
-     column lets the drawer under it be seen and used (shell.css) */
-  column.toggleAttribute('data-assets-open', assets.open && layout.open);
   const state = panelState();
   for (const listener of panelListeners) listener(state);
 }
@@ -94,7 +92,6 @@ function setChatOpen(open: boolean) {
   if (open === layout.open) return;
   layout.open = open;
   flushSync(() => {
-    if (!open && assets.open) { assets.open = false; assetsSignal.set(false); }
     place();
     chatOpenSignal.set(open);
   });
@@ -107,9 +104,8 @@ function setChatWidth(width: number, done = false) {
   if (done) native.saveLayout({ chatOpen: layout.open, chatWidth: layout.width });
 }
 function setAssetsOpen(open: boolean) {
-  if (open && !layout.open) setChatOpen(true);
-  assets.open = open && layout.open;
-  /* the chat folding to its composer and Studio's drawer appearing are one frame: neither is seen without the other */
+  assets.open = open;
+  /* Studio's left pane and the library button update together. */
   flushSync(() => {
     assetsSignal.set(assets.open);
     place();
