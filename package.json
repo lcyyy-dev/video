@@ -9,9 +9,9 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "dev": "pnpm --filter openfilm dev",
+    "dev": "pnpm --filter @openfilm/desktop start",
     "dev:desktop": "pnpm --filter @openfilm/desktop start",
-    "build": "pnpm --filter openfilm build:ui && pnpm --filter @openfilm/desktop build:shell",
+    "build": "pnpm --filter @openfilm/desktop build:shell",
     "release:win": "pnpm --filter @openfilm/desktop release:win",
     "test": "pnpm -r --workspace-concurrency=1 --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",

@@ -7,8 +7,7 @@
  * empty in the repository (no update feed: the app never looks for updates); `--official` uses product.official.json
  * (the update feed under its `desktop.updates`).
  *
- *   1. the window's page (shell/: Studio's editor with the chat beside it) and Studio's editor on its own (the
- *      `openfilm` package's UI) are built (the chat's `@openfilm/shared` is bundled into the page);
+ *   1. the desktop window (shell/: editor and chat) is built; no standalone browser UI is shipped;
  *   2. a stage folder gets the app's own files and a plain npm install of what it needs at run time: the `openfilm`
  *      package as `npm pack` makes it (what npm would publish), the Codex ACP adapter
  *      and the updater. Windows includes a separately checksum-pinned native Codex distribution (codex-build.json),
@@ -82,12 +81,9 @@ const commandOptions = (cmd) => ({ shell: process.platform === 'win32' && /^(?:n
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...commandOptions(cmd), ...opts });
 const pkg = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8'));
 
-/* 1. the window's page, and Studio's editor for the package */
+/* 1. the desktop window; the shared package contains only the engine and local APIs. */
 const vite = join(dirname(require.resolve('vite/package.json')), 'bin', 'vite.js');
 run(process.execPath, [vite, 'build', '--config', 'shell/vite.config.ts', '--logLevel', 'warn'], { cwd: desktop });
-/* the old assets stay: a Studio already running from this checkout keeps loading the pages it has open */
-run(process.execPath, [vite, 'build', '--config', 'studio/ui/vite.config.ts', '--emptyOutDir=false', '--logLevel', 'warn'], { cwd: protocol });
-
 /* 2. the stage */
 rmSync(work, { recursive: true, force: true });
 mkdirSync(stage, { recursive: true });

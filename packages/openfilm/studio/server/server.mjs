@@ -33,7 +33,6 @@ import {
   moveProjectToFolder, openProject, projectById, renameFolder, renameProject, studioHome, studioKey, TOOL_DIR,
 } from './projects.mjs';
 import { FetchError, createFetches, fetchFilm, parseRepoUrl } from './fetch-repo.mjs';
-import { BrowseError, browseFolder, browsePlaces } from './browse.mjs';
 import { exampleFile, exampleFolder, listExamples } from './examples.mjs';
 import { pickFiles, pickFolder } from './folder-picker.mjs';
 import { readPrefs, writePrefs } from './prefs.mjs';
@@ -91,12 +90,12 @@ export function desktopInstaller(os, arch, base = DESKTOP_FILES) {
  * write where it listens to ~/.openfilm/run.json (removed on close), which is how the CLI finds this machine's Studio,
  * and open with the machine's key (see studioKey); otherwise the key is new each launch.
  * `onQuit`: what `POST /api/quit` does (by default, close); `stays`: it does nothing and says so (an app's Studio,
- * which its window needs). `editorDir`: the built editor to serve (by default studio/ui/dist); an app that builds
+ * which its window needs). `editorDir`: the built editor to serve (only supplied by the desktop app); an app that builds
  * Studio's editor into a page of its own (its chat beside it) serves that one. `working`: the folders an app's agent
  * is working in right now (an app with a chat), which cannot be deleted meanwhile. Resolves once both servers listen.
  * @param {{ port?: number, key?: string, openBrowser?: (url: string) => void, advertise?: boolean, onQuit?: () => void, stays?: boolean, editorDir?: string, working?: () => string[] }} [options]
  */
-export async function startStudio({ port = 4747, key, openBrowser = systemBrowser, advertise = false, onQuit, stays = false, editorDir = EDITOR_DIR, working = () => [] } = {}) {
+export async function startStudio({ port = 4747, key, openBrowser = systemBrowser, advertise = false, onQuit, stays = false, editorDir, working = () => [] } = {}) {
   let COOKIE = cookieName(port);
   let FRAMED = framedCookieName(port);
   /** The key from either session cookie. */
@@ -116,8 +115,6 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
   let updating = /** @type {{ status: 'updating' | 'failed', version: string, error?: string } | null} */ (null);
   /** whether an app's agent is working in the project at `path` now */
   const agentIn = (/** @type {string} */ path) => working().some((folder) => resolve(folder) === resolve(path));
-  /** how many editor pages have connected since Studio started: whether one opened an address `/open` gave out */
-  let pagesConnected = 0;
   /** @type {(event: unknown) => void} */
   const toPages = (event) => { for (const send of editorPages.keys()) send(event); };
   let origin = '';
@@ -147,7 +144,6 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
   /** @param {(event: unknown) => void} send @param {{ visible: boolean }} page */
   const editorStream = (send, page) => {
     editorPages.set(send, page);
-    pagesConnected += 1;
     pageCame();
     return () => { editorPages.delete(send); };
   };
@@ -206,14 +202,10 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
       setImmediate(() => (onQuit ?? (() => { void studio.close(); }))());
       return;
     }
-    /* `openfilm open [folder]`: open it (no folder: the project opened last, else the Projects window) and show it.
-       Every Studio page open already switches to it; when one is in sight (not a tab behind others, a window
-       minimized, an agent's hidden browser), nothing more opens: one window is enough. Else in a browser: the
-       agent's own when it opens the address within `fallback` seconds, else the person's (`now`: at once, for a
-       person at a terminal, who has no other). `pages`: how many the Studio before this one had, waited for up to a
-       few seconds while they come back (Studio was just started afresh) */
+    /* CLI project selection is shown in the desktop window. Headless API use never opens a browser.
+       `pages`: pages from a restarted engine, allowed a moment to reconnect. */
     if (parts[0] === 'open' && req.method === 'POST') {
-      const { path: folder, fallback = 15, now = false, pages: before = 0 } = /** @type {{ path?: string, fallback?: number, now?: boolean, pages?: number }} */ (await readJson(req));
+      const { path: folder, pages: before = 0 } = /** @type {{ path?: string, fallback?: number, now?: boolean, pages?: number }} */ (await readJson(req));
       if (folder != null && (typeof folder !== 'string' || !folder)) throw new HttpError(400, 'which folder?');
       /* a relative path would be read from Studio's own folder, not the caller's */
       if (folder != null && !isAbsolute(folder)) throw new HttpError(400, 'the folder\'s full path, please');
@@ -228,11 +220,7 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
       pageCame = () => {};
       const open = [...editorPages.values()].filter((page) => page.visible).length;
       toPages({ type: 'open', to });
-      if (!open) {
-        const before = pagesConnected;
-        if (now) openBrowser(address);
-        else if (fallback > 0) setTimeout(() => { if (pagesConnected === before) openBrowser(address); }, fallback * 1000).unref();
-      }
+      if (!open && stays) openBrowser(address);
       return json(res, 200, { project, url: address, pages: open });
     }
 
@@ -393,12 +381,6 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
       } catch (e) {
         throw new HttpError(501, /** @type {Error} */ (e).message);
       }
-    }
-    /* the web editor's folder browser (browse.mjs): `path`'s folders, only under the home folder, and where to start */
-    if (parts[0] === 'browse' && parts.length === 1 && req.method === 'GET') {
-      const listing = await browseFolder(url.searchParams.get('path'));
-      const places = await browsePlaces({ library: libraryRoot(), recent: (await listProjects()).filter((p) => !p.missing).map((p) => p.path) });
-      return json(res, 200, { ...listing, ...places });
     }
     /* the example films (examples.mjs): none when the index cannot be read */
     if (parts[0] === 'examples' && parts.length === 1 && req.method === 'GET') return json(res, 200, { examples: await listExamples() });
@@ -827,11 +809,11 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
     if (!ownHost(req, /** @type {import('node:net').AddressInfo} */ (editor.address()).port)) { json(res, 403, { error: 'not this address' }); return; }
     route(req, res).catch((/** @type {unknown} */ e) => {
       const status = e instanceof HttpError || e instanceof ProjectError || e instanceof FileError || e instanceof HistoryError || e instanceof MediaError || e instanceof ExportError
-        || e instanceof FetchError || e instanceof BrowseError ? e.status : 500;
+        || e instanceof FetchError ? e.status : 500;
       if (status === 500) console.error(e);
       if (res.headersSent) return res.end();
       json(res, status, { error: e instanceof Error ? e.message : String(e), ...(e instanceof HttpError ? e.extra : {}),
-        ...((e instanceof ProjectError || e instanceof FetchError || e instanceof BrowseError) && e.code ? { code: e.code } : {}),
+        ...((e instanceof ProjectError || e instanceof FetchError) && e.code ? { code: e.code } : {}),
         ...(e instanceof HistoryError && e.code ? { code: e.code, ...('commits' in e ? { commits: e.commits } : {}) } : {}) });
     });
   });
@@ -968,12 +950,11 @@ function advertised() {
   try { return JSON.parse(readFileSync(runFile(), 'utf8')); } catch { return null; }
 }
 
-/* the editor, built (`npm run build:ui`) into studio/ui/dist and shipped with the package */
-const EDITOR_DIR = fileURLToPath(new URL('../ui/dist/', import.meta.url));
 const TYPES = { '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.ico': 'image/x-icon' };
 
 /** The editor's files: its assets as they are (named by their content, so kept for good), any other path its page. */
-function sendEditor(/** @type {Res} */ res, /** @type {string} */ dir, /** @type {string} */ path, /** @type {Record<string, string | string[]>} */ headers = {}) {
+function sendEditor(/** @type {Res} */ res, /** @type {string | undefined} */ dir, /** @type {string} */ path, /** @type {Record<string, string | string[]>} */ headers = {}) {
+  if (!dir) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end('OpenFilm is a desktop client. Start the desktop app to edit this project.'); return; }
   const root = dir.endsWith(sep) ? dir : dir + sep;
   if (path.startsWith('/assets/')) {
     const file = normalize(join(root, path));
@@ -987,7 +968,7 @@ function sendEditor(/** @type {Res} */ res, /** @type {string} */ dir, /** @type
   const page = join(root, 'index.html');
   /* no referrer: the page's address holds the key, and a link it opens must not carry it to another site */
   res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', ...headers });
-  res.end(existsSync(page) ? readFileSync(page) : '<!doctype html><meta charset="utf-8"><title>OpenFilm Studio</title><p>The editor is not built: run <code>npm run build:ui</code>.</p>');
+  res.end(existsSync(page) ? readFileSync(page) : 'The desktop editor is not built. Run pnpm --filter @openfilm/desktop build:shell.');
 }
 
 /** A file in the system's file manager, selected. */

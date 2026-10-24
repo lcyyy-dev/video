@@ -25,7 +25,6 @@ import { studioHost } from '@/lib/host';
 import { SourceError, sourcesApi } from '@/lib/project-sources';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectsView, type LibraryProject } from './ProjectsView';
-import { FolderBrowserDialog } from './ProjectSources';
 
 
 /* each card's picture: the film's middle frame, drawn by Studio (cached until film.html changes); none for a project
@@ -184,8 +183,7 @@ export function ProjectsPopover({
   const [pendingDelete, setPendingDelete] = React.useState<string[] | null>(null);
   const [pendingFolder, setPendingFolder] = React.useState<ProjectFolder | null>(null);
   const [busy, setBusy] = React.useState<'creating' | 'opening' | null>(null);
-  /* Local folder browser, and confirmation before starting a project in an empty folder. */
-  const [browser, setBrowser] = React.useState<{ mode: 'open' } | { mode: 'locate'; project: LibraryProject } | null>(null);
+  /* Native folder selection, with confirmation before creating a film in an empty folder. */
   const [askStart, setAskStart] = React.useState<string | null>(null);
   const close = React.useCallback(() => onClose?.(), [onClose]);
 
@@ -229,11 +227,10 @@ export function ProjectsPopover({
   const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
   /**
-   * Open a folder as a project: the one dropped, else the one the app asks the person for, else (no app) Studio's
-   * folder browser.
+   * Open a dropped folder or ask through the desktop system folder picker.
    */
   async function openFolder(path?: string) {
-    if (!path && !studioHost?.folders) { setBrowser({ mode: 'open' }); return; }
+    if (!path && !studioHost?.folders) { lib.flash('请在 OpenFilm 客户端中打开文件夹。'); return; }
     const folder = path ?? await studioHost?.folders?.pick();
     if (!folder) return;
     try {
@@ -258,13 +255,12 @@ export function ProjectsPopover({
       if (e instanceof SourceError && e.code === 'not-found') throw new Error(t('projects.browse.error.notFound'));
       throw e;
     }
-    setBrowser(null);
     go(project.id, 'opening');
   }
 
-  /** A project whose folder is gone, pointed at the folder it is in now: the app's dialog, else Studio's browser. */
+  /** Relocate a missing project through the desktop system folder picker. */
   async function locate(project: LibraryProject) {
-    if (!studioHost?.folders) { setBrowser({ mode: 'locate', project }); return; }
+    if (!studioHost?.folders) { lib.flash('请在 OpenFilm 客户端中定位文件夹。'); return; }
     const folder = await studioHost.folders.pick();
     if (!folder) return;
     try {
@@ -281,7 +277,6 @@ export function ProjectsPopover({
       if (e instanceof SourceError && e.code === 'no-film') throw new Error(t('projects.locateNoFilm'));
       throw e;
     }
-    setBrowser(null);
     lib.reload();
   }
 
@@ -393,15 +388,6 @@ export function ProjectsPopover({
           });
         }}
       />
-      {browser ? (
-        <FolderBrowserDialog
-          mode={browser.mode}
-          title={browser.mode === 'locate' ? t('projects.locateTitle').replace('{name}', browser.project.name) : t('projects.browse.title')}
-          subtitle={browser.mode === 'locate' ? browser.project.path : undefined}
-          onPick={(path, start) => (browser.mode === 'locate' ? locateTo(browser.project, path) : openPicked(path, start))}
-          onClose={() => setBrowser(null)}
-        />
-      ) : null}
       <ConfirmDialog
         open={!!askStart}
         title={t('projects.startFilmTitle')}

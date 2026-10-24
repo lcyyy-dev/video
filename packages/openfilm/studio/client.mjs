@@ -221,12 +221,10 @@ export async function updateOpenfilm(say = () => {}) {
 }
 
 /**
- * Open `folder` in Studio (none: the project opened last, else the Projects window) and show it in a browser: the
- * person's opens it `fallback` seconds on unless a page opened the address first (an agent's own browser), or at once
- * with `now`. Studio pages already open switch to it too.
- * @param {string | null} folder @param {{ fallback?: number, now?: boolean, say?: (line: string) => void }} [options]
+ * Select `folder` in the local engine and notify the desktop window. There is no browser UI or browser fallback.
+ * @param {string | null} folder @param {{ say?: (line: string) => void }} [options]
  */
-export async function openInStudio(folder, { fallback = 15, now = false, say } = {}) {
+export async function openInStudio(folder, { say } = {}) {
   /* the running one when it answers and is this version: starting it afresh would drop every page open on it (and the
      person's own work there) each time an agent opens a project; one that does not answer is started anew */
   const run = await ensureStudio(say);
@@ -234,7 +232,7 @@ export async function openInStudio(folder, { fallback = 15, now = false, say } =
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-studio-key': run.key },
     /* the folder as the person means it, from where the command runs (Studio runs elsewhere) */
-    body: JSON.stringify({ ...(folder != null ? { path: resolve(folder) } : {}), fallback, now, pages: run.pages ?? 0 }),
+    body: JSON.stringify({ ...(folder != null ? { path: resolve(folder) } : {}), pages: run.pages ?? 0 }),
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body.error ?? `Studio answered ${res.status}`);

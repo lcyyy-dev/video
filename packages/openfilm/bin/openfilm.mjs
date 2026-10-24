@@ -44,7 +44,7 @@ openfilm text-styles page <file.html> --text <copy> --duration <seconds> [--size
 
   Starts OpenFilm Studio if it is not running and prints its address. A Studio page already open, in any browser,
   switches to the project, and nothing more opens; otherwise open the address in your built-in browser, and if no
-  page connects within 15 s, Studio opens the person's browser (OPENFILM_NO_BROWSER=1: never).`,
+  project is shown in the desktop client; no standalone browser editor is provided.`,
   skills: `openfilm skills
 
   The skills the project around the current folder can be made with: ways of making a kind of film, each a folder with
@@ -232,13 +232,6 @@ async function open(folder) {
   const { openInStudio } = await import('../studio/client.mjs');
   const { existsSync, mkdirSync, statSync, writeFileSync } = await import('node:fs');
   const { dirname, join, resolve } = await import('node:path');
-  const fallback = process.env.OPENFILM_NO_BROWSER ? 0 : 15;
-  /* a person at a terminal has no browser of an agent's: theirs opens at once */
-  const now = !process.env.OPENFILM_NO_BROWSER && Boolean(process.stdout.isTTY && process.stdin.isTTY);
-  /* a checkout whose editor was never built (npm install builds it): Studio would show only that it is missing */
-  if (!existsSync(new URL('../studio/ui/dist/index.html', import.meta.url))) {
-    console.error('Studio\'s editor is not built in this checkout: run `npm run build:ui` (npm install does it).');
-  }
   /** the project `from` is in (it, or a folder above it), if any */
   const around = (from) => { for (let up = from; up !== dirname(up); up = dirname(up)) if (existsSync(join(up, 'film.html'))) return up; return null; };
   let asked = folder == null ? around(process.cwd()) : resolve(folder);
@@ -252,18 +245,16 @@ async function open(folder) {
     return { ok: false, usage: true, lines: [`${RUN} open: ${asked} is a code project, not a film; give the film a folder of its own: \`${RUN} open <name>\` makes <name>/ here`] };
   }
   try {
-    const { project, url, pages } = await openInStudio(asked, { fallback, now, say: (line) => console.error(line) });
+    const { project, url, pages } = await openInStudio(asked, { say: (line) => console.error(line) });
     if (project) {
       mkdirSync(join(project.path, '.film'), { recursive: true });
       writeFileSync(join(project.path, '.film', 'opened'), '');
     }
-    /* an agent opens it in its own browser whatever else shows Studio: a page open elsewhere is not the agent's */
-    return { ok: true, lines: [project ? `project  ${project.path}` : `project  none yet: the person starts one in Studio, or \`${RUN} open <folder>\` makes one`, `Studio   ${url}`,
-      /* a page in sight switched to it: nothing more opens, nor should be opened */
-      pages ? '         already open in a browser, now showing this project: open nothing more'
-        : now ? '         opened in your browser'
-          : fallback ? `         open this address in your built-in browser now; with none, it opens in the person's browser in ${fallback} s`
-            : '         open this address in your built-in browser now, or give it to the person'] };
+    return { ok: true, lines: [
+      project ? `project  ${project.path}` : `project  none yet: start one in the desktop client, or run ${RUN} open <folder>`,
+      `Studio   ${url}`,
+      pages ? '         showing this project in the desktop client' : '         open the OpenFilm desktop client to edit this project',
+    ] };
   } catch (e) { return { ok: false, lines: [`${RUN} open: ${e.message}`] }; }
 }
 /**

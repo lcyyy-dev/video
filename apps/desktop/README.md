@@ -2,6 +2,9 @@
 
 An advertising-editing desktop client: Studio with local Codex chat, footage import, timeline editing, text styles, video export and editable Jianying/CapCut drafts.
 
+
+There is no standalone browser UI. Studio's UI sources, local HTTP API and headless Chromium are internal parts of the desktop editor and renderer.
+
 ## Run from source
 
 ```sh
@@ -21,6 +24,7 @@ use supplied recordings or explicitly requested local simulated audio; cloud TTS
 
 Exports are limited to video, Jianying/CapCut drafts, and project archives/folders. The underlying film format,
 renderer and media utilities remain shared with the CLI. See [the scope record](../../docs/CLIENT_SIMPLIFICATION.zh-CN.md).
+
 
 On Linux, the launcher keeps the desktop session's display and audio variables. WSLg source runs default to the native Wayland backend; pass `--ozone-platform=x11` to the launcher to override it. Optional development libraries in
 `.dev/linux-libs/usr/lib/x86_64-linux-gnu/` and ffmpeg in `.dev/runtime/ffmpeg/` are reused when present.

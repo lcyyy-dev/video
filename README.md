@@ -141,11 +141,11 @@ PATH, and git.
 ```sh
 git clone https://github.com/openfilm/openfilm && cd openfilm
 pnpm install
-pnpm dev            # Studio from this checkout, with a sample film, apart from an installed OpenFilm
+pnpm dev            # build and start the desktop client
 pnpm test
 ```
 
-Open your coding agent in `packages/openfilm/.dev/projects` and it makes films with your checkout, in that Studio.
+Use the right-hand chat in the desktop client to edit the current project.
 
 `pnpm dev:desktop` runs the desktop app from source, and `pnpm typecheck`, `pnpm build` and `pnpm audit:public` do
 what they say.

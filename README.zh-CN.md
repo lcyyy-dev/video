@@ -135,11 +135,11 @@ OpenFilm 把功夫花在模型容易出错的地方：检查片子。`look` 会�
 ```sh
 git clone https://github.com/openfilm/openfilm && cd openfilm
 pnpm install
-pnpm dev            # 用这份源码运行 Studio，带一部示例片，和你安装的 OpenFilm 互不干扰
+pnpm dev            # 构建并启动桌面客户端
 pnpm test
 ```
 
-在 `packages/openfilm/.dev/projects` 里打开你的编程智能体，它就会用这份源码在这个 Studio 里做片子。
+在桌面客户端右侧选择模板、添加素材并输入剪辑需求。
 
 `pnpm dev:desktop` 从源码运行桌面版；`pnpm typecheck`、`pnpm build` 和 `pnpm audit:public` 分别是类型检查、构建和
 公开内容审计。各个包的详细说明见 [CONTRIBUTING.md](CONTRIBUTING.md)（英文）。

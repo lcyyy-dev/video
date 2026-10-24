@@ -18,7 +18,10 @@ before(async () => {
   process.env.OPENFILM_TRASH_DIR = join(scratch, 'trash');
   mkdirSync(process.env.OPENFILM_TRASH_DIR);
   opened = [];
-  studio = await startStudio({ port: 0, openBrowser: (url) => opened.push(url), quietMs: 150 });
+  const editorDir = join(scratch, 'desktop-editor');
+  mkdirSync(editorDir);
+  writeFileSync(join(editorDir, 'index.html'), '<!doctype html><title>Desktop editor fixture</title>');
+  studio = await startStudio({ editorDir, port: 0, openBrowser: (url) => opened.push(url), quietMs: 150 });
 });
 after(() => studio.close());
 
@@ -77,14 +80,14 @@ test('a page\'s address with the key signs a browser in (a copied address opens 
   assert.deepEqual((await api('/projects/x?key=wrong', { key: null })).headers.getSetCookie(), []);
 });
 
-test('openfilm open: with no editor page, the person\'s browser gets the address after the fallback', async () => {
+test('openfilm open: headless API never opens a browser even with legacy fallback options', async () => {
   assert.equal((await api('/api/open', { method: 'POST', body: { path: 'Launch', fallback: 0 } })).status, 400, 'a relative folder would be Studio\'s own, not the caller\'s');
   const res = await api('/api/open', { method: 'POST', body: { path: join(scratch, 'Launch'), fallback: 0.05 } });
-  const { project, url, pages } = await res.json();
+  const { project, pages } = await res.json();
   assert.equal(project.name, 'Launch');
   assert.equal(pages, 0);
   await new Promise((r) => setTimeout(r, 120));
-  assert.deepEqual(opened, [url]);
+  assert.deepEqual(opened, []);
 });
 
 test('openfilm open: an editor page that is open switches to the project, and nothing more opens', async () => {
@@ -109,16 +112,16 @@ test('openfilm open: a page that opens the address within the fallback (an agent
   page.close();
 });
 
-test('openfilm open: a page out of sight (a tab behind others, a hidden browser) switches too, and the browser opens', async () => {
+test('openfilm open: a page out of sight (a tab behind others, a hidden browser) switches too without opening a browser', async () => {
   opened.length = 0;
   const ws = (visible) => new WebSocket(`${studio.origin.replace(/^http/, 'ws')}/api/events?visible=${visible}`, { headers: { 'x-studio-key': studio.key } });
   const hidden = ws(0);
   const told = [];
   hidden.onmessage = (e) => told.push(JSON.parse(e.data));
   await new Promise((r) => { hidden.onopen = r; });
-  const { project, url, pages } = await (await api('/api/open', { method: 'POST', body: { path: join(scratch, 'Hidden'), now: true } })).json();
+  const { project, pages } = await (await api('/api/open', { method: 'POST', body: { path: join(scratch, 'Hidden'), now: true } })).json();
   assert.equal(pages, 0, 'none in sight');
-  assert.deepEqual(opened, [url]);
+  assert.deepEqual(opened, []);
   await new Promise((r) => setTimeout(r, 50));
   assert.deepEqual(told, [{ type: 'open', to: `/projects/${project.id}` }]);
   /* brought into sight: it says so, and is enough again */
@@ -143,10 +146,10 @@ test('openfilm open after a restart waits a moment for the pages of the Studio b
   page.close();
 });
 
-test('openfilm open: `now` opens the person\'s browser at once (a person at a terminal)', async () => {
+test('openfilm open: legacy `now` cannot launch a standalone browser', async () => {
   opened.length = 0;
   const { url } = await (await api('/api/open', { method: 'POST', body: { path: join(scratch, 'Fourth'), now: true } })).json();
-  assert.deepEqual(opened, [url]);
+  assert.deepEqual(opened, []);
 });
 
 test('read, edit by id, and a stale edit on a clip the agent removed comes back 409 with the film as it is', async () => {
@@ -426,7 +429,7 @@ test('a web page\'s poster and frames are drawn (it has no file to cut from)', a
     window.film = { duration: 2, width: 1920, height: 1080, frame(t) { document.getElementById('b').style.background = t < 1 ? '#f00' : '#00f'; } };
   </script></body>`);
   const poster = await api(`/api/projects/${project.id}/media?what=poster&path=p.html`);
-  assert.equal(poster.status, 200);
+  assert.equal(poster.status, 200, poster.ok ? undefined : await poster.text());
   assert.equal(poster.headers.get('content-type'), 'image/jpeg');
   const bytes = Buffer.from(await poster.arrayBuffer());
   assert.deepEqual([...bytes.subarray(0, 2)], [0xff, 0xd8]);
@@ -713,4 +716,29 @@ test('a frame from a page larger than the cap closes its stream; small ones are 
   socket.write(masked(0x2, [0x80 | 127, ...length]));
   await closed;
   assert.ok(Buffer.concat(got).includes(Buffer.from([0x88, 2, 0x03, 0xf1])), 'a close saying the message was too big');
+});
+
+
+test('headless engine has no standalone editor or web folder browser', async () => {
+  const engine = await startStudio({ port: 0 });
+  try {
+    const page = await fetch(engine.origin);
+    assert.equal(page.status, 404);
+    assert.match(await page.text(), /desktop client/);
+    assert.equal((await fetch(`${engine.origin}/api/browse`, { headers: { 'x-studio-key': engine.key } })).status, 404);
+  } finally { await engine.close(); }
+});
+
+test('opening a project reaches the native desktop even without a visible editor page', async () => {
+  const opened = [];
+  const engine = await startStudio({ port: 0, stays: true, openBrowser: url => opened.push(url) });
+  try {
+    const response = await fetch(`${engine.origin}/api/open`, {
+      method: 'POST', headers: { 'content-type': 'application/json', 'x-studio-key': engine.key },
+      body: JSON.stringify({ path: join(scratch, 'NativeOpen') }),
+    });
+    const { url } = await response.json();
+    assert.equal(response.status, 200);
+    assert.deepEqual(opened, [url]);
+  } finally { await engine.close(); }
 });

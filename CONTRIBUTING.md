@@ -12,7 +12,7 @@ this repository names in package.json), ffmpeg on the PATH, and git.
 git clone https://github.com/openfilm/openfilm && cd openfilm
 pnpm install                 # also builds Studio's editor (packages/openfilm: build:ui)
 pnpm --filter openfilm exec playwright-core install chromium-headless-shell
-pnpm dev                     # Studio from this checkout, with a sample film
+pnpm dev                     # build and start the desktop client
 pnpm test
 ```
 
@@ -20,7 +20,7 @@ From the root:
 
 | Command | What it does |
 | --- | --- |
-| `pnpm dev` | Studio from source (packages/openfilm's `dev`), apart from an installed OpenFilm |
+| `pnpm dev` | the desktop client from source |
 | `pnpm dev:desktop` | the desktop app from source, as "OpenFilm Dev" |
 | `pnpm test` | every package's tests |
 | `pnpm typecheck` | every package's types |
@@ -40,10 +40,10 @@ packages/openfilm/   npm `openfilm`: the format, the CLI and Studio
   bin/                 the `openfilm` command
   src/                 reading film.html, the host that draws frames in a headless browser, look and render
   studio/server/       Studio's server: projects, edits, history, exports, media providers
-  studio/ui/           Studio's editor (React, built with Vite into studio/ui/dist, which the server serves)
+  studio/ui/           shared React editor sources, bundled into apps/desktop/shell/dist
   studio/client.mjs    how the command finds or starts Studio
   test/                pages the tests draw
-  scripts/             `pnpm dev`; product.mjs (which build the package is, below)
+  scripts/             product.mjs (which build the package is, below)
 packages/shared/     `@openfilm/shared`: what the desktop app's chat shares with its main process (not published)
 apps/desktop/        the desktop app (Electron)
   src/                 the main process: windows, Studio, the agents, updates
@@ -57,19 +57,9 @@ docs/                pictures for the README
 
 ## packages/openfilm: the format, the CLI and Studio
 
-`pnpm dev` runs Studio on port 4848, with its state, projects and exports in `packages/openfilm/.dev/`
-(git-ignored), apart from an OpenFilm you have installed. It opens a sample film in your browser, rebuilds the editor
-when `studio/ui` changes (reload the page), and restarts Studio when `studio/server` or `src` change. Ctrl+C stops it.
+`pnpm dev` and `pnpm dev:desktop` build and start the Electron client. The desktop window bundles the editor and chat together; there is no independent browser frontend or browser development server. The shared `studio/ui/src` remains the editor source for this bundle.
 
-`pnpm --filter openfilm test` runs its tests and `pnpm --filter openfilm typecheck` checks the server's and the
-editor's types. One file, or one test in it, from `packages/openfilm`:
-
-```sh
-node --test src/film-doc.test.mjs
-node --test --test-name-pattern="split" studio/server/film.test.mjs
-```
-
-### Trying a change with a coding agent
+## Trying a change with a coding agent
 
 While `pnpm dev` runs, `packages/openfilm/.dev/bin/openfilm` (`openfilm.cmd` on Windows) is your checkout's command
 on that Studio. Open Codex, Claude Code or any coding agent in `packages/openfilm/.dev/projects` (that Studio's library)

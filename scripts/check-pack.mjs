@@ -84,7 +84,7 @@ try {
       if (!isDeepStrictEqual(packed, official)) problem(name, 'product.json in the package is not product.official.json');
       else console.log(`  product.json: official (updates ${packed.desktop.updates})`);
       if (!readFileSync(join(pkgDir, 'product.json')).equals(productBefore)) problem(name, "the checkout's product.json was not restored after packing");
-      if (!listed.has('studio/ui/dist/index.html')) problem(name, "Studio's editor is not built (studio/ui/dist)");
+      if (files.some(file => file.startsWith('studio/ui/dist/'))) problem(name, 'standalone browser UI must not be shipped');
     }
   }
 } finally {
