@@ -27,6 +27,16 @@ const windows = process.platform === 'win32';
 const isLocaleKey = (key) => /^LC_[A-Z_]+$/.test(key);
 const BASE_PATH = '/usr/bin:/bin:/usr/sbin:/sbin';
 const PROXY_KEYS = ['HTTPS_PROXY', 'HTTP_PROXY', 'ALL_PROXY', 'NO_PROXY', 'https_proxy', 'http_proxy', 'all_proxy', 'no_proxy'];
+/** Proxy settings belong to the network session. A shell setting replaces both inherited case variants. */
+export function proxyEnvironment(source, shell = {}) {
+  const env = {};
+  for (const upper of ['HTTPS_PROXY', 'HTTP_PROXY', 'ALL_PROXY', 'NO_PROXY']) {
+    const keys = [upper, upper.toLowerCase()];
+    const from = keys.some(key => typeof shell[key] === 'string') ? shell : source;
+    for (const key of keys) if (typeof from[key] === 'string') env[key] = from[key];
+  }
+  return env;
+}
 /** where each agent keeps its sign-in; only meaningful when the person set it in their shell */
 const AGENT_HOME_KEYS = ['CLAUDE_CONFIG_DIR', 'CODEX_HOME'];
 /**
@@ -251,9 +261,9 @@ export async function loginShellEnvironment(options = {}) {
 /** What scripts/start.mjs passes on to Electron besides the OS identity: this app's own switches. */
 export const LAUNCHER_FLAGS = ['OPENFILM_DESKTOP_FLAVOR', 'OPENFILM_DESKTOP_CAPTURE', 'OPENFILM_EXAMPLES_INDEX', 'OPENFILM_BROWSER_CDP_URL', 'OPENFILM_SKIP_BROWSER_DOWNLOAD', 'ELECTRON_ENABLE_LOGGING', 'ELECTRON_ENABLE_STACK_DUMPING'];
 
-/** Electron's environment when run from source: the OS identity, the login shell's PATH, LAUNCHER_FLAGS. */
+/** Electron's environment: OS identity, network proxies, the login shell's PATH and LAUNCHER_FLAGS. */
 export function launcherEnvironment(source, path) {
-  const env = osEnvironment(source);
+  const env = { ...osEnvironment(source), ...proxyEnvironment(source) };
   for (const key of LAUNCHER_FLAGS) if (typeof source[key] === 'string') env[key] = source[key];
   /* Linux desktop sessions (including WSLg) supply the display, audio and optional local runtime libraries. */
   if (process.platform === 'linux') {
@@ -266,11 +276,11 @@ export function launcherEnvironment(source, path) {
 }
 
 /**
- * A child's whole environment: the OS identity, the login shell's subset, and what the app sets on purpose (`extra`).
+ * A child's environment: OS identity, desktop network proxies, the login shell and app settings (`extra`).
  * The locale of the app's own process wins over the shell's; PATH always comes from the shell.
  */
 export function childEnvironment({ source = process.env, shell = {}, extra = {}, home, userShell } = {}) {
-  const env = osEnvironment(source, { ...(home ? { home } : {}), ...(userShell !== undefined ? { shell: userShell } : {}) });
+  const env = { ...osEnvironment(source, { ...(home ? { home } : {}), ...(userShell !== undefined ? { shell: userShell } : {}) }), ...proxyEnvironment(source, shell) };
   for (const [key, value] of Object.entries(shell)) {
     if (key === 'LANG' || isLocaleKey(key)) env[key] ??= value;
     else env[key] = value;

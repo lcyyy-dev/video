@@ -29,6 +29,7 @@ interface Native {
   tabs: NonNullable<StudioHost['tabs']>;
   localAgents: Record<string, unknown>;
   importFile(request: { projectId: string; path: string; name: string }): Promise<{ ok: true; path: string } | { ok: false; error: string }>;
+  editTemplate: import('../chat/src/app-bridge').EditTemplateBridge;
   chat: Record<string, (...args: never[]) => Promise<unknown>>;
   /* the composer's Skills button (src/skills-ipc.mjs) */
   skills: Record<string, (...args: never[]) => Promise<unknown>>;
@@ -389,6 +390,7 @@ const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000
   setMenuOpen() {},
   /* the chat's record of each project, in its .film/chat and .film/logs */
   chat: native.chat,
+  editTemplate: native.editTemplate,
   skills: native.skills,
   asks: { get: asks.get, onChange: asks.on, answer: (id: string, allow: boolean) => answerAsk(id, allow) },
   developer,

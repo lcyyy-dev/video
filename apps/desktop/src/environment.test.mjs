@@ -22,6 +22,25 @@ test('the Linux launcher preserves the desktop session without passing agent con
 
 const PROFILE = ['C:', 'Users', 'someone'].join('\\');
 
+test('desktop network proxies reach Codex and Studio even when the login shell sets none', () => {
+  const source = { HOME: '/tmp/example-home', HTTPS_PROXY: 'http://127.0.0.1:7897', https_proxy: 'http://127.0.0.1:7897',
+    HTTP_PROXY: 'http://127.0.0.1:7897', NO_PROXY: 'localhost,127.0.0.1', CODEX_SESSION_ID: 'parent-session',
+    OPENAI_API_KEY: 'parent-key', NODE_OPTIONS: '--inspect' };
+  const launched = launcherEnvironment(source, '/usr/bin:/bin');
+  const child = childEnvironment({ source: launched, shell: { PATH: '/usr/bin:/bin' } });
+  for (const key of ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'NO_PROXY']) assert.equal(child[key], source[key]);
+  for (const key of ['CODEX_SESSION_ID', 'OPENAI_API_KEY', 'NODE_OPTIONS']) assert.equal(child[key], undefined);
+});
+
+test('shell proxy overrides remove stale inherited case variants, including explicitly disabling a proxy', () => {
+  const source = { HTTPS_PROXY: 'http://old-proxy', https_proxy: 'http://old-proxy', NO_PROXY: 'old-host', no_proxy: 'old-host' };
+  const child = childEnvironment({ source, shell: { PATH: '/usr/bin', HTTPS_PROXY: 'http://shell-proxy', NO_PROXY: '' } });
+  assert.equal(child.HTTPS_PROXY, 'http://shell-proxy');
+  assert.equal(child.https_proxy, undefined);
+  assert.equal(child.NO_PROXY, '');
+  assert.equal(child.no_proxy, undefined);
+});
+
 const USER = `\r
 HKEY_CURRENT_USER\\Environment\r
     Path    REG_EXPAND_SZ    %USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps;%NVM_HOME%;%NVM_SYMLINK%;C:\\Users\\someone\\AppData\\Roaming\\npm\r

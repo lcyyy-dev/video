@@ -24,7 +24,7 @@ test('the installed client uses its own Codex and account even when a global pro
   writeFileSync(join(home, 'config.toml'), 'model = "user-choice"\n');
   configureBundledCodex({ runtimeDir, dataDir });
   assert.equal(readFileSync(join(home, 'config.toml'), 'utf8'), 'model = "user-choice"\n');
-  assert.deepEqual(codexArguments(['login', 'status']), ['-c', 'check_for_update_on_startup=false', 'login', 'status']);
+  assert.deepEqual(codexArguments(['login', 'status']), ['-c', 'check_for_update_on_startup=false', '-c', 'cli_auth_credentials_store="file"', 'login', 'status']);
   assert.throws(() => configureBundledCodex({ runtimeDir: join(dir, 'broken'), dataDir }), /reinstall/);
   assert.equal(bundledCodex(), null);
 });

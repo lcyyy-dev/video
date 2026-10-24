@@ -57,7 +57,7 @@ docs/                pictures for the README
 
 ## packages/openfilm: the format, the CLI and Studio
 
-`pnpm dev` and `pnpm dev:desktop` build and start the Electron client. The desktop window bundles the editor and chat together; there is no independent browser frontend or browser development server. The shared `studio/ui/src` remains the editor source for this bundle.
+`pnpm dev` and `pnpm dev:desktop` build and start the Electron client. The desktop window bundles the editor and chat together; there is no independent browser frontend or browser development server. The shared `studio/ui/src` remains the editor source for this bundle. For the template workflow see [the client workflow](docs/CLIENT_EDIT_WORKFLOW.zh-CN.md).
 
 ## Trying a change with a coding agent
 

@@ -13,6 +13,8 @@ import { mergeConfig, sessionSkills } from './agent-skills.mjs';
 import { nodeBinary } from './node-runtime.mjs';
 import { CLIENT_PROFILE } from 'openfilm/client-scope';
 import { bundledCodex, codexArguments, codexEnvironment } from './codex-runtime.mjs';
+import { plannerEnvironment } from './video-planner-runtime.mjs';
+import { videoCodexLaunchEnv } from './video-codex-launch.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -55,7 +57,8 @@ project: you never need \`openfilm open\` and never open Studio in a browser. Ru
 to see what you made. Render the MP4 only when the person asks for it; they can also export from Studio. Reply in the
 language the person writes in.
 
-This client focuses on supplied footage and copy. Read \`openfilm skill ad-editing\` before making an ad. Preserve
+The desktop process attaches the selected template and its required skill to every request. Follow that fixed route;
+do not choose a different skill from the wording of the request. This client focuses on supplied footage and copy. Read \`openfilm skill ad-editing\` before making an ad. Preserve
 manual timeline edits and locked selections. Cloud media generation is outside this client's current scope: reuse
 supplied recordings or explicitly requested local simulated narration, label simulation clearly, and never claim it
 is a production TTS voice. Do not offer other film workflows, install skills, or configure paid media services.
@@ -585,7 +588,8 @@ export class AgentSession {
    *           onUpdate?: (update: any) => void, onPermission?: (params: any) => Promise<string | null>,
    *           onQuestion?: (ask: { message: string, toolCallId: string | null, questions: any[] }) => Promise<Record<string, { label?: string, text?: string }> | null>,
    *           onExit?: (info: { code: number | null, stderr: string }) => void,
-   *           onSend?: (sent: { prompt: any[], _meta?: any }) => void }} opts
+   *           onSend?: (sent: { prompt: any[], _meta?: any }) => void,
+   *           planner?: { instructions: string } }} opts
    * `onSend` hears each message as it goes to the agent, whole (the app's words before the first one's, for an agent
    * told them there); `opened`, once started, says what it was started and opened with.
    * `skills`: the session has its maker's skills and MCP servers, OpenFilm's skills, and of the person's own only those
@@ -616,20 +620,22 @@ export class AgentSession {
   }
 
   async open() {
-    const shell = agentShell(this.opts.agent, await loginShellVariables({ staleOk: true }));
-    const cli = resolveAgentCli(this.opts.agent, { pathDirs: shell.PATH.split(PATH_SEP) });
+    const hostShell = agentShell(this.opts.agent, await loginShellVariables({ staleOk: true }));
+    const shell = this.opts.planner ? plannerEnvironment(hostShell, { home: this.opts.env.CODEX_HOME }) : hostShell;
+    const cli = resolveAgentCli(this.opts.agent, { pathDirs: hostShell.PATH.split(PATH_SEP) });
     if (!cli) throw Object.assign(new Error(`${this.spec.label} is not installed on this computer.`), { code: 'not-installed' });
     this.cli = cli;
     const node = nodeRuntime();
     const path = [this.opts.binDir, shell.PATH, this.opts.fallbackDir].filter(Boolean).join(PATH_SEP);
-    const instructions = INSTRUCTIONS;
+    const instructions = this.opts.planner?.instructions ?? INSTRUCTIONS;
     /* its skills and MCP servers: its maker's, OpenFilm's skills, and the person's own only those let in (agent-skills.mjs) */
-    const skills = this.opts.skills
+    const skills = !this.opts.planner && this.opts.skills
       ? await sessionSkills(this.opts.agent, { cwd: this.opts.cwd, env: shell, ...this.opts.skills }).catch(() => null) : null;
-    const extra = { ...this.opts.env, ...node.env, ...this.spec.env(cli.path), ...skills?.env, OPENFILM_CLIENT_PROFILE: CLIENT_PROFILE };
+    const launch = this.opts.planner ? videoCodexLaunchEnv(cli.path, { directory: this.opts.env.CODEX_HOME, nodeCommand: node.command, nodeArgs: node.env.ELECTRON_RUN_AS_NODE ? [AS_NODE] : [] }) : this.spec.env(cli.path);
+    const extra = { ...this.opts.env, ...node.env, ...launch, ...skills?.env, OPENFILM_CLIENT_PROFILE: CLIENT_PROFILE };
     const env = childEnvironment({ shell: { ...shell, PATH: path }, extra });
     if (this.spec.adapter === AGENTS.codex.adapter) {
-      const theirs = codexDeveloperInstructions(codexConfigText(shell));
+      const theirs = this.opts.planner ? null : codexDeveloperInstructions(codexConfigText(shell));
       env.CODEX_CONFIG = JSON.stringify({ ...mergeConfig({ developer_instructions: theirs ? `${theirs}\n\n${instructions}` : instructions }, skills?.codexConfig ?? {}), check_for_update_on_startup: false });
     }
     /* the others have no place for it: the session's first message carries it */
@@ -780,8 +786,15 @@ export class AgentSession {
     return this.conn.agent.request(acp.methods.agent.session.setMode, { sessionId: this.sessionId, modeId });
   }
 
-  close() {
+  async close() {
     try { this.conn?.close(); } catch { /* gone already */ }
-    if (this.child && this.child.exitCode === null) this.child.kill('SIGTERM');
+    if (this.child && this.child.exitCode === null) {
+      const child = this.child;
+      await new Promise(resolve => {
+        const timer = setTimeout(() => { child.kill('SIGKILL'); resolve(); }, 2000);
+        child.once('exit', () => { clearTimeout(timer); resolve(); });
+        child.kill('SIGTERM');
+      });
+    }
   }
 }

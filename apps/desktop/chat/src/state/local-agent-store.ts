@@ -1,5 +1,5 @@
 /**
- * The chat's agent and its options, for the composer's agent menu (ModelPopover).
+ * The chat's agent and its options, including the composer's read-only model display.
  *
  * Which agents there are, whether each is connected and whether the person switched it on for the chat, is the app's
  * roster (apps/desktop/src/agent-roster.mjs; Settings → Agents changes it): the menu lists the agents switched on,
@@ -174,13 +174,11 @@ export const useLocalAgents = create<LocalAgentStore>((set, get) => ({
 }));
 
 /**
- * What the app sets for every agent and the menu does not offer: full access (it works in the person's own project
- * folder, every step is in the edit and version history and can be undone; clicking "Allow" a dozen times a turn
- * protects nothing). Ids differ between the adapters; an option a session does not have is skipped. The other agents
- * are started with it (their own flags, apps/desktop/src/agents.mjs), except Kimi, whose ACP server takes no flag.
+ * The frontend cannot grant execution privileges. Native video sessions force a tool-free planner and an actual
+ * read-only sandbox; this value also replaces an old full-access choice persisted by previous client versions.
  */
 const AGENT_FORCED_PREFS: Partial<Record<LocalAgentId, Record<string, unknown>>> = {
-  codex: { mode: 'agent-full-access' },
+  codex: { mode: 'read-only' },
 };
 
 /** picks the menu no longer offers: plan mode (Claude Code's `plan`, Codex's collaboration mode) */
@@ -192,9 +190,8 @@ const DROPPED_PREFS = new Set(['plan', 'collaboration_mode']);
  * picked by its name at the service (before each model was set up on its own) is its id now.
  */
 export function effectivePrefs(prefs: Persisted['prefs'], agent: LocalAgentId, roster?: RosterAgent[] | null, options?: ConfigOptions): Record<string, unknown> {
-  /* "default" was a row the menu no longer offers (the agents name their default for what it is): the agent's own
-     current value stands instead. A mode picked once (plan mode, offered for a while) is not kept: every agent works
-     with full access. A pick the agent no longer offers (a model gone in its update, one the own key no longer names)
+  /* "default" was a row the menu no longer offers: the agent's current value stands instead. A historical plan
+     mode is not reused, and native video policy owns all execution permissions. A pick the agent no longer offers
      is not kept either: the agent's own stands instead */
   const offers = (id: string, value: unknown) => {
     const option = options?.find((o) => o.id === id);

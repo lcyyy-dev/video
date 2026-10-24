@@ -584,7 +584,7 @@ export function keepCommands(agent: LocalAgentId, list: AgentCommand[]): void {
 export function useAgentCommands(agent: LocalAgentId): AgentCommand[] {
   return React.useSyncExternalStore(
     (listener) => { commandListeners.add(listener); return () => { commandListeners.delete(listener); }; },
-    () => commandsByAgent.get(agent) ?? NO_COMMANDS,
+    () => agent === 'codex' ? NO_COMMANDS : commandsByAgent.get(agent) ?? NO_COMMANDS,
     () => NO_COMMANDS,
   );
 }

@@ -13,7 +13,7 @@ export function configureBundledCodex({ runtimeDir, dataDir } = {}) {
   const home = join(dataDir, 'codex');
   mkdirSync(home, { recursive: true });
   const config = join(home, 'config.toml');
-  if (!existsSync(config)) writeFileSync(config, 'check_for_update_on_startup = false\n', { mode: 0o600 });
+  if (!existsSync(config)) writeFileSync(config, 'check_for_update_on_startup = false\ncli_auth_credentials_store = "file"\n', { mode: 0o600 });
   bundled = { path, home };
 }
 
@@ -23,4 +23,4 @@ export const bundledCodex = () => bundled ? { path: bundled.path, source: 'bundl
 export const codexEnvironment = (shell = {}) => bundled ? { ...shell, CODEX_HOME: bundled.home } : shell;
 
 /** Updates are managed by the desktop app, including commands outside the chat's ACP session. */
-export const codexArguments = (args) => ['-c', 'check_for_update_on_startup=false', ...args];
+export const codexArguments = (args) => ['-c', 'check_for_update_on_startup=false', ...(bundled ? ['-c', 'cli_auth_credentials_store="file"'] : []), ...args];

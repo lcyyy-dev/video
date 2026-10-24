@@ -84,6 +84,10 @@ contextBridge.exposeInMainWorld('openfilmNative', {
     snapshot: (project, turnId) => ipcRenderer.invoke('desktop:chat:snapshot', { project, turnId }),
     changes: (project, turnId) => ipcRenderer.invoke('desktop:chat:changes', { project, turnId }),
   },
+  editTemplate: {
+    load: (project) => ipcRenderer.invoke('desktop:edit-template:load', { project }),
+    save: (project, config) => ipcRenderer.invoke('desktop:edit-template:save', { project, config }),
+  },
   /* the composer's Skills button (skills-ipc.mjs) */
   skills: {
     list: (project, agent) => ipcRenderer.invoke('desktop:skills:list', { project, agent }),

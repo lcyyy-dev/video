@@ -44,6 +44,7 @@
  * from its own record (agent-records.mjs),
  * into `.film/logs/<turn>.model.jsonl`, as the app's own agent writes its own.
  */
+import { prepareEditPrompt } from './edit-workflow.mjs';
 import { CLIENT_AGENTS } from 'openfilm/client-scope';
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
@@ -52,6 +53,8 @@ import { AgentSession, isAgentId, isChatAgent, listAgents, openAgentSignIn } fro
 import { loggedBlocks, openLog, writeModelLog } from './chat-store.mjs';
 import { loginShellVariables } from './environment.mjs';
 import { codexEnvironment } from './codex-runtime.mjs';
+import { VideoAgentSession } from './video-agent-session.mjs';
+import { assertVideoRequest, assertVideoStorage, videoProjectRoot, VideoPolicyError } from './video-policy.mjs';
 
 const TURN_LOG_MAX = 5000;
 /** what the agent sends between turns, kept for a turn of its own the page may open for it */
@@ -59,8 +62,6 @@ const BETWEEN_TURNS_MAX = 500;
 /** a session nobody has spoken in for this long closes; how often that is looked at */
 const IDLE_MS = 20 * 60_000;
 const IDLE_CHECK_MS = 60_000;
-/** how long a session opened for its options waits for the agent to say its commands */
-const PROBE_COMMANDS_MS = 1500;
 /** how long after its turn a session whose skills changed closes: the page has settled the turn by then */
 const STALE_CLOSE_MS = 3000;
 /** the pictures one message may carry, and how big each (base64 of a JPEG at most 1280 px wide) */
@@ -106,7 +107,7 @@ function imageBlocks(images) {
  *           onWorking?: (folders: string[]) => void, onAsking?: (folders: string[]) => void,
  *           skills?: { dataDir: string, mine: string } | null }} opts
  */
-export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbackDir = null, env = {}, log = () => {}, onWorking = () => {}, onAsking = () => {}, skills = null }) {
+export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbackDir = null, env = {}, log = () => {}, onWorking = () => {}, onAsking = () => {}, skills = null, videoSecurity = null }) {
   /** @type {Map<string, { session: AgentSession, sender: import('electron').WebContents, pending: Map<string, (answer: any) => void>, agent: string, cwd: string, turn: any }>} */
   const sessions = new Map();
   let activePrompts = 0;
@@ -116,8 +117,17 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
   const tellAsking = () => onAsking([...new Set([...sessions.values()].filter((entry) => entry.pending.size > 0).map((entry) => entry.cwd))]);
   const handle = (channel, fn) => ipcMain.handle(channel, (event, opts) => {
     if (!trusted(event)) throw new Error('not the chat');
+    if (opts?.key && sessions.has(opts.key) && sessions.get(opts.key).sender !== event.sender) return { ok: false, error: 'This session belongs to another project page.' };
     return fn(event, opts);
   });
+  const authorize = async (event, cwd) => {
+    if (!videoSecurity?.projects || !videoSecurity?.projectFor) throw new VideoPolicyError('视频权限边界未初始化，已停止执行。');
+    const bound = await videoSecurity.projectFor(event);
+    const root = videoProjectRoot(cwd, { projects: await videoSecurity.projects(), protectedRoots: videoSecurity.protectedRoots ?? [] });
+    if (root !== videoProjectRoot(bound, { projects: [bound], protectedRoots: videoSecurity.protectedRoots ?? [] })) throw new VideoPolicyError('只能剪辑当前标签页的影片。');
+    assertVideoStorage(root);
+    return root;
+  };
 
   const send = (entry, key, payload) => {
     /* anything it says counts as use: a session working on its own is not idle */
@@ -142,7 +152,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     const entry = sessions.get(key);
     if (!entry) return;
     for (const answer of entry.pending.values()) answer(null);
-    entry.session.close();
+    void Promise.resolve(entry.session.close()).catch(() => log('video session cleanup failed\n'));
     sessions.delete(key);
     if (entry.running > 0) onWorking(working());
   };
@@ -168,31 +178,26 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     if (!isChatAgent(agent) || !CLIENT_AGENTS.includes(agent)) return { ok: false, error: `Unknown agent: ${String(agent)}` };
     let session;
     try {
-      /* its commands too (the composer's / menu), which it says just after the session opens: waited for a moment */
-      let commands = null;
-      let said = () => {};
-      const heard = new Promise((done) => { said = done; });
-      session = new AgentSession({ agent, cwd: homedir(), binDir, fallbackDir, env,
-        onUpdate: (update) => { if (update?.sessionUpdate === 'available_commands_update') { commands = update.availableCommands ?? null; said(); } } });
+      session = new VideoAgentSession({ agent, cwd: null, dataDir: videoSecurity?.dataDir ?? skills?.dataDir, fallbackDir });
       const info = await session.start();
-      await Promise.race([heard, new Promise((done) => setTimeout(done, PROBE_COMMANDS_MS))]);
-      return { ok: true, info: { ...info, ...(commands ? { commands } : {}) } };
+      return { ok: true, info: { ...info, commands: [] } };
     } catch (e) {
       const error = e instanceof Error ? e.message : String(e);
       /* the model menu says only that it could not start: what went wrong is kept here (logs/studio.log) */
       log(`probe ${agent}: ${error.replace(/\s+/g, ' ').slice(0, 500)}\n`);
       return { ok: false, error, ...(e?.code ? { code: String(e.code) } : {}) };
     } finally {
-      session?.close();
+      await session?.close();
     }
   });
 
   handle('desktop:local-agents:start', async (event, opts) => {
     const agent = opts?.agent;
-    const cwd = opts?.cwd;
+    let cwd = opts?.cwd;
     const resume = typeof opts?.resume === 'string' && opts.resume ? opts.resume : null;
     if (!isChatAgent(agent) || !CLIENT_AGENTS.includes(agent)) return { ok: false, error: `Unknown agent: ${String(agent)}` };
     if (typeof cwd !== 'string' || !cwd) return { ok: false, error: 'Missing project folder.' };
+    try { cwd = await authorize(event, cwd); } catch (error) { return { ok: false, error: error.message, code: 'video-policy' }; }
     /* the conversation still open here (the page was reloaded): taken up as it is, no second process */
     const open = resume ? [...sessions].find(([, e]) => e.agent === agent && e.cwd === cwd && e.info?.sessionId === resume && e.sender === event.sender) : null;
     if (open) {
@@ -203,7 +208,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     const pending = new Map();
     const entry = { sender: event.sender, pending, session: null, agent, cwd, turn: null, lastUsed: Date.now() };
     try {
-      entry.session = new AgentSession({
+      entry.session = new VideoAgentSession({
         agent,
         cwd,
         resume,
@@ -211,6 +216,9 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
         fallbackDir,
         env,
         skills,
+        dataDir: videoSecurity.dataDir,
+        authorize: () => authorize(event, cwd),
+        exportFilm: videoSecurity.exportFilm ? options => videoSecurity.exportFilm(cwd, options) : null,
 
         onUpdate: (update) => send(entry, key, { kind: 'update', update }),
         onPermission: (params) => new Promise((resolve) => {
@@ -242,20 +250,26 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     }
   });
 
-  handle('desktop:local-agents:prompt', async (_event, opts) => {
+  handle('desktop:local-agents:prompt', async (event, opts) => {
     const key = opts?.key;
     const entry = sessions.get(key);
-    if (!entry) return { ok: false, error: 'This session has ended.' };
+    if (!entry || entry.sender !== event.sender) return { ok: false, error: 'This session has ended.' };
+    if (entry.accepting || entry.running > 0) return { ok: false, error: '请等待当前视频任务完成。' };
+    entry.accepting = true;
+    let prepared;
+    try { await authorize(event, entry.cwd); assertVideoRequest(opts?.text); prepared = prepareEditPrompt(entry.cwd, opts.text); }
+    catch (error) { entry.accepting = false; return { ok: false, error: error.message }; }
+    entry.accepting = false;
     const meta = opts?.meta && typeof opts.meta === 'object' ? opts.meta : null;
     const file = meta ? openLog(entry.cwd, meta.turnId, (e) => log(`turn log ${meta.turnId}: ${e.message}\n`)) : null;
     const turn = meta ? { meta, log: [], done: null, file } : null;
-    const text = String(opts?.text ?? '');
+    const { text, workflow } = prepared;
     /* an agent that takes no pictures is given none: the text names each one's file, which it can open itself */
     const images = entry.info?.promptCapabilities?.image ? imageBlocks(opts?.images) : [];
     entry.between = [];
     if (turn) {
       entry.turn = turn;
-      file.write('prompt', { agent: entry.agent, cwd: entry.cwd, session: entry.info ?? null, opened: entry.session.opened ?? null, meta, text, images: images.length });
+      file.write('prompt', { agent: entry.agent, cwd: entry.cwd, session: entry.info ?? null, opened: entry.session.opened ?? null, meta, text, workflow, images: images.length });
     }
     const from = Date.now();
     activePrompts++;
@@ -263,7 +277,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     onWorking(working());
     let result;
     try {
-      result = { ok: true, stopReason: await entry.session.prompt([{ type: 'text', text }, ...images], { turnId: meta?.turnId }) };
+      result = { ok: true, stopReason: await entry.session.prompt([{ type: 'text', text }, ...images], { turnId: meta?.turnId, userText: opts.text, workflow }) };
     } catch (e) {
       /* `balance`: the service the app's own agent runs on has no balance left (agents.mjs), and where to top it up */
       result = { ok: false, error: e instanceof Error ? e.message : String(e), ...(e?.balance ? { balance: e.balance } : {}) };
@@ -281,7 +295,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
       entry.turnEnded = Date.now();
       /* its skills changed while it worked: closed now its turn is over (refreshSkills) */
       if (entry.stale) setTimeout(() => { if (sessions.get(key) === entry && !(entry.running > 0)) close(key); }, STALE_CLOSE_MS);
-      void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: meta.turnId, from, to: entry.turnEnded, agentLog: entry.session.opened?.log, log });
+      if (!entry.info?.videoPolicy) void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: meta.turnId, from, to: entry.turnEnded, agentLog: entry.session.opened?.log, log });
       /* the page that asked may be gone (reloaded): say it on the channel too */
       if (!entry.sender.isDestroyed()) entry.sender.send('desktop:local-agents:event', { key, kind: 'done', turnId: meta.turnId, ...result });
     }
@@ -289,7 +303,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
   });
 
   /* the turns a (reloaded) page should put back: still running, or finished and not yet taken */
-  handle('desktop:local-agents:running', () => [...sessions]
+  handle('desktop:local-agents:running', event => [...sessions].filter(([, entry]) => entry.sender === event.sender)
     .filter(([, entry]) => entry.turn)
     .map(([key, entry]) => ({ key, agent: entry.agent, cwd: entry.cwd, meta: entry.turn.meta, done: entry.turn.done, events: entry.turn.log })));
 
@@ -305,12 +319,15 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     if (turn && !turn.done) turn.file.write(kind, fields);
   };
 
-  handle('desktop:local-agents:steer', async (_event, opts) => {
+  handle('desktop:local-agents:steer', async (event, opts) => {
     const entry = sessions.get(opts?.key);
-    if (!entry || !(entry.running > 0)) return { ok: false, outcome: 'noRunningTurn' };
+    if (!entry || entry.sender !== event.sender || !(entry.running > 0)) return { ok: false, outcome: 'noRunningTurn' };
     const images = entry.info?.promptCapabilities?.image ? imageBlocks(opts?.images) : [];
-    const text = String(opts?.text ?? '');
-    noted(opts, 'steer', { text, images: images.length, prompt: loggedBlocks(entry.cwd, [{ type: 'text', text }, ...images]) });
+    let prepared;
+    try { await authorize(event, entry.cwd); assertVideoRequest(opts?.text); prepared = prepareEditPrompt(entry.cwd, opts.text); }
+    catch (error) { return { ok: false, outcome: 'workflowError', error: error.message }; }
+    const { text, workflow } = prepared;
+    noted(opts, 'steer', { text, workflow, images: images.length, prompt: loggedBlocks(entry.cwd, [{ type: 'text', text }, ...images]) });
     const outcome = await entry.session.steer([{ type: 'text', text }, ...images]);
     noted(opts, 'steer-answer', { outcome });
     return { ok: outcome === 'injected', outcome };
@@ -319,10 +336,11 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
   handle('desktop:local-agents:adopt', (_event, opts) => {
     const entry = sessions.get(opts?.key);
     if (!entry) return { ok: false };
+    if (entry.info?.videoPolicy) return { ok: false, error: '视频会话不执行后台自主任务。' };
     if (entry.adopted) {
       entry.adopted.write('done', { ok: true, unprompted: true });
       entry.adopted.end();
-      void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: entry.adopted.turnId, from: entry.adopted.from, to: Date.now(), agentLog: entry.session?.opened?.log, log });
+      if (!entry.info?.videoPolicy) void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: entry.adopted.turnId, from: entry.adopted.from, to: Date.now(), agentLog: entry.session?.opened?.log, log });
     }
     entry.adopted = null;
     if (typeof opts?.turnId === 'string') {
@@ -342,10 +360,10 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     return { ok: true };
   });
 
-  handle('desktop:local-agents:set-option', async (_event, opts) => {
+  handle('desktop:local-agents:set-option', async (event, opts) => {
     noted(opts, 'set-option', { configId: opts?.configId, value: opts?.value });
     const entry = sessions.get(opts?.key);
-    if (!entry) return { ok: false, error: 'This session has ended.' };
+    if (!entry || entry.sender !== event.sender) return { ok: false, error: 'This session has ended.' };
     try {
       return { ok: true, result: await entry.session.setConfigOption(String(opts.configId), opts.value) };
     } catch (e) {

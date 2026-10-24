@@ -22,6 +22,7 @@ import { CHAT_MIN, STUDIO_MIN, WINDOW_MIN, placeOnDisplays, readWindowState, wri
 import { applicationMenu } from './menu.mjs';
 import { registerLocalAgentIpc } from './local-agents-ipc.mjs';
 import { registerChatIpc } from './chat-ipc.mjs';
+import { registerEditTemplateIpc } from './edit-template-ipc.mjs';
 import { registerSkillsIpc } from './skills-ipc.mjs';
 import { createRoster } from './agent-roster.mjs';
 import { CLIENT_AGENTS, CLIENT_PROFILE } from 'openfilm/client-scope';
@@ -464,6 +465,38 @@ async function start() {
     env: { OPENFILM_HOME: env.OPENFILM_HOME, ...(env.OPENFILM_LIBRARY ? { OPENFILM_LIBRARY: env.OPENFILM_LIBRARY } : {}) },
     /* each session's skills: its maker's, OpenFilm's, and of the person's own those let in (agent-skills.mjs) */
     skills: { dataDir: DATA, mine: mySkills },
+    videoSecurity: {
+      dataDir: DATA,
+      protectedRoots: [app.getAppPath(), DATA, ...(app.isPackaged ? [dirname(process.execPath), process.resourcesPath] : []), join(app.getPath('home'), '.codex'), join(app.getPath('home'), '.ssh'), join(app.getPath('home'), '.aws'), ...(shellEnv.CODEX_HOME ? [shellEnv.CODEX_HOME] : [])],
+      projects: async () => (await studioApi('/api/projects')).projects.filter(project => !project.missing).map(project => project.path),
+      projectFor: async event => {
+        const tab = tabs?.get(tabOf(event.sender));
+        return (await studioApi('/api/projects')).projects.find(project => project.id === tab?.projectId && !project.missing)?.path;
+      },
+      exportFilm: async (root, { format, fps, signal }) => {
+        const project = (await studioApi('/api/projects')).projects.find(project => project.path === root && !project.missing);
+        if (!project) throw new Error('影片工程已关闭。');
+        const endpoint = `/api/projects/${encodeURIComponent(project.id)}/exports`;
+        const [prefs, targets] = await Promise.all([studioApi('/api/prefs'), studioApi(endpoint)]);
+        const ask = format === 'jianying' ? { kind: 'nle', format: 'jianying', fps, audio: 'clips', media: 'copy', subtitles: true }
+          : { kind: 'video', codec: 'h264', fps, quality: 'high', audio: true };
+        // Only native preferences determine the destination. Model output never supplies a path or filename.
+        const folder = format === 'jianying' ? prefs.draftExportFolder || targets.draftFolders?.jianying || targets.folder : targets.folder;
+        const { exports: queued } = await studioApi(endpoint, 'POST', { jobs: [ask], folder });
+        const jobId = queued[0].id;
+        for (;;) {
+          if (signal?.aborted) { await studioApi(`${endpoint}/${encodeURIComponent(jobId)}`, 'DELETE'); throw new Error('cancelled'); }
+          const current = (await studioApi(endpoint)).exports.find(job => job.id === jobId);
+          if (!current || ['failed', 'cancelled'].includes(current.status)) throw new Error('草稿导出失败，影片编辑已保存。');
+          if (current.status === 'done') return current.outputs;
+          await new Promise(done => setTimeout(done, 400));
+        }
+      },
+    },
+  });
+  registerEditTemplateIpc(ipcMain, {
+    trusted: fromPage,
+    projects: async () => (await studioApi('/api/projects')).projects.filter(project => !project.missing).map(project => project.path),
   });
   /* the composer's Skills button */
   registerSkillsIpc(ipcMain, {

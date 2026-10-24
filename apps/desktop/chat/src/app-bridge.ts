@@ -1,3 +1,4 @@
+import type { EditTemplateConfig } from '../../src/edit-template.mjs';
 /**
  * The parts of `window.openfilmDesktop` that are this app's own (src/preload-chat.cjs); the parts the copied chat code
  * uses (localAgents, pathForFile) are typed in lib/desktop-bridge.ts.
@@ -16,7 +17,13 @@ export type FfmpegState = boolean | null | { state: 'downloading'; progress?: nu
  * Where an update is (src/update-controller.mjs). The chat shows only a ready one, and why Restart had to wait
  * (`error`: 'agent-busy' | 'exporting' | 'install-failed'); a failed check is the menu's to say.
  */
+export interface EditTemplateBridge {
+  load(project: string): Promise<EditTemplateConfig>;
+  save(project: string, config: EditTemplateConfig): Promise<EditTemplateConfig>;
+}
+
 interface AppBridge {
+  editTemplate: EditTemplateBridge;
   hello(): Promise<{ platform: string; flavor: string; theme: Theme; language: string; chatOpen: boolean; project: Project | null; selection: StudioSelection | null; ffmpeg: FfmpegState; version: string; chatMin: number }>;
   onTheme(listener: (theme: Theme) => void): () => void;
   /** Studio's language (its <html lang>) */
