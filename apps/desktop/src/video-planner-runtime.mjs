@@ -54,7 +54,7 @@ export function createPlannerRuntime({ dataDir, authHome, baseUrl, certificate, 
     'enable_request_compression = false', 'responses_websockets = false', 'responses_websockets_v2 = false',
     'code_mode = false', 'code_mode_host = false', 'view_image = false', 'skip_host_skill_discovery = true',
     `[model_providers.${hosted ? 'openfilm-video-hosted' : 'openfilm-video'}]`, 'name = "OpenFilm Video Planner"', `base_url = ${JSON.stringify(`${baseUrl}/codex`)}`,
-    'wire_api = "responses"', `requires_openai_auth = ${hosted ? 'false' : 'true'}`, 'supports_websockets = false', 'request_max_retries = 0', 'stream_max_retries = 0',
+    'wire_api = "responses"', 'env_key = "OPENFILM_VIDEO_GATEWAY_TOKEN"', `requires_openai_auth = ${hosted ? 'false' : 'true'}`, 'supports_websockets = false', 'request_max_retries = 0', 'stream_max_retries = 0',
     '[tools]', 'view_image = false',
     '[shell_environment_policy]', 'inherit = "none"',
   ].join('\n') + '\n';

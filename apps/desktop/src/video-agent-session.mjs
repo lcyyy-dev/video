@@ -27,7 +27,7 @@ export class VideoAgentSession {
       this.gateway = await createVideoModelGateway({ proxyEnv: proxies, upstreamBaseUrl: hosted.baseUrl, upstreamHeaders: { authorization: `Bearer ${hosted.apiKey}`, accept: 'text/event-stream' } });
       this.runtime = createPlannerRuntime({ dataDir: this.opts.dataDir, authHome: null, baseUrl: this.gateway.baseUrl, certificate: this.gateway.certificate, model: hosted.model, hosted: true });
       this.inner = new AgentSession({ agent: 'codex', cwd: this.runtime.cwd, resume: null,
-        env: { CODEX_HOME: this.runtime.home, HOME: this.runtime.home, USERPROFILE: this.runtime.home, SSL_CERT_FILE: this.runtime.caFile, CODEX_CA_CERTIFICATE: this.runtime.caFile, INITIAL_AGENT_MODE: 'read-only', MODEL_PROVIDER: 'openfilm-video-hosted', NO_BROWSER: '1' },
+        env: { CODEX_HOME: this.runtime.home, HOME: this.runtime.home, USERPROFILE: this.runtime.home, SSL_CERT_FILE: this.runtime.caFile, CODEX_CA_CERTIFICATE: this.runtime.caFile, INITIAL_AGENT_MODE: 'read-only', MODEL_PROVIDER: 'openfilm-video-hosted', OPENFILM_VIDEO_GATEWAY_TOKEN: 'local-video-gateway', NO_BROWSER: '1' },
         planner: { instructions: VIDEO_MODEL_INSTRUCTIONS },
         onPermission: async () => null,
         onQuestion: async () => null,

@@ -47,6 +47,7 @@ test('hosted Sub2API mode has no ChatGPT auth file and uses a key-free Codex chi
   const config = readFileSync(join(runtime.home, 'config.toml'), 'utf8');
   assert.doesNotMatch(config, /chatgpt\.com|auth\.json/);
   assert.match(config, /requires_openai_auth = false/);
+  assert.match(config, /env_key = "OPENFILM_VIDEO_GATEWAY_TOKEN"/);
   assert.match(config, /gpt-6\.1-sol/);
   assert.equal(existsSync(join(runtime.home, 'auth.json')), false);
   runtime.close();
