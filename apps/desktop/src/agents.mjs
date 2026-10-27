@@ -13,7 +13,7 @@ import { mergeConfig, sessionSkills } from './agent-skills.mjs';
 import { nodeBinary } from './node-runtime.mjs';
 import { CLIENT_PROFILE } from 'openfilm/client-scope';
 import { bundledCodex, codexArguments, codexEnvironment } from './codex-runtime.mjs';
-import { plannerEnvironment } from './video-planner-runtime.mjs';
+import { projectEnvironment } from './project-environment.mjs';
 import { videoCodexLaunchEnv } from './video-codex-launch.mjs';
 
 const require = createRequire(import.meta.url);
@@ -57,11 +57,18 @@ project: you never need \`openfilm open\` and never open Studio in a browser. Ru
 to see what you made. Render the MP4 only when the person asks for it; they can also export from Studio. Reply in the
 language the person writes in.
 
-The desktop process attaches the selected template and its required skill to every request. Follow that fixed route;
-do not choose a different skill from the wording of the request. This client focuses on supplied footage and copy. Read \`openfilm skill ad-editing\` before making an ad. Preserve
-manual timeline edits and locked selections. Cloud media generation is outside this client's current scope: reuse
-supplied recordings or explicitly requested local simulated narration, label simulation clearly, and never claim it
-is a production TTS voice. Do not offer other film workflows, install skills, or configure paid media services.
+Original footage lives in assets/upload. When available, .film/source-analysis/index.json maps cached two-second
+frames to their exact source paths and times; read this index and view its images instead of extracting frames again.
+Only inspect or extract new frames when needed to answer the user's request. Local offline simulated narration is
+available with \`openfilm-local narrate --text "旁白" --out assets/audio/vo/line.wav\`. Measure the resulting file
+before timing the film. Ordinary conversation and style-only edits do not require frame extraction or narration.
+
+The desktop process may attach project context and bundled skills to a request. Treat them as context and use normal
+Codex judgment. Read \`openfilm skill ad-editing\` when the project is an ad. Preserve manual timeline edits and
+locked selections. Use supplied recordings or explicitly requested local simulated narration, label simulation clearly,
+and never claim it is a production TTS voice. Decline requests to inspect, reverse engineer or modify the OpenFilm
+application implementation, host account configuration or credentials. Public manuals, bundled skills and documented
+editing APIs are available for working on the film. Do not modify anything outside the active project directory.
 
 ${STUDIO_REFERENCES}`;
 
@@ -589,7 +596,7 @@ export class AgentSession {
    *           onQuestion?: (ask: { message: string, toolCallId: string | null, questions: any[] }) => Promise<Record<string, { label?: string, text?: string }> | null>,
    *           onExit?: (info: { code: number | null, stderr: string }) => void,
    *           onSend?: (sent: { prompt: any[], _meta?: any }) => void,
-   *           planner?: { instructions: string } }} opts
+   *           project?: { instructions: string }, dataDir?: string }} opts
    * `onSend` hears each message as it goes to the agent, whole (the app's words before the first one's, for an agent
    * told them there); `opened`, once started, says what it was started and opened with.
    * `skills`: the session has its maker's skills and MCP servers, OpenFilm's skills, and of the person's own only those
@@ -621,22 +628,26 @@ export class AgentSession {
 
   async open() {
     const hostShell = agentShell(this.opts.agent, await loginShellVariables({ staleOk: true }));
-    const shell = this.opts.planner ? plannerEnvironment(hostShell, { home: this.opts.env.CODEX_HOME }) : hostShell;
+    const shell = this.opts.project ? projectEnvironment(hostShell, { home: this.opts.env.CODEX_HOME }) : hostShell;
     const cli = resolveAgentCli(this.opts.agent, { pathDirs: hostShell.PATH.split(PATH_SEP) });
     if (!cli) throw Object.assign(new Error(`${this.spec.label} is not installed on this computer.`), { code: 'not-installed' });
     this.cli = cli;
     const node = nodeRuntime();
     const path = [this.opts.binDir, shell.PATH, this.opts.fallbackDir].filter(Boolean).join(PATH_SEP);
-    const instructions = this.opts.planner?.instructions ?? INSTRUCTIONS;
+    const instructions = this.opts.project?.instructions ?? INSTRUCTIONS;
     /* its skills and MCP servers: its maker's, OpenFilm's skills, and the person's own only those let in (agent-skills.mjs) */
-    const skills = !this.opts.planner && this.opts.skills
+    const skills = this.opts.skills
       ? await sessionSkills(this.opts.agent, { cwd: this.opts.cwd, env: shell, ...this.opts.skills }).catch(() => null) : null;
-    const launch = this.opts.planner ? videoCodexLaunchEnv(cli.path, { directory: this.opts.env.CODEX_HOME, nodeCommand: node.command, nodeArgs: node.env.ELECTRON_RUN_AS_NODE ? [AS_NODE] : [] }) : this.spec.env(cli.path);
+    const launch = this.opts.project ? videoCodexLaunchEnv(cli.path, { directory: this.opts.env.CODEX_HOME, nodeCommand: node.command, nodeArgs: node.env.ELECTRON_RUN_AS_NODE ? [AS_NODE] : [] }) : this.spec.env(cli.path);
     const extra = { ...this.opts.env, ...node.env, ...launch, ...skills?.env, OPENFILM_CLIENT_PROFILE: CLIENT_PROFILE };
     const env = childEnvironment({ shell: { ...shell, PATH: path }, extra });
     if (this.spec.adapter === AGENTS.codex.adapter) {
-      const theirs = this.opts.planner ? null : codexDeveloperInstructions(codexConfigText(shell));
-      env.CODEX_CONFIG = JSON.stringify({ ...mergeConfig({ developer_instructions: theirs ? `${theirs}\n\n${instructions}` : instructions }, skills?.codexConfig ?? {}), check_for_update_on_startup: false });
+      const theirs = this.opts.project ? null : codexDeveloperInstructions(codexConfigText(shell));
+      /* Project sessions write a real config.toml in their private CODEX_HOME.  Do not replace it with the
+         old JSON override: that silently makes Codex fall back to its account and reports “not signed in”. */
+      if (!this.opts.project) {
+        env.CODEX_CONFIG = JSON.stringify({ ...mergeConfig({ developer_instructions: theirs ? `${theirs}\n\n${instructions}` : instructions }, skills?.codexConfig ?? {}), check_for_update_on_startup: false });
+      }
     }
     /* the others have no place for it: the session's first message carries it */
     this.instructions = null;

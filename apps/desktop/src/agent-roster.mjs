@@ -28,6 +28,7 @@ export function createRoster(deps) {
     const found = local?.find((agent) => agent.id === 'codex');
     const status = !found ? 'checking' : !found.cli ? 'missing'
       : choices.disconnected.includes('codex') ? 'off'
+      : deps.providerConfigured?.() ? 'ready'
       : found.signedIn === false ? (live.waiting.codex ? 'waiting' : 'sign-in') : 'ready';
     return [{ id: 'codex', name: 'Codex', shown: true, status,
       path: found?.cli?.path ?? null, chosen: found?.cli?.source === 'bundled' ? null : choices.paths.codex ?? null,

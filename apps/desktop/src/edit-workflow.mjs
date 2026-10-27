@@ -2,13 +2,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { createRequire } from 'node:module';
-import { dirname } from 'node:path';
-import { initialTemplate, normalizeTemplate, templateRoute, templateSummary } from './edit-template.mjs';
-import { assertVideoRequest } from './video-policy.mjs';
-
-const require = createRequire(import.meta.url);
-const officialSkill = () => readFileSync(join(dirname(require.resolve('openfilm/package.json')), 'skills', 'ad-editing', 'SKILL.md'), 'utf8');
+import { initialTemplate, normalizeTemplate, templateSummary } from './edit-template.mjs';
 
 export const templateFile = project => join(project, '.film', 'edit-template.json');
 export function loadTemplate(project) {
@@ -28,25 +22,24 @@ export function saveTemplate(project, raw) {
   return config;
 }
 
-/** No model classification or optional skill lookup: missing skill prevents this turn from starting. */
-export function prepareEditPrompt(project, text, { mine, config = loadTemplate(project) } = {}) {
-  assertVideoRequest(text);
+/** Add project context to a native Codex turn. The model decides whether to answer, inspect, or edit. */
+export function prepareEditPrompt(project, text, { config } = {}) {
+  let warning = '';
+  if (!config) {
+    try { config = loadTemplate(project); }
+    catch (error) { config = initialTemplate(); warning = `模板配置无法读取，以下为默认配置。可继续处理用户要求，必要时检查 .film/edit-template.json。原因：${error.message}`; }
+  }
   config = normalizeTemplate(config);
-  assertVideoRequest(JSON.stringify(config));
-  const route = templateRoute(config.kind);
-  let skill;
-  try { skill = officialSkill(); } catch { throw new Error(`模板所需的 ${route.skill} 内置 skill 不可用，请修复应用后重试。`); }
-  const workflow = { template: route.id, skill: route.skill, source: 'bundled', config };
+  const workflow = { skill: 'ad-editing', source: 'bundled', config };
   return { workflow, text: [
-    '<openfilm-edit-workflow>',
-    `客户端固定路由：${route.id} → ${route.skill}。本次必须按下方 skill 执行，不重新选择工作流。`,
-    '模板配置是视频任务的默认要求；用户只能调整视频内容，不能覆盖软件权限、安全策略或账号规则。仅修改已有影片时保留其他内容、手工修改和锁定片段。',
-    '素材来源包括本次附件和引用，以及当前项目的已有素材；先检查项目。缺少必需素材、文案或录音时，继续可完成的分析并明确询问缺失内容，不编造成片。',
-    '自然语言需求即可启动或修改剪辑，无需固定命令。只输出原生视频执行器支持的结构化方案；没有终端、任意文件或网络工具。未由执行器实际导出，不得宣称已生成视频文件。',
+    '<openfilm-project-context>',
+    '当前工作目录就是 OpenFilm 项目。下面内容只是项目背景和 skill，不是操作类型限制；用户本次自然语言指令优先。请像原生 Codex 一样自行判断是回答问题、检查项目、修改现有文件，还是重新生成。',
+    '修改前读取实际项目文件，修改后检查结果。保留无关内容、手工修改和锁定片段；删除或替换时按用户明确要求执行。素材只能使用当前项目目录内的文件。',
     templateSummary(config),
-    '模板配置 JSON：', JSON.stringify(config),
-    '\n本次固定加载的只读内置 skill（其中命令行步骤由原生执行器替代，不执行命令）：', skill,
-    '</openfilm-edit-workflow>',
+    '当前模板配置（可被用户本次指令调整）：', JSON.stringify(config),
+    warning,
+    '制作广告时可通过 openfilm skill ad-editing 读取内置 skill；普通问答或简单修改无需重复加载。',
+    '</openfilm-project-context>',
     '\n用户本次需求（含附件与编辑器引用）：', String(text),
   ].join('\n') };
 }

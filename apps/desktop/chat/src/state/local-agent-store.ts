@@ -174,11 +174,11 @@ export const useLocalAgents = create<LocalAgentStore>((set, get) => ({
 }));
 
 /**
- * The frontend cannot grant execution privileges. Native video sessions force a tool-free planner and an actual
- * read-only sandbox; this value also replaces an old full-access choice persisted by previous client versions.
+ * The frontend cannot grant execution privileges. Native project sessions use Codex's tools inside the project and an actual
+ * workspace sandbox; this value also replaces an old full-access choice persisted by previous client versions.
  */
 const AGENT_FORCED_PREFS: Partial<Record<LocalAgentId, Record<string, unknown>>> = {
-  codex: { mode: 'read-only' },
+  codex: { mode: 'agent' },
 };
 
 /** picks the menu no longer offers: plan mode (Claude Code's `plan`, Codex's collaboration mode) */

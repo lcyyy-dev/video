@@ -421,7 +421,10 @@ async function start() {
   ipcMain.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA) : null);
   ipcMain.handle('desktop:sub2api:set', (event, input) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
-    return saveSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? 'gpt-6.1-sol') });
+    const result = saveSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? 'gpt-6.1-sol') });
+    localAgents?.closeAll();
+    void roster?.refresh();
+    return result;
   });
   ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? '') }) : null);
   /* the chat's column as the person left it (the page sizes it; the window keeps it for next time) */
@@ -489,25 +492,7 @@ async function start() {
         const tab = tabs?.get(tabOf(event.sender));
         return (await studioApi('/api/projects')).projects.find(project => project.id === tab?.projectId && !project.missing)?.path;
       },
-      exportFilm: async (root, { format, fps, signal }) => {
-        const project = (await studioApi('/api/projects')).projects.find(project => project.path === root && !project.missing);
-        if (!project) throw new Error('影片工程已关闭。');
-        const endpoint = `/api/projects/${encodeURIComponent(project.id)}/exports`;
-        const [prefs, targets] = await Promise.all([studioApi('/api/prefs'), studioApi(endpoint)]);
-        const ask = format === 'jianying' ? { kind: 'nle', format: 'jianying', fps, audio: 'clips', media: 'copy', subtitles: true }
-          : { kind: 'video', codec: 'h264', fps, quality: 'high', audio: true };
-        // Only native preferences determine the destination. Model output never supplies a path or filename.
-        const folder = format === 'jianying' ? prefs.draftExportFolder || targets.draftFolders?.jianying || targets.folder : targets.folder;
-        const { exports: queued } = await studioApi(endpoint, 'POST', { jobs: [ask], folder });
-        const jobId = queued[0].id;
-        for (;;) {
-          if (signal?.aborted) { await studioApi(`${endpoint}/${encodeURIComponent(jobId)}`, 'DELETE'); throw new Error('cancelled'); }
-          const current = (await studioApi(endpoint)).exports.find(job => job.id === jobId);
-          if (!current || ['failed', 'cancelled'].includes(current.status)) throw new Error('草稿导出失败，影片编辑已保存。');
-          if (current.status === 'done') return current.outputs;
-          await new Promise(done => setTimeout(done, 400));
-        }
-      },
+
     },
   });
   registerEditTemplateIpc(ipcMain, {
@@ -523,6 +508,7 @@ async function start() {
   /* Settings → Agents (in Studio's page) and the chat's agent menu: one roster, both told of every change */
   roster = createRoster({
     dataDir: DATA,
+    providerConfigured: () => publicSub2ApiConfig(DATA).configured,
     localAgents: () => listAgents(CLIENT_AGENTS),
     openSignIn: openAgentSignIn,
     /* sessions closed on connecting and disconnecting: the next look at its usage is for whichever account is used now */

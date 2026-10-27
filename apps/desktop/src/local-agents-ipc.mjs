@@ -47,14 +47,15 @@
 import { prepareEditPrompt } from './edit-workflow.mjs';
 import { CLIENT_AGENTS } from 'openfilm/client-scope';
 import { randomUUID } from 'node:crypto';
-import { homedir } from 'node:os';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { RECORDED_AGENTS, agentRecordCalls, compactCalls } from './agent-records.mjs';
 import { AgentSession, isAgentId, isChatAgent, listAgents, openAgentSignIn } from './agents.mjs';
+import { ProjectSession } from './project-session.mjs';
 import { loggedBlocks, openLog, writeModelLog } from './chat-store.mjs';
 import { loginShellVariables } from './environment.mjs';
 import { codexEnvironment } from './codex-runtime.mjs';
-import { VideoAgentSession } from './video-agent-session.mjs';
-import { assertVideoRequest, assertVideoStorage, videoProjectRoot, VideoPolicyError } from './video-policy.mjs';
+import { assertVideoStorage, videoProjectRoot, VideoPolicyError } from './video-policy.mjs';
 
 const TURN_LOG_MAX = 5000;
 /** what the agent sends between turns, kept for a turn of its own the page may open for it */
@@ -178,7 +179,10 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     if (!isChatAgent(agent) || !CLIENT_AGENTS.includes(agent)) return { ok: false, error: `Unknown agent: ${String(agent)}` };
     let session;
     try {
-      session = new VideoAgentSession({ agent, cwd: null, dataDir: videoSecurity?.dataDir ?? skills?.dataDir, fallbackDir });
+      const dataDir = videoSecurity?.dataDir ?? skills?.dataDir;
+      const cwd = join(dataDir, 'codex-probe');
+      mkdirSync(cwd, { recursive: true });
+      session = new ProjectSession({ agent, cwd, dataDir, fallbackDir, env, skills });
       const info = await session.start();
       return { ok: true, info: { ...info, commands: [] } };
     } catch (e) {
@@ -208,7 +212,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     const pending = new Map();
     const entry = { sender: event.sender, pending, session: null, agent, cwd, turn: null, lastUsed: Date.now() };
     try {
-      entry.session = new VideoAgentSession({
+      entry.session = new ProjectSession({
         agent,
         cwd,
         resume,
@@ -216,10 +220,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
         fallbackDir,
         env,
         skills,
-        dataDir: videoSecurity.dataDir,
-        authorize: () => authorize(event, cwd),
-        exportFilm: videoSecurity.exportFilm ? options => videoSecurity.exportFilm(cwd, options) : null,
-
+        dataDir: videoSecurity?.dataDir ?? skills?.dataDir,
         onUpdate: (update) => send(entry, key, { kind: 'update', update }),
         onPermission: (params) => new Promise((resolve) => {
           const requestId = randomUUID();
@@ -254,10 +255,10 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     const key = opts?.key;
     const entry = sessions.get(key);
     if (!entry || entry.sender !== event.sender) return { ok: false, error: 'This session has ended.' };
-    if (entry.accepting || entry.running > 0) return { ok: false, error: '请等待当前视频任务完成。' };
+    if (entry.accepting || entry.running > 0) return { ok: false, error: '请等待当前请求完成。' };
     entry.accepting = true;
     let prepared;
-    try { await authorize(event, entry.cwd); assertVideoRequest(opts?.text); prepared = prepareEditPrompt(entry.cwd, opts.text); }
+    try { await authorize(event, entry.cwd); prepared = prepareEditPrompt(entry.cwd, opts?.text); }
     catch (error) { entry.accepting = false; return { ok: false, error: error.message }; }
     entry.accepting = false;
     const meta = opts?.meta && typeof opts.meta === 'object' ? opts.meta : null;
@@ -295,7 +296,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
       entry.turnEnded = Date.now();
       /* its skills changed while it worked: closed now its turn is over (refreshSkills) */
       if (entry.stale) setTimeout(() => { if (sessions.get(key) === entry && !(entry.running > 0)) close(key); }, STALE_CLOSE_MS);
-      if (!entry.info?.videoPolicy) void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: meta.turnId, from, to: entry.turnEnded, agentLog: entry.session.opened?.log, log });
+      void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: meta.turnId, from, to: entry.turnEnded, agentLog: entry.session.opened?.log, log });
       /* the page that asked may be gone (reloaded): say it on the channel too */
       if (!entry.sender.isDestroyed()) entry.sender.send('desktop:local-agents:event', { key, kind: 'done', turnId: meta.turnId, ...result });
     }
@@ -324,7 +325,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     if (!entry || entry.sender !== event.sender || !(entry.running > 0)) return { ok: false, outcome: 'noRunningTurn' };
     const images = entry.info?.promptCapabilities?.image ? imageBlocks(opts?.images) : [];
     let prepared;
-    try { await authorize(event, entry.cwd); assertVideoRequest(opts?.text); prepared = prepareEditPrompt(entry.cwd, opts.text); }
+    try { await authorize(event, entry.cwd); prepared = prepareEditPrompt(entry.cwd, opts?.text); }
     catch (error) { return { ok: false, outcome: 'workflowError', error: error.message }; }
     const { text, workflow } = prepared;
     noted(opts, 'steer', { text, workflow, images: images.length, prompt: loggedBlocks(entry.cwd, [{ type: 'text', text }, ...images]) });
@@ -336,11 +337,10 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
   handle('desktop:local-agents:adopt', (_event, opts) => {
     const entry = sessions.get(opts?.key);
     if (!entry) return { ok: false };
-    if (entry.info?.videoPolicy) return { ok: false, error: '视频会话不执行后台自主任务。' };
     if (entry.adopted) {
       entry.adopted.write('done', { ok: true, unprompted: true });
       entry.adopted.end();
-      if (!entry.info?.videoPolicy) void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: entry.adopted.turnId, from: entry.adopted.from, to: Date.now(), agentLog: entry.session?.opened?.log, log });
+      void keepAgentRecord({ agent: entry.agent, sessionId: entry.info?.sessionId, cwd: entry.cwd, turnId: entry.adopted.turnId, from: entry.adopted.from, to: Date.now(), agentLog: entry.session?.opened?.log, log });
     }
     entry.adopted = null;
     if (typeof opts?.turnId === 'string') {

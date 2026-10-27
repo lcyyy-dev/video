@@ -17,6 +17,20 @@ const roster = (dataDir, fetch, extra = {}) => createRoster({
   ...extra,
 });
 
+test('a configured Sub2API connection does not require ChatGPT sign-in', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'of-roster-provider-'));
+  let loginCalls = 0;
+  const r = roster(dir, undefined, {
+    providerConfigured: () => true,
+    localAgents: async () => [{ id: 'codex', cli: { path: '/bin/codex' }, signedIn: false }],
+    openSignIn: async () => { loginCalls++; return { ok: true }; },
+  });
+  await r.refresh();
+  assert.equal(r.list()[0].status, 'ready');
+  assert.equal((await r.connect('codex')).ok, true);
+  assert.equal(loginCalls, 0);
+});
+
 test('an agent not found can be pointed at: the program is tried first, kept, and used until found automatically again', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'of-roster-'));
   let picked = null;

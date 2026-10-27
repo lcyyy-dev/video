@@ -23,7 +23,7 @@ async function skillFolders(dir, { except = [] } = {}) {
 }
 
 /**
- * OpenFilm's own skill for agents in a terminal (the repository's skills/openfilm: "run `npx openfilm`, read the
+ * OpenFilm's own skill for agents in a terminal (the repository's skills/openfilm: "run `openfilm`, read the
  * manual"), installed in an agent: in the app it is never wanted, as the app tells the agent the same, and its `npx`
  * would contradict it. Never shown, never let in.
  */
