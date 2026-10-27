@@ -33,7 +33,7 @@ export function templateSummary(config) {
   const route = templateRoute(config.kind);
   return [
     `剪辑模板：${route.name} / ${config.adMode}`,
-    `声音：${config.adMode === AD_MODES[0] ? '文案朗读 + 音频（使用提供的录音；缺少录音时先说明，不默认生成配音）' : config.adMode === AD_MODES[1] ? '保留原声，不添加朗读' : config.adMode === '大字报' ? '以文字呈现为主' : '随素材配置'}`,
+    `声音：${config.adMode === AD_MODES[0] ? '文案朗读 + 音频（优先使用提供的录音；没有录音时使用本地 TTS，TTS 暂不可用也不要阻断剪辑）' : config.adMode === AD_MODES[1] ? '保留原声，不添加朗读' : config.adMode === '大字报' ? '以文字呈现为主' : '随素材配置'}`,
     ...(config.adMode === '动作分享' ? [`开头：${config.opening ? '需要' : '不需要'}`, `AI 画中画：${config.pip ? '需要（当前仅使用提供的素材，缺失时说明）' : '不需要'}`] : []),
     `标题：${config.title ? config.titleText || '需要，内容待补充' : '不需要'}`,
     `副标题：${config.subtitles ? config.subtitleText || '需要，内容待补充' : '不需要'}`,

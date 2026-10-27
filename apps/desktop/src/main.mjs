@@ -35,6 +35,7 @@ import { ensureFfmpeg, ffmpegDir, ffmpegDownloadable, ffmpegIn, ffmpegOnPath } f
 import { PATH_SEP } from './environment.mjs';
 import { createTabs } from './tabs.mjs';
 import { checkSub2ApiConfig, publicSub2ApiConfig, saveSub2ApiConfig } from './sub2api-config.mjs';
+import { precomputeUploadFrames } from './source-analysis.mjs';
 
 process.env.OPENFILM_CLIENT_PROFILE = CLIENT_PROFILE;
 
@@ -70,6 +71,7 @@ if (!app.requestSingleInstanceLock()) {
 let win = null;
 /** @type {ReturnType<typeof createTabs> | null} */
 let tabs = null;
+let appFfmpegDir = null;
 /** the page of each tab that has one (a tab left behind long enough has none until it is shown again) */
 /** @type {Map<string, WebContentsView>} */
 const views = new Map();
@@ -253,6 +255,8 @@ async function openTabs() {
   const front = tabs.activeId();
   if (front) showTab(front);
   else { showPage(HOME); tellTabs(); }
+  /* Existing projects restored at startup get the same upload analysis as newly imported media. */
+  for (const project of projects) void precomputeUploadFrames({ root: project.path, ffmpegDir: appFfmpegDir }).catch(error => log(`startup upload analysis failed: ${error?.message ?? error}\n`));
 }
 
 /** The projects the chat's agents work in, and wait for an answer in, by Studio's ids (from their folders), on each tab. */
@@ -372,8 +376,12 @@ async function start() {
   const ownFfmpeg = runtime && ffmpegIn(join(runtime, 'ffmpeg')) ? join(runtime, 'ffmpeg') : null;
   const needFfmpeg = !ownFfmpeg && !ffmpegOnPath(env.PATH) && ffmpegDownloadable();
   const ffmpegHere = ownFfmpeg ?? (needFfmpeg ? ffmpegDir(DATA) : null);
+  appFfmpegDir = ffmpegHere;
   if (ffmpegHere) env.PATH = [ffmpegHere, env.PATH].join(PATH_SEP);
-  const browsers = runtime && existsSync(join(runtime, 'ms-playwright')) ? { PLAYWRIGHT_BROWSERS_PATH: join(runtime, 'ms-playwright') } : {};
+  const browserCache = process.platform === 'win32' ? join(app.getPath('home'), 'AppData', 'Local', 'ms-playwright')
+    : process.platform === 'darwin' ? join(app.getPath('home'), 'Library', 'Caches', 'ms-playwright') : join(app.getPath('home'), '.cache', 'ms-playwright');
+  const browsers = { PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH
+    || (runtime && existsSync(join(runtime, 'ms-playwright')) ? join(runtime, 'ms-playwright') : browserCache) };
   if (process.env.OPENFILM_BROWSER_CDP_URL) browsers.OPENFILM_BROWSER_CDP_URL = process.env.OPENFILM_BROWSER_CDP_URL;
   Object.assign(env, browsers);
 
@@ -556,7 +564,14 @@ async function start() {
         method: 'PUT', headers: { 'x-studio-key': studio.key }, body: Readable.toWeb(createReadStream(path)), duplex: 'half',
       });
       const answer = await res.json().catch(() => ({}));
-      return res.ok ? { ok: true, path: answer.path } : { ok: false, error: answer.error ?? `Studio answered ${res.status}` };
+      if (!res.ok) return { ok: false, error: answer.error ?? `Studio answered ${res.status}` };
+      /* Prepare upload-only metadata and frames in the background. Import stays responsive; video chat can reuse the
+         finished cache instead of blocking its first request on ffmpeg. */
+      void studioApi('/api/projects').then(({ projects }) => {
+        const project = projects.find(item => item.id === projectId && !item.missing);
+        return project ? precomputeUploadFrames({ root: project.path, ffmpegDir: ffmpegHere }) : null;
+      }).catch(error => log(`upload analysis failed: ${error?.message ?? error}\n`));
+      return { ok: true, path: answer.path };
     } catch (error) { return { ok: false, error: error.message }; }
   });
   ipcMain.handle('desktop:reveal', (event, path) => { if (fromPage(event) && typeof path === 'string' && path) shell.showItemInFolder(path); });

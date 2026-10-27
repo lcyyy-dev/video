@@ -1,0 +1,26 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { precomputeUploadFrames } from './source-analysis.mjs';
+const ffmpegDir = process.env.OPENFILM_TEST_FFMPEG_DIR;
+test('source index reads only uploads, persists two-second frames and reuses unchanged media', { skip: !ffmpegDir }, async () => {
+  const root = mkdtempSync(join(tmpdir(), 'of-source-index-'));
+  mkdirSync(join(root, 'assets/upload'), { recursive: true });
+  mkdirSync(join(root, 'assets/generated'), { recursive: true });
+  const source = join(root, 'assets/upload/one.mp4');
+  const make = color => execFileSync(join(ffmpegDir, 'ffmpeg'), ['-y', '-v', 'error', '-f', 'lavfi', '-i', `color=c=${color}:s=320x180:r=24:d=3`, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', source]);
+  make('blue'); writeFileSync(join(root, 'assets/generated/not-source.mp4'), 'not a source video');
+  const first = await precomputeUploadFrames({ root, ffmpegDir });
+  assert.equal(first.sources.length, 1);
+  assert.deepEqual(first.sources[0].frames.map(f => f.time), [0, 2]);
+  const frame = join(root, first.sources[0].frames[0].path), before = statSync(frame).mtimeMs;
+  const second = await precomputeUploadFrames({ root, ffmpegDir });
+  assert.deepEqual(second, first); assert.equal(statSync(frame).mtimeMs, before);
+  assert.deepEqual(JSON.parse(readFileSync(join(root, '.film/source-analysis/index.json'))), second);
+  make('red');
+  const third = await precomputeUploadFrames({ root, ffmpegDir });
+  assert.notEqual(third.sources[0].signature, first.sources[0].signature);
+});

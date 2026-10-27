@@ -14,6 +14,7 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { nodeBinary } from './node-runtime.mjs';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 
@@ -45,12 +46,17 @@ export function commandScriptWindows(node, cli, { ffmpeg = null, env = {} } = {}
 export function installOpenfilmCommand(dir, { node = nodeBinary(), platform = process.platform, ffmpeg = null, env = {} } = {}) {
   const bin = join(dir, 'bin');
   mkdirSync(bin, { recursive: true });
+  const local = fileURLToPath(new URL('./project-tools.mjs', import.meta.url));
   if (platform === 'win32') {
     writeFileSync(join(bin, 'openfilm.cmd'), commandScriptWindows(node, openfilmCli(), { ffmpeg, env }));
+    writeFileSync(join(bin, 'openfilm-local.cmd'), commandScriptWindows(node, local, { ffmpeg, env }));
     return bin;
   }
   const file = join(bin, 'openfilm');
   writeFileSync(file, commandScript(node, openfilmCli(), { ffmpeg, env }));
   chmodSync(file, 0o755);
+  const localFile = join(bin, 'openfilm-local');
+  writeFileSync(localFile, commandScript(node, local, { ffmpeg, env }));
+  chmodSync(localFile, 0o755);
   return bin;
 }
