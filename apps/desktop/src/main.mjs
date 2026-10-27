@@ -113,7 +113,7 @@ function focusWindow() {
 /** Each page fills the window (only the one in front shows). */
 function layout() {
   if (!win) return;
-  const { width, height } = win.getContentBounds();
+  const { width, height } = win.contentView.getBounds();
   for (const v of views.values()) v.setBounds({ x: 0, y: 0, width, height });
 }
 
@@ -157,7 +157,7 @@ function makeView(tabId) {
   v.setBackgroundColor(BACKGROUND[theme]);
   views.set(tabId, v);
   win.contentView.addChildView(v);
-  const { width, height } = win.getContentBounds();
+  const { width, height } = win.contentView.getBounds();
   v.setBounds({ x: 0, y: 0, width, height });
   guard(v.webContents, (url) => Boolean(studio) && url.startsWith(`${studio.origin}/`));
   /* what went wrong with the page, for the log (logs/studio.log) */
@@ -404,7 +404,9 @@ async function start() {
   });
   if (state.maximized) win.maximize();
 
-  win.on('resize', layout);
+  /* The window's resize event can precede its content layout (notably on Wayland).
+     Size pages after the content view actually changes, including maximize and full screen. */
+  win.contentView.on('bounds-changed', layout);
   win.on('resized', saveState);
   win.on('moved', saveState);
   win.on('enter-full-screen', () => broadcast('desktop:full-screen', true));
