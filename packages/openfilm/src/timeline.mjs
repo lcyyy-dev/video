@@ -489,21 +489,30 @@ const sounds = [];
 /** A clip's timing, volume and placement from its film.html row (its source already loaded). */
 function settle(c, row, track, ti) {
   const where = `clip "${row.id}" (${row.src})`;
-  c.row = row;
+  /* A draft can outlive a regenerated WAV/video whose duration became slightly shorter. Keep preview usable by
+     clamping the in-memory playback span to the verified native length; the authored film.html is left unchanged and
+     the next native edit writes a corrected trim. */
+  let playableRow = row;
+  if ((c.kind === 'video' || c.kind === 'sound') && Number.isFinite(c.native) && c.native > 0 && row.time?.length === 2) {
+    const from = Math.max(0, Math.min(c.native - 0.001, row.time[0] ?? 0));
+    const to = Math.max(from + 0.001, Math.min(c.native, row.time[1] ?? c.native));
+    if (from !== row.time[0] || to !== row.time[1]) playableRow = { ...row, time: [from, to] };
+  }
+  c.row = playableRow;
   c.ti = ti;
   c.track = ti;
-  c.at = row.at ?? 0;
+  c.at = playableRow.at ?? 0;
   /* a hidden track's clips are loaded (an editor shows them, grayed) but neither drawn nor heard */
   c.hidden = Boolean(track.hidden);
-  c.volume = track.muted || c.hidden || c.missing ? 0 : (row.volume ?? 1);
-  c.span = clipSpan(row, c.native, where);
+  c.volume = track.muted || c.hidden || c.missing ? 0 : (playableRow.volume ?? 1);
+  c.span = clipSpan(playableRow, c.native, where);
   c.end = c.at + c.span.length;
   c.fade = fittedFade(clipFade(row), c.span.length);
   /* a page that sets no size of its own is laid out at its clip's size, else the stage's */
   if (c.kind === 'page') { const own = c.own ?? row.size ?? stage; c.nw = own.w; c.nh = own.h; }
-  dress(c, row);
+  dress(c, playableRow);
   /* the tweaks of a page's elements (the clip's own entry, its fades, is not one) */
-  const tweaks = row.overrides?.filter((o) => o.at !== undefined);
+  const tweaks = playableRow.overrides?.filter((o) => o.at !== undefined);
   if (c.kind === 'page' && JSON.stringify(c.overrides ?? []) !== JSON.stringify(tweaks ?? [])) {
     restore(c);
     c.overrides = tweaks?.length ? tweaks : undefined;

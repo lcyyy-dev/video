@@ -6,7 +6,8 @@
  *   underline?: boolean, stroke?: { color: string, width: number } }} TextRun
  * @typedef {{ text: string, x: number, y: number, fontSize: number, color?: string,
  *   fontFamily?: string, fontPath?: string, bold?: boolean, italic?: boolean,
- *   scale?: number, opacity?: number, underline?: boolean, align?: 'left' | 'center' | 'right',
+ *   scale?: number, opacity?: number, backgroundColor?: string, backgroundOpacity?: number, borderRadius?: number,
+ *   underline?: boolean, align?: 'left' | 'center' | 'right',
  *   width?: number, lineHeight?: number, letterSpacing?: number,
  *   stroke?: { color: string, width: number }, shadow?: { color: string, opacity: number, blur: number, x: number, y: number },
  *   runs?: TextRun[], keyframes?: Partial<Record<'x' | 'y' | 'scale' | 'opacity', { time: number, value: number }[]>> }} TextItem
@@ -21,7 +22,7 @@ export function validateTextPage(input) {
     || page.version !== 1 || !positive(page.width) || !positive(page.height) || !positive(page.duration)
     || !Array.isArray(page.texts) || !page.texts.length) throw new Error('Invalid OpenFilm text page');
   const keys = new Set(['text', 'x', 'y', 'fontSize', 'color', 'fontFamily', 'fontPath', 'bold', 'italic', 'scale', 'opacity', 'keyframes',
-    'underline', 'align', 'width', 'lineHeight', 'letterSpacing', 'stroke', 'shadow', 'runs']);
+    'backgroundColor', 'backgroundOpacity', 'borderRadius', 'underline', 'align', 'width', 'lineHeight', 'letterSpacing', 'stroke', 'shadow', 'runs']);
   const color = (/** @type {string} */ value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
   const stroke = (/** @type {NonNullable<TextItem['stroke']>} */ value) => value
     && Object.keys(value).every((key) => ['color', 'width'].includes(key))
@@ -46,6 +47,9 @@ export function validateTextPage(input) {
         || !Number.isFinite(item.shadow.x) || !Number.isFinite(item.shadow.y)))
       || (item.scale !== undefined && !positive(item.scale))
       || (item.opacity !== undefined && !(Number.isFinite(item.opacity) && item.opacity >= 0 && item.opacity <= 1))
+      || (item.backgroundColor !== undefined && !color(item.backgroundColor))
+      || (item.backgroundOpacity !== undefined && !(Number.isFinite(item.backgroundOpacity) && item.backgroundOpacity >= 0 && item.backgroundOpacity <= 1))
+      || (item.borderRadius !== undefined && !(Number.isFinite(item.borderRadius) && item.borderRadius >= 0))
       || (item.keyframes !== undefined && (!item.keyframes || typeof item.keyframes !== 'object' || Array.isArray(item.keyframes)))) {
       throw new Error('Invalid OpenFilm text item');
     }
@@ -115,6 +119,9 @@ export function mountTextPage(page, root = document.body) {
       fontSize: `${item.fontSize}px`,
       fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
       textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
       webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
       textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
     });
