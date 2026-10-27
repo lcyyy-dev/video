@@ -20,6 +20,7 @@ type Project = { id: string; name: string; path: string };
 interface Native {
   platform: string;
   hello(): Promise<{ flavor: string; version: string; ffmpeg: unknown; update: unknown; chatOpen: boolean; chatWidth: number; chatMin: number; studioMin: number; fullScreen: boolean }>;
+  clipboardText(): Promise<string>;
   pathForFile(file: File): string;
   revealPath(path: string): Promise<void>;
   pickFolder(options?: { title?: string; button?: string; at?: string }): Promise<string | null>;
@@ -388,6 +389,7 @@ const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000
   setMenuOpen() {},
   /* the chat's record of each project, in its .film/chat and .film/logs */
   chat: native.chat,
+  clipboardText: native.clipboardText,
   editTemplate: native.editTemplate,
   skills: native.skills,
   asks: { get: asks.get, onChange: asks.on, answer: (id: string, allow: boolean) => answerAsk(id, allow) },

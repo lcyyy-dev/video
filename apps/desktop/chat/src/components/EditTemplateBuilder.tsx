@@ -66,9 +66,23 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
   const patch = (value: Partial<Config>) => { setConfig(c => ({ ...c, ...value })); setSaveError(''); };
+  const pasteText = (key: 'titleText' | 'subtitleText' | 'bodyText' | 'locationText' | 'coverText' | 'source' | 'logic' | 'notes') => (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const target = event.currentTarget;
+    const browserText = event.clipboardData.getData('text/plain');
+    if (!browserText) return;
+    const start = target.selectionStart ?? target.value.length;
+    const end = target.selectionEnd ?? start;
+    event.preventDefault();
+    void app.clipboardText().catch(() => browserText).then(text => {
+      const inserted = text || browserText;
+      const next = `${target.value.slice(0, start)}${inserted}${target.value.slice(end)}`;
+      patch({ [key]: next } as Partial<Config>);
+      requestAnimationFrame(() => { target.focus(); const caret = start + inserted.length; target.setSelectionRange(caret, caret); });
+    });
+  };
   const text = (key: 'titleText' | 'subtitleText' | 'bodyText' | 'locationText' | 'coverText' | 'source' | 'logic' | 'notes', label: string, placeholder: string, multiline = false) => multiline
-    ? <textarea aria-label={label} value={config[key]} onChange={e => patch({ [key]: e.target.value })} placeholder={placeholder} rows={3} />
-    : <input aria-label={label} value={config[key]} onChange={e => patch({ [key]: e.target.value })} placeholder={placeholder} />;
+    ? <textarea aria-label={label} value={config[key]} onChange={e => patch({ [key]: e.target.value })} onPaste={pasteText(key)} placeholder={placeholder} rows={3} />
+    : <input aria-label={label} value={config[key]} onChange={e => patch({ [key]: e.target.value })} onPaste={pasteText(key)} placeholder={placeholder} />;
   const elements = [config.title && '标题', config.subtitles && '副标题', config.body && '正文', config.body && config.highlight && '关键词高亮', config.location && '地点'].filter(Boolean);
   const summary = templateSummary(config);
   const save = async () => {

@@ -993,6 +993,7 @@ export function MediaPool({
                 key={item.file.path}
                 row={rows}
                 file={item.file}
+                used={usedSrcs.some((src) => srcHitsAsset(src, item.file.path))}
                 sources={sources}
                 duration={formatClipDuration(item.file.durationMs ?? 0)}
                 where={repeated.has(item.file.name) ? item.file.path.slice(0, Math.max(0, item.file.path.lastIndexOf('/'))) || item.file.path : undefined}
@@ -1224,6 +1225,8 @@ function NewFolderTile({ label, onDone, onCancel, row = false }: { label: string
 
 function FileTile(p: {
   file: WorkspaceResource; sources: MediaSources; duration: string;
+  /** Whether the current film references this project asset. */
+  used?: boolean;
   /** Its folder, shown under the name (search results where the name repeats). */
   where?: string | undefined;
   selected: boolean; renaming: boolean;
@@ -1285,7 +1288,7 @@ function FileTile(p: {
               : (
                 <span className="flex min-w-0 items-center gap-1" title={p.linkLabel}>
                   {p.file.link ? (p.file.link.missing ? <Unlink size={12} className="shrink-0 text-[var(--danger,#e5484d)]" /> : <Link2 size={12} className="shrink-0 text-[var(--text-faint)]" />) : null}
-                  <span className={`block truncate text-[12.5px] ${p.file.link?.missing ? 'text-[var(--text-faint)]' : p.selected ? 'text-[var(--text)]' : 'text-[var(--text-dim)]'}`} style={KEEP_SPACES}>{p.file.name}</span>
+                  <span className={`block truncate text-[12.5px] ${p.file.link?.missing ? 'text-[var(--text-faint)]' : p.used ? 'text-emerald-600 dark:text-emerald-300' : p.selected ? 'text-[var(--text)]' : 'text-[var(--text-dim)]'}`} style={KEEP_SPACES}>{p.file.name}</span>
                 </span>
               )}
             {p.where ? <span className="block truncate text-left text-[11px] text-[var(--text-faint)]" dir="rtl"><bdi>{p.where}</bdi></span> : null}
@@ -1300,6 +1303,7 @@ function FileTile(p: {
       <div className="pt-[7px]">
         <div className={`${TILE_BOX} bg-[var(--bg-hover)] ${p.lit ? 'ring-[var(--tl-accent)] shadow-[0_0_10px_1px_color-mix(in_srgb,var(--tl-accent)_55%,transparent)]' : p.selected ? 'ring-[var(--accent)]' : 'ring-transparent group-hover:ring-[var(--border)]'}`}>
           {p.file.kind === 'mg' ? <PagePoster file={p.file} sources={p.sources} /> : <MediaPreview file={p.file} sources={p.sources} />}
+          <span className={`absolute left-1 top-1 z-10 rounded px-1 text-[9px] font-semibold leading-[15px] ${p.used ? 'bg-emerald-600/90 text-white' : 'bg-black/60 text-white/75'}`} title={p.used ? '当前影片已使用' : '当前影片未使用'}>{p.used ? '已用' : '未用'}</span>
           {/* a link to media kept elsewhere: marked; one that cannot be reached (a NAS that is off) says so over it */}
           {p.file.link?.missing ? (
             <span className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1 bg-black/65 text-[10.5px] text-white/85" title={p.linkLabel}>

@@ -9,7 +9,7 @@
  * in the page (shell/bridge.ts); this process does what only the app can: the window, the agents, files on the disk,
  * ffmpeg, updates (preload.cjs). The window opens straight into the last project.
  */
-import { BaseWindow, Menu, WebContentsView, app, dialog, ipcMain, nativeTheme, screen, shell } from 'electron';
+import { BaseWindow, Menu, WebContentsView, app, clipboard, dialog, ipcMain, nativeTheme, screen, shell } from 'electron';
 import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -409,6 +409,7 @@ async function start() {
     if (!fromPage(event)) throw new Error('not the window\'s page');
     return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()), sub2api: publicSub2ApiConfig(DATA) };
   });
+  ipcMain.handle('desktop:clipboard-text', (event) => fromPage(event) ? clipboard.readText() : '');
   ipcMain.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA) : null);
   ipcMain.handle('desktop:sub2api:set', (event, input) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');

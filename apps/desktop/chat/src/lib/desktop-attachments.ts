@@ -89,6 +89,22 @@ export function useDesktopAttachments() {
         .catch((error: unknown) => patch(item.id, { state: 'failed', error: error instanceof Error ? error.message : String(error) }));
     }
   }, []);
+  const addProject = React.useCallback((incoming: Array<{ path: string; kind: string; size: number }>) => {
+    setNotice(null);
+    const room = Math.max(0, MAX_FILES - count.current);
+    if (incoming.length > room) setNotice(`Up to ${MAX_FILES} files in one message.`);
+    const items = incoming.slice(0, room).map((file) => {
+      const name = file.path.split('/').pop() || file.path;
+      const image = file.kind === 'image' || /\.(?:png|jpe?g|webp|gif|bmp)$/i.test(name);
+      return {
+        id: `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+        labelNumber: ++sequence.current, name, kind: image ? 'image' as const : 'document' as const,
+        mediaType: file.kind, size: file.size, state: 'ready' as const, path: file.path,
+      };
+    });
+    count.current += items.length;
+    setFiles((list) => [...list, ...items]);
+  }, []);
 
   const drop = React.useCallback((id: string) => {
     setFiles((list) => {
@@ -112,7 +128,7 @@ export function useDesktopAttachments() {
     return taken;
   }, []);
 
-  return { files, notice, setNotice, add, drop, take };
+  return { files, notice, setNotice, add, addProject, drop, take };
 }
 
 /** What still keeps the message from going: a file being imported, or one that did not import. */

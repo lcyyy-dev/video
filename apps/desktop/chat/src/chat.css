@@ -1939,7 +1939,7 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .template-native-stepper .edit-template-toggle { color: var(--text); font-size: 14px; }
 .template-native-stepper .edit-template-switch { background: var(--surface-3); }
 .template-native-stepper .edit-template-toggle input:checked + .edit-template-switch { background: var(--accent); }
-.template-native-stepper input:not([type='checkbox']), .template-native-stepper textarea, .template-native-stepper select { display: block; width: 100%; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg); color: var(--text); padding: 10px 12px; font-size: 15px; line-height: 1.7; }
+.template-native-stepper input:not([type='checkbox']), .template-native-stepper textarea, .template-native-stepper select { display: block; width: 100%; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg); color: var(--text); padding: 10px 12px; font: 15px/1.7 "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", sans-serif; }
 .template-native-stepper input::placeholder, .template-native-stepper textarea::placeholder { color: var(--text-muted); }
 .template-native-stepper textarea { resize: vertical; }
 .template-native-stepper .edit-template-help, .template-native-stepper .edit-template-fields label { color: var(--text-muted); font-size: 13px; }
