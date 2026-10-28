@@ -20,6 +20,7 @@ export function nativeTextFallbackReason(page, context) {
     hasClipOverrides: Boolean(context.hasClipOverrides),
     canvasMismatch: page.width !== context.canvas.width || page.height !== context.canvas.height,
     hasOpacityKeyframes: page.texts.some((item) => Boolean(item.keyframes?.opacity)),
+    hasBackground: page.texts.some((item) => item.backgroundColor !== undefined || item.backgroundOpacity !== undefined || item.borderRadius !== undefined),
   };
   for (const rule of compatibility.nativeFallbackRules) {
     if (typeof flags[rule.check] !== 'boolean') throw new Error(`Unknown native text condition: ${rule.check}`);

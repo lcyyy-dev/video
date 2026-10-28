@@ -35,6 +35,7 @@ test('native draft fallback decisions and report reasons follow the machine-read
   const animated = { ...page, texts: [{ ...item, keyframes: { opacity: [{ time: 0, value: 0 }, { time: 1, value: 1 }] } }] };
   assert.equal(nativeTextFallbackReason(animated, context), rules.nativeFallbackRules[3].reason);
   assert.equal(nativeTextFallbackReason(animated, { ...context, hasElementOverrides: true }), rules.nativeFallbackRules[0].reason);
+  assert.equal(nativeTextFallbackReason({ ...page, texts: [{ ...page.texts[0], backgroundColor: '#0066cc' }] }, context), rules.nativeFallbackRules[4].reason);
 });
 
 test('built-in JSON presets are discoverable, independent snapshots', () => {

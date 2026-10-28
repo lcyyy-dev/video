@@ -96,6 +96,10 @@
     {
       "id": "opacity-animation", "check": "hasOpacityKeyframes",
       "reason": "Animated text opacity is not supported natively; the page keeps its animation as rendered media"
+    },
+    {
+      "id": "text-background", "check": "hasBackground",
+      "reason": "HTML text backgrounds and rounded labels are rendered media; Jianying native text has no equivalent background layer"
     }
   ],
   "draft": {
