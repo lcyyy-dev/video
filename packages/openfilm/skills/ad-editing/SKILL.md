@@ -13,24 +13,41 @@ For a normal template generation request, keep the execution short: inspect the 
 the template's exact copy, synthesize the required sentence audio, assemble the timeline, run one final `openfilm look`
 or project check, and report. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
 
+### Mode gate
+
+- **原声 · 无朗读**: keep the source audio from the selected clips, mute only when the template explicitly requests it,
+  and skip all TTS, offline narration and narration timing. Use the template copy for captions and on-screen text only.
+- **文案朗读 + 音频**: use supplied recordings first; when narration is required and no recording is supplied, create one
+  TTS file for each complete sentence, measure each file, then time the shots.
+- **动作分享、 大字报、正确动作教学**: follow the selected visual brief and add audio only when the template or the
+  current request asks for it.
+
+The mode gate is authoritative for this skill. Do not let a generic narration instruction override 原声 · 无朗读.
+
 ## Reference text layout
 
-When the template contains a title, three supporting lines and a location, use this compact vertical-ad structure unless
-the person specifies another layout:
+When the template uses **原声 · 无朗读**, keep the supplied audio and do not run any TTS or narration synthesis. When it
+contains a title, supporting lines and a location, use this compact vertical-ad structure unless the person specifies
+another layout. Choose the visual variant after inspecting the frame:
 
-1. **Title**: one short headline near the upper area. Prefer an orange or red fill with a dark outline; choose yellow or
-   cyan when that gives stronger contrast against the actual frame.
-2. **Core selling point**: one line in a white rounded or rectangular label with dark blue or black lettering. Keep the
-   label behind the text and do not let it cover the subject.
-3. **Emphasis line**: one benefit or action line in yellow, orange or red with a dark outline. Keep the exact template
-   wording and use the line as the visual emphasis.
-4. **Evidence line**: one short supporting line in white or a very light color with a dark outline, only when the frame
-   is dark enough; otherwise choose cyan, yellow or black for contrast.
-5. **Location**: place the supplied location separately near the lower-right safe area, normally split into two short
-   lines such as “山东” and “济南”. Do not invent a location or merge it into the title.
+1. **Top headline**: one or two short lines near the upper area. Use a strong colored fill or a blue bar with bold white
+   text and a dark shadow/outline. Candidate canvas font size: 78–112 px.
+2. **Core selling point**: one line in a blue rounded/rectangular label with bold white text, or a white label with dark
+   blue lettering. Candidate canvas font size: 68–100 px. Keep the label behind the text and clear of the subject.
+3. **Emphasis line**: one benefit or action line in yellow, orange or red with a dark outline, optionally without a bar.
+   Candidate canvas font size: 58–88 px.
+4. **Evidence line**: one short supporting line in white, yellow or red with a dark outline/shadow; use a dark bar when
+   the frame is bright. Candidate canvas font size: 48–78 px.
+5. **Family/closing line**: an optional red or white statement with a dark outline, used for a supplied quote or result.
+   Candidate canvas font size: 48–76 px.
+6. **Location**: place the supplied location separately near a lower corner safe area, normally split into two short lines
+   such as “山东” and “济南”. Use a blue/cyan or white fill with a dark outline and 52–82 px; do not invent a location
+   or merge it into the title.
 
-These are layout roles, not permission to rewrite or compress the template. Keep each filled field verbatim and keep each
-sentence as its own TTS unit. Inspect the final frame to confirm that the four lines do not hide the person or equipment.
+These are layout roles, not permission to rewrite or compress the template. Keep each filled field verbatim. In 原声 · 无朗读
+mode, captions follow the supplied copy or source speech and never create replacement narration. Inspect the final frame
+to confirm that the text blocks do not hide the person or equipment, and reduce size or split lines when a block would
+leave the safe area.
 
 ## Start from the brief
 
@@ -53,9 +70,10 @@ record; `film.html` remains the editable film. Reuse confirmed analysis and choi
 
 Split the copy into complete sentences at sentence punctuation and natural pauses; assign stable sentence IDs. When
 the template already contains wording, that wording is locked: preserve it character for character, with no shortening,
-summary, rewrite, additions or deletions. Make one TTS file for each complete sentence. Never merge two template
-sentences into one TTS request and never truncate a sentence to meet a duration target. Visual shots may span several
-sentences, but the narration and display text remain sentence-by-sentence and verbatim.
+summary, rewrite, additions or deletions. In 原声 · 无朗读, use those sentences only as caption/text units. In narrated
+modes, make one TTS file for each complete sentence. Never merge two template sentences into one TTS request and never
+truncate a sentence to meet a duration target. Visual shots may span several sentences, but narration and display text
+remain sentence-by-sentence and verbatim.
 
 Probe supplied media for duration, dimensions and sound. Use `openfilm look <media-file>` for a contact sheet,
 then `look <media-file> <seconds>` or `look <media-file> <from>-<to>` to inspect candidate intervals. Look across each
@@ -71,6 +89,8 @@ each chosen source, range and a short reason. Do not use every file just to fill
 or silently fill shortages with unrelated shots. If nothing fits, identify the sentence and continue usable work.
 
 ## Time narration before final cuts
+
+Skip this section in 原声 · 无朗读 mode: preserve the source audio and use source speech timing when captions are needed.
 
 Use supplied sentence recordings when available. Continuous recordings need real sentence boundaries from a
 transcript or listening; do not divide evenly or estimate timing from character counts.

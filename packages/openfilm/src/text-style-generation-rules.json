@@ -16,13 +16,6 @@
     "explicitUserStyleTakesPriority": true,
     "output": "Save concrete resolved appearance values in each project text item, not ranges or live library references."
   },
-  "adTextRoles": {
-    "title": "Upper headline; prefer orange or red with a dark outline, with yellow or cyan when the frame needs it.",
-    "coreSellingPoint": "White label with dark blue or black lettering; keep the label behind the text and clear of the subject.",
-    "emphasis": "Yellow, orange or red emphasis line with a dark outline.",
-    "evidence": "White or light supporting line with a dark outline only on a dark background; otherwise use cyan, yellow or black.",
-    "location": "Separate lower-right safe-area location, usually split into two short lines; use the supplied text only."
-  },
   "font": {
     "candidates": ["宋体", "新青年体", "后现代体", "黑体", "圆体", "楷体"],
     "source": "All six candidates have packaged font files registered in text-fonts.json; no system installation, Jianying cache or online font library is required at runtime.",
