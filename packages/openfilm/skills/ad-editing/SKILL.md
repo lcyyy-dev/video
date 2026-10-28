@@ -26,28 +26,43 @@ The mode gate is authoritative for this skill. Do not let a generic narration in
 
 ## Reference text layout
 
-When the template uses **原声 · 无朗读**, keep the supplied audio and do not run any TTS or narration synthesis. When it
-contains a title, supporting lines and a location, use this compact vertical-ad structure unless the person specifies
-another layout. Choose the visual variant after inspecting the frame:
+When the template uses **原声 · 无朗读**, keep the supplied audio and do not run any TTS or narration synthesis. The
+following role mapping is required for this mode unless the person explicitly requests another style. Read every filled
+template field first, then assign it to a role; never invent missing wording:
+
+- `titleText` → top headline.
+- `subtitleText` → core selling point.
+- `bodyText` → sentence-sized emphasis/evidence lines, preserving every character and sentence order.
+- `locationText` → separate location label.
+
+If a field contains several sentences, split the display into sentence-sized text clips while keeping the exact text.
+Do not put a long multi-sentence body into one oversized paragraph when it can be split without changing the wording.
+Choose the visual variant after inspecting the frame:
 
 1. **Top headline**: one or two short lines near the upper area. Use a strong colored fill or a blue bar with bold white
-   text and a dark shadow/outline. Candidate canvas font size: 78–112 px.
+   text and a dark shadow/outline. Required canvas font size: 78–112 px.
 2. **Core selling point**: one line in a blue rounded/rectangular label with bold white text, or a white label with dark
-   blue lettering. Candidate canvas font size: 68–100 px. Keep the label behind the text and clear of the subject.
+   blue lettering. Required canvas font size: 68–100 px. Keep the label behind the text and clear of the subject.
 3. **Emphasis line**: one benefit or action line in yellow, orange or red with a dark outline, optionally without a bar.
-   Candidate canvas font size: 58–88 px.
+   Required canvas font size: 58–88 px.
 4. **Evidence line**: one short supporting line in white, yellow or red with a dark outline/shadow; use a dark bar when
-   the frame is bright. Candidate canvas font size: 48–78 px.
-5. **Family/closing line**: an optional red or white statement with a dark outline, used for a supplied quote or result.
-   Candidate canvas font size: 48–76 px.
+   the frame is bright. Required canvas font size: 48–78 px.
+5. **Family/closing line**: an optional red or white statement with a dark outline, used only for supplied quote/result
+   text. Required canvas font size: 48–76 px.
 6. **Location**: place the supplied location separately near a lower corner safe area, normally split into two short lines
    such as “山东” and “济南”. Use a blue/cyan or white fill with a dark outline and 52–82 px; do not invent a location
    or merge it into the title.
 
+Use at least two distinct visual treatments when two or more roles are present: for example, a blue label for the core
+selling point and yellow/red emphasis for the body. Do not render every text item with one fill color, one size or one
+layout unless the footage makes every alternative unreadable; if that exception is necessary, record the reason.
+
 These are layout roles, not permission to rewrite or compress the template. Keep each filled field verbatim. In 原声 · 无朗读
 mode, captions follow the supplied copy or source speech and never create replacement narration. Inspect the final frame
 to confirm that the text blocks do not hide the person or equipment, and reduce size or split lines when a block would
-leave the safe area.
+leave the safe area. The final check must explicitly verify: role order, at least two treatments when possible, no
+oversized paragraph, readable contrast, and a separate location label. If any check fails, revise the text pages before
+reporting completion.
 
 ## Start from the brief
 
