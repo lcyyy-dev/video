@@ -5,10 +5,10 @@ import { join } from 'node:path';
 import { parseSkillFile } from './skills.mjs';
 
 const SKILLS = join(import.meta.dirname, '..', 'skills');
-const NAMES = readdirSync(SKILLS, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+const NAMES = readdirSync(SKILLS, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
 
-test('the packaged advertising workflow has valid metadata in five languages', () => {
-  assert.deepEqual(NAMES, ['ad-editing']);
+test('the packaged video workflows have valid metadata in five languages', () => {
+  assert.deepEqual(NAMES, ['ad-editing', 'copy-rewrite', 'live-clips', 'talk-editing']);
   for (const name of NAMES) {
     const { fields } = parseSkillFile(readFileSync(join(SKILLS, name, 'SKILL.md'), 'utf8'));
     assert.equal(fields.name, name);
@@ -30,6 +30,6 @@ test('every file a skill names in its own folder is there', () => {
   }
 });
 
-test('the advertising workflow is maintained in this repository', () => {
-  assert.match(readFileSync(join(SKILLS, 'SOURCE'), 'utf8'), /Package-owned advertising workflow: ad-editing/);
+test('the video workflows are maintained in this repository', () => {
+  assert.match(readFileSync(join(SKILLS, 'SOURCE'), 'utf8'), /Package-owned video workflows: ad-editing, talk-editing, copy-rewrite, live-clips/);
 });

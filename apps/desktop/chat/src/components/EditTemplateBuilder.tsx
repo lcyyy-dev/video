@@ -52,37 +52,69 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   useEffect(() => {
     if (!open) return;
     dialog.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); trigger.current?.focus(); }
-      if (e.key === 'Tab') {
-        const nodes = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, textarea, select, [tabindex="0"]') ?? []).filter(node => !node.closest('[inert], [aria-hidden="true"]'));
-        if (!nodes?.length) return;
-        const first = nodes[0], last = nodes[nodes.length - 1];
-        if (e.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { e.preventDefault(); last.focus(); }
-        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-      }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
   const patch = (value: Partial<Config>) => { setConfig(c => ({ ...c, ...value })); setSaveError(''); };
-  const pasteText = (key: 'titleText' | 'subtitleText' | 'bodyText' | 'locationText' | 'coverText' | 'source' | 'logic' | 'notes') => (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const textKeys = ['titleText', 'subtitleText', 'bodyText', 'locationText', 'coverText', 'source', 'logic', 'notes'] as const;
+  const composing = useRef(false);
+  const textChange = (key: typeof textKeys[number]) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    /* Do not replace the DOM value while an IME is composing a candidate. React's controlled
+       rerender can otherwise cancel the composition before the candidate is committed. */
+    if (composing.current || (event.nativeEvent as InputEvent).isComposing) return;
+    patch({ [key]: event.currentTarget.value } as Partial<Config>);
+  };
+  const compositionStart = () => { composing.current = true; };
+  const compositionEnd = (key: typeof textKeys[number]) => (event: React.CompositionEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    composing.current = false;
+    patch({ [key]: event.currentTarget.value } as Partial<Config>);
+  };
+  const pasteText = (key: typeof textKeys[number]) => (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const plain = event.clipboardData.getData('text/plain');
+    const html = event.clipboardData.getData('text/html');
+    if (!plain && !html) return;
+    /* Some Windows clipboard producers expose a damaged text/plain flavor while their HTML
+       flavor still contains valid Unicode. Prefer that clean flavor when replacement or
+       classic UTF-8-as-Western mojibake is present. */
+    const damage = (text: string) => (text.match(/\uFFFD/g)?.length ?? 0) * 10 + (text.match(/(?:Ã.|Â.|â.|ï.)/g)?.length ?? 0) * 2;
+    const damaged = damage(plain) > 0;
+    let htmlText = '';
+    if (html) {
+      const body = new DOMParser().parseFromString(html, 'text/html').body;
+      body.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+      htmlText = body.textContent ?? '';
+    }
     const target = event.currentTarget;
-    const browserText = event.clipboardData.getData('text/plain');
-    if (!browserText) return;
     const start = target.selectionStart ?? target.value.length;
     const end = target.selectionEnd ?? start;
     event.preventDefault();
-    void app.clipboardText().catch(() => browserText).then(text => {
-      const inserted = text || browserText;
+    const finish = (nativeText: string) => {
+      const candidates = [plain, htmlText, nativeText].filter(Boolean);
+      const inserted = candidates.sort((a, b) => damage(a) - damage(b))[0] ?? '';
       const next = `${target.value.slice(0, start)}${inserted}${target.value.slice(end)}`;
+      /* These fields are intentionally uncontrolled while editing. Set the DOM value first so a
+         paste and a following IME composition are not replaced by React's next render. */
+      target.value = next;
       patch({ [key]: next } as Partial<Config>);
       requestAnimationFrame(() => { target.focus(); const caret = start + inserted.length; target.setSelectionRange(caret, caret); });
-    });
+    };
+    /* Only ask Electron for the native clipboard when Chromium reported suspicious text; a
+       clean browser value remains authoritative and avoids reintroducing the old corruption. */
+    if (damaged || !plain) void app.clipboardText().catch(() => '').then(finish);
+    else finish('');
   };
-  const text = (key: 'titleText' | 'subtitleText' | 'bodyText' | 'locationText' | 'coverText' | 'source' | 'logic' | 'notes', label: string, placeholder: string, multiline = false) => multiline
-    ? <textarea aria-label={label} value={config[key]} onChange={e => patch({ [key]: e.target.value })} onPaste={pasteText(key)} placeholder={placeholder} rows={3} />
-    : <input aria-label={label} value={config[key]} onChange={e => patch({ [key]: e.target.value })} onPaste={pasteText(key)} placeholder={placeholder} />;
+  const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    /* Keep keyboard shortcuts used by an input method inside the native composition flow. */
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus(); return; }
+    if (event.key !== 'Tab') return;
+    const nodes = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, textarea, select, [tabindex="0"]') ?? []).filter(node => !node.closest('[inert], [aria-hidden="true"]'));
+    if (!nodes.length) return;
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  };
+  const text = (key: typeof textKeys[number], label: string, placeholder: string, multiline = false) => multiline
+    ? <textarea aria-label={label} defaultValue={config[key]} onChange={textChange(key)} onCompositionStart={compositionStart} onCompositionEnd={compositionEnd(key)} onPaste={pasteText(key)} placeholder={placeholder} rows={3} />
+    : <input aria-label={label} defaultValue={config[key]} onChange={textChange(key)} onCompositionStart={compositionStart} onCompositionEnd={compositionEnd(key)} onPaste={pasteText(key)} placeholder={placeholder} />;
   const elements = [config.title && '标题', config.subtitles && '副标题', config.body && '正文', config.body && config.highlight && '关键词高亮', config.location && '地点'].filter(Boolean);
   const summary = templateSummary(config);
   const save = async () => {
@@ -106,7 +138,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
       <ChevronRight size={15} aria-hidden="true" />
     </button>
     {open ? <div className="edit-template-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) { setOpen(false); trigger.current?.focus(); } }}>
-      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="edit-template-title" tabIndex={-1} className="template-native-dialog">
+      <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby="edit-template-title" tabIndex={-1} onKeyDown={onDialogKeyDown} className="template-native-dialog">
         <h2 id="edit-template-title" className="sr-only">剪辑模板</h2>
         <button type="button" className="template-native-close" aria-label="关闭剪辑模板" onClick={() => { setOpen(false); trigger.current?.focus(); }}><X size={18} /></button>
           {saveError ? <p className="template-native-status" role="alert">{saveError}</p> : null}
@@ -117,7 +149,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
           >
           <Step title="欢迎">
             <h3 className="template-native-title">开始你的影片创作</h3>
-            <p className="template-native-description">选择广告模板，设置画面元素并保存。回到右侧输入需求、添加素材，即可开始剪辑。</p>
+            <p className="template-native-description">选择剪辑模板，设置画面元素并保存。回到右侧输入需求、添加素材，即可开始剪辑。</p>
           </Step>
           <Step title="模板">
             <h3 className="template-native-title">选择剪辑模板</h3>

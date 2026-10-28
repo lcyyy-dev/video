@@ -9,7 +9,7 @@
  * in the page (shell/bridge.ts); this process does what only the app can: the window, the agents, files on the disk,
  * ffmpeg, updates (preload.cjs). The window opens straight into the last project.
  */
-import { BaseWindow, Menu, WebContentsView, app, clipboard, dialog, ipcMain, nativeTheme, screen, shell } from 'electron';
+import { BaseWindow, Menu, WebContentsView, app, clipboard, dialog, ipcMain, nativeTheme, safeStorage, screen, shell } from 'electron';
 import { appendFileSync, createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
@@ -47,6 +47,12 @@ const overlayColours = (t) => ({ color: t === 'dark' ? '#111111' : '#f2f2f2', sy
 
 /* HTML-in-Canvas in Studio's viewer, as in the renderer (the `openfilm` package's src/host.mjs) */
 app.commandLine.appendSwitch('enable-blink-features', 'CanvasDrawElement');
+/* Chromium's Wayland text-input protocol is opt-in in Electron. Without it IBus/Fcitx can
+   switch in other Linux apps but Chromium fields remain English-only. */
+if (process.platform === 'linux' && process.env.WAYLAND_DISPLAY) {
+  app.commandLine.appendSwitch('enable-wayland-ime');
+  app.commandLine.appendSwitch('wayland-text-input-version', '3');
+}
 
 /* each flavour its own name, data folder and single-instance lock (flavor.mjs) */
 app.setName(PRODUCT_NAME);
@@ -55,6 +61,17 @@ const DATA = app.getPath('userData');
 const LOGS = join(DATA, 'logs');
 mkdirSync(LOGS, { recursive: true });
 const log = (line) => { try { appendFileSync(join(LOGS, 'studio.log'), line); } catch { /* no log */ } };
+/* Keep hosted-model credentials in the OS credential store when Electron can provide one (Windows DPAPI,
+   Keychain-backed storage on macOS). Linux environments without a working keyring retain the existing file fallback. */
+const sub2apiStorage = () => {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) return {};
+    return {
+      encrypt: (value) => safeStorage.encryptString(value).toString('base64'),
+      decrypt: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
+    };
+  } catch { return {}; }
+};
 
 if (!app.requestSingleInstanceLock()) {
   if (!app.isPackaged) console.log(`${PRODUCT_NAME} is already running; requesting its existing window.`);
@@ -417,18 +434,18 @@ async function start() {
   ipcMain.on('desktop:theme', (event, next) => { if (fromPage(event)) setTheme(next); });
   ipcMain.handle('desktop:hello', (event) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
-    return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()), sub2api: publicSub2ApiConfig(DATA) };
+    return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()), sub2api: publicSub2ApiConfig(DATA, sub2apiStorage()) };
   });
   ipcMain.handle('desktop:clipboard-text', (event) => fromPage(event) ? clipboard.readText() : '');
-  ipcMain.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA) : null);
+  ipcMain.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA, sub2apiStorage()) : null);
   ipcMain.handle('desktop:sub2api:set', (event, input) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
-    const result = saveSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? 'gpt-6.1-sol') });
+    const result = saveSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? 'gpt-6.1-sol') }, sub2apiStorage());
     localAgents?.closeAll();
     void roster?.refresh();
     return result;
   });
-  ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? '') }) : null);
+  ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? '') }, fetch, sub2apiStorage()) : null);
   /* the chat's column as the person left it (the page sizes it; the window keeps it for next time) */
   ipcMain.on('desktop:layout', (event, next) => {
     if (!fromPage(event) || !next || typeof next !== 'object') return;
@@ -510,7 +527,7 @@ async function start() {
   /* Settings → Agents (in Studio's page) and the chat's agent menu: one roster, both told of every change */
   roster = createRoster({
     dataDir: DATA,
-    providerConfigured: () => publicSub2ApiConfig(DATA).configured,
+    providerConfigured: () => publicSub2ApiConfig(DATA, sub2apiStorage()).configured,
     localAgents: () => listAgents(CLIENT_AGENTS),
     openSignIn: openAgentSignIn,
     /* sessions closed on connecting and disconnecting: the next look at its usage is for whichever account is used now */
@@ -576,6 +593,7 @@ async function start() {
   /* updates (updates.mjs): Restart waits while an agent's turn runs or Studio exports, either would be lost */
   updates = startUpdates({
     dataDir: DATA,
+      storage: sub2apiStorage(),
     productName: PRODUCT_NAME,
     getWindow: () => win,
     onState: (next) => broadcast('desktop:update', next),

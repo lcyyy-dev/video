@@ -19,6 +19,11 @@ import { isAbsolute, join } from 'node:path';
 /* what the system gives every program the person starts, a terminal included: SSH_AUTH_SOCK (their keys' agent, for git
    over ssh) comes from it, not from the shell's files */
 const OS_KEYS = ['HOME', 'USER', 'LOGNAME', 'SHELL', 'TMPDIR', 'LANG', 'TZ', 'SSH_AUTH_SOCK', 'LD_LIBRARY_PATH'];
+/* Linux IME frameworks use these variables to connect Chromium to IBus/Fcitx. The desktop launcher
+   must preserve them just like DISPLAY and DBUS_SESSION_BUS_ADDRESS, otherwise the app falls back to
+   an English-only keyboard even when the rest of the desktop can type Chinese. */
+const IME_KEYS = ['GTK_IM_MODULE', 'QT_IM_MODULE', 'XMODIFIERS', 'SDL_IM_MODULE', 'GLFW_IM_MODULE', 'INPUT_METHOD',
+  'IBUS_ADDRESS', 'IBUS_SERVER', 'FCITX_DBUS_ADDRESS', 'FCITX_IM_MODULE'];
 /** what a Windows program needs to find its system, its profile and its temporary folder */
 const WIN_KEYS = ['SystemRoot', 'SystemDrive', 'windir', 'ComSpec', 'PATHEXT', 'TEMP', 'TMP', 'USERPROFILE', 'USERNAME', 'USERDOMAIN',
   'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432',
@@ -267,7 +272,7 @@ export function launcherEnvironment(source, path) {
   for (const key of LAUNCHER_FLAGS) if (typeof source[key] === 'string') env[key] = source[key];
   /* Linux desktop sessions (including WSLg) supply the display, audio and optional local runtime libraries. */
   if (process.platform === 'linux') {
-    for (const key of ['DISPLAY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'XAUTHORITY', 'DBUS_SESSION_BUS_ADDRESS', 'PULSE_SERVER', 'LD_LIBRARY_PATH']) {
+    for (const key of ['DISPLAY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'XAUTHORITY', 'DBUS_SESSION_BUS_ADDRESS', 'PULSE_SERVER', 'LD_LIBRARY_PATH', ...IME_KEYS]) {
       if (typeof source[key] === 'string') env[key] = source[key];
     }
   }

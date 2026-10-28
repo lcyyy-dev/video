@@ -16,6 +16,13 @@
     "explicitUserStyleTakesPriority": true,
     "output": "Save concrete resolved appearance values in each project text item, not ranges or live library references."
   },
+  "adTextRoles": {
+    "title": "Upper headline; prefer orange or red with a dark outline, with yellow or cyan when the frame needs it.",
+    "coreSellingPoint": "White label with dark blue or black lettering; keep the label behind the text and clear of the subject.",
+    "emphasis": "Yellow, orange or red emphasis line with a dark outline.",
+    "evidence": "White or light supporting line with a dark outline only on a dark background; otherwise use cyan, yellow or black.",
+    "location": "Separate lower-right safe-area location, usually split into two short lines; use the supplied text only."
+  },
   "font": {
     "candidates": ["宋体", "新青年体", "后现代体", "黑体", "圆体", "楷体"],
     "source": "All six candidates have packaged font files registered in text-fonts.json; no system installation, Jianying cache or online font library is required at runtime.",
@@ -33,7 +40,16 @@
   },
   "fill": {
     "mode": "scene-adaptive",
-    "selection": "Inspect the footage behind the intended text placement across its visible interval. Match the scene palette while preserving legibility; inspect the composed result."
+    "palette": [
+      { "id": "yellow", "color": "#FFEA00" },
+      { "id": "orange", "color": "#FF7A1A" },
+      { "id": "red", "color": "#FF344D" },
+      { "id": "cyan", "color": "#00D5ED" },
+      { "id": "green", "color": "#2F9F64" },
+      { "id": "purple", "color": "#7C5CFF" },
+      { "id": "black", "color": "#111111" }
+    ],
+    "selection": "Inspect the footage behind the intended text placement across its visible interval. Choose the most readable color from the palette, then inspect the composed result. Do not choose white as a fill unless the person explicitly requests white."
   },
   "stroke": {
     "color": { "darkText": "#FFFFFF", "lightText": "#000000" },

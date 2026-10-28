@@ -1,4 +1,4 @@
-/** The advertising client's single local agent, with connection and installation diagnostics. */
+/** The video-editing client's single local agent, with connection and installation diagnostics. */
 import React from 'react';
 import { Copy, Download, Loader2 } from 'lucide-react';
 import { useLanguage, useT } from '@/i18n';

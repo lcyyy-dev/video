@@ -9,6 +9,29 @@ Make the supplied footage tell the supplied message using relevant shots and edi
 text and narration boundaries independently to serve the message. Reuse OpenFilm's existing agent, media tools, film
 format and exporter.
 
+For a normal template generation request, keep the execution short: inspect the supplied media, read this skill, read
+the template's exact copy, synthesize the required sentence audio, assemble the timeline, run one final `openfilm look`
+or project check, and report. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
+
+## Reference text layout
+
+When the template contains a title, three supporting lines and a location, use this compact vertical-ad structure unless
+the person specifies another layout:
+
+1. **Title**: one short headline near the upper area. Prefer an orange or red fill with a dark outline; choose yellow or
+   cyan when that gives stronger contrast against the actual frame.
+2. **Core selling point**: one line in a white rounded or rectangular label with dark blue or black lettering. Keep the
+   label behind the text and do not let it cover the subject.
+3. **Emphasis line**: one benefit or action line in yellow, orange or red with a dark outline. Keep the exact template
+   wording and use the line as the visual emphasis.
+4. **Evidence line**: one short supporting line in white or a very light color with a dark outline, only when the frame
+   is dark enough; otherwise choose cyan, yellow or black for contrast.
+5. **Location**: place the supplied location separately near the lower-right safe area, normally split into two short
+   lines such as “山东” and “济南”. Do not invent a location or merge it into the title.
+
+These are layout roles, not permission to rewrite or compress the template. Keep each filled field verbatim and keep each
+sentence as its own TTS unit. Inspect the final frame to confirm that the four lines do not hide the person or equipment.
+
 ## Start from the brief
 
 Read the OpenFilm manual (`openfilm`) and existing project before editing. Respect the person's footage, copy,
@@ -28,11 +51,11 @@ record; `film.html` remains the editable film. Reuse confirmed analysis and choi
 
 ## Find the shots
 
-Split the copy into semantic message units and natural speaking pauses; assign stable unit IDs. Punctuation is only a
-hint: do not make one shot or one title for every comma or full stop. Keep closely related clauses together, and let a
-short ad use roughly four to six meaningful visual units rather than many repetitive short clips. A unit may contain
-two or three related sentences when they express one point. Keep the full narration wording unless rewriting was
-requested, but save a concise display text separately when the screen copy would otherwise be too long.
+Split the copy into complete sentences at sentence punctuation and natural pauses; assign stable sentence IDs. When
+the template already contains wording, that wording is locked: preserve it character for character, with no shortening,
+summary, rewrite, additions or deletions. Make one TTS file for each complete sentence. Never merge two template
+sentences into one TTS request and never truncate a sentence to meet a duration target. Visual shots may span several
+sentences, but the narration and display text remain sentence-by-sentence and verbatim.
 
 Probe supplied media for duration, dimensions and sound. Use `openfilm look <media-file>` for a contact sheet,
 then `look <media-file> <seconds>` or `look <media-file> <from>-<to>` to inspect candidate intervals. Look across each
@@ -52,7 +75,7 @@ or silently fill shortages with unrelated shots. If nothing fits, identify the s
 Use supplied sentence recordings when available. Continuous recordings need real sentence boundaries from a
 transcript or listening; do not divide evenly or estimate timing from character counts.
 
-Reuse supplied recordings when available. When the host provides local TTS, synthesize one file per semantic message unit (a coherent sentence or a short group of closely related sentences) and
+Reuse supplied recordings when available. When the host provides local TTS, synthesize one file per complete sentence and
 measure each real file's duration before choosing shot ranges. If local TTS is unavailable, continue the edit with
 the supplied copy and available source audio or silent timing, and record narration as pending; missing narration
 alone must not block a usable video edit. Cloud TTS is outside this client's current scope unless a provider is
@@ -78,7 +101,10 @@ openfilm text-styles rules
 ```
 
 An explicit style wins. Otherwise start from the saved default, applying scene-informed choices from the suggested
-ranges. Give the film a coherent visual direction without requiring identical styles for every text clip. Vary color,
+ranges. Give the film a coherent visual direction without requiring identical styles for every text clip. Choose fill
+colors from the generation policy palette (yellow, orange, red, cyan, green, purple or black) after inspecting the
+footage; choose the clearest contrast for each scene and keep the main color consistent. White fill is reserved for an
+explicit user request. Vary color,
 size, weight, emphasis, placement or background where the message and footage call for it; preserve legibility and
 respect explicit user choices. Inspect the footage behind the intended text area when choosing fill and outline
 colors, including every shot beneath a text clip that spans cuts; check readability across the interval. Record concrete values and selection rationale.

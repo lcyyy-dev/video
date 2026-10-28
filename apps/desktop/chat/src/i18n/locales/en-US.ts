@@ -276,7 +276,7 @@ export const enUS = {
     s13: 'Make a fitness coach promo, keeping text clear of the person and actions',
     s3: 'Make a product ad with one shot for each sentence',
     s4: 'Revise the shots and text in this ad while preserving my manual edits',
-    title: 'Make an advertising edit',
+    title: 'Make a video edit',
     tryLabel: 'Try one of these, just tap',
   },
   turnAsk: {

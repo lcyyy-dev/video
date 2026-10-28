@@ -1,4 +1,4 @@
-/** Read-only advertising workflow access for the client's composer. */
+/** Read-only bundled workflow access for the client's composer. */
 import { resolve } from 'node:path';
 import { listSkills, skillText } from 'openfilm/skills';
 import { CLIENT_SKILLS } from 'openfilm/client-scope';

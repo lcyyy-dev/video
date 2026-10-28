@@ -45,7 +45,7 @@ export const SKILL_SOURCES = /** @type {const} */ (['project', 'mine', 'official
 /** @typedef {typeof SKILL_SOURCES[number]} SkillSource */
 
 /**
- * The advertising workflow released with this package.
+ * The video workflows released with this package.
  * OPENFILM_OFFICIAL_SKILLS names another folder of them: a checkout's skills/, while they are being changed.
  */
 export const officialSkillsDir = () => process.env.OPENFILM_OFFICIAL_SKILLS || join(dirname(fileURLToPath(import.meta.url)), '..', 'skills');

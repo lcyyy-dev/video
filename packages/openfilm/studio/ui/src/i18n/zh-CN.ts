@@ -1531,8 +1531,8 @@ export const zhCN: Words = {
       appFailed: '更新没能完成，请稍后再试。',
     },
     agents: {
-      intro: '连接这台电脑上的 Codex，用于广告剪辑。安装并登录 Codex 后在这里连接；当前不需要配置其他智能体或云端媒体服务。',
-      managedIntro: '软件已内置 Codex，无需单独安装。登录后即可开始广告剪辑，Codex 随软件统一更新。',
+      intro: '连接这台电脑上的 Codex，用于视频剪辑。安装并登录 Codex 后在这里连接；当前不需要配置其他智能体或云端媒体服务。',
+      managedIntro: '软件已内置 Codex，无需单独安装。登录后即可开始视频剪辑，Codex 随软件统一更新。',
       byokName: '自有密钥',
       groupYours: '你的智能体',
       groupMore: '还可以接入的智能体',

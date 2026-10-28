@@ -1,8 +1,8 @@
 # OpenFilm for desktop
 
-An advertising-editing desktop client: Studio with one video-editing chat, footage import, timeline editing, text styles, video export and editable Jianying/CapCut drafts.
+An editing desktop client: Studio with one video-editing chat, footage import, timeline editing, text styles, video export and editable Jianying/CapCut drafts.
 
-Templates are saved by the native process to each project's `.film/edit-template.json`. The advertising template is fixed to `ad-editing`; prompt and steering requests always load it before reaching Codex. Unimplemented template types are disabled. See [the workflow](../../docs/CLIENT_EDIT_WORKFLOW.zh-CN.md).
+Templates are saved by the native process to each project's `.film/edit-template.json`. The selected template routes to its matching bundled workflow before reaching Codex. See [the workflow](../../docs/CLIENT_EDIT_WORKFLOW.zh-CN.md).
 
 There is no standalone browser UI. Studio's UI sources, local HTTP API and headless Chromium are internal parts of the desktop editor and renderer.
 
@@ -20,7 +20,7 @@ shares anything with an installed OpenFilm. Its renamed copy of Electron lives i
 Windows installers include a pinned Codex executable and its complete native runtime. For video planning, configure a
 Sub2API domain and user key as described in [the hosted Codex guide](../../docs/SUB2API_HOSTED_CODEX.zh-CN.md);
 the video planner does not inherit the user's ChatGPT credentials. Windows uses an app-private Codex home and receives Codex updates through
-app releases. Source runs and macOS builds still use a separately installed Codex. This client carries only the `ad-editing` workflow. It does not include other agent
+app releases. Source runs and macOS builds still use a separately installed Codex. This client carries four fixed video workflows: `ad-editing`, `talk-editing`, `copy-rewrite` and `live-clips`. It does not include other agent
 runtimes, a skill marketplace, remote project galleries, or cloud media-provider configuration. For narration,
 use supplied recordings or explicitly requested local simulated audio; cloud TTS is deferred.
 
@@ -31,6 +31,12 @@ Desktop network proxy settings (HTTP/HTTPS/ALL/NO_PROXY, including lowercase var
 
 On Linux, the launcher keeps the desktop session's display and audio variables. WSLg source runs default to the native Wayland backend; pass `--ozone-platform=x11` to the launcher to override it. Optional development libraries in
 `.dev/linux-libs/usr/lib/x86_64-linux-gnu/` and ffmpeg in `.dev/runtime/ffmpeg/` are reused when present.
+
+WSLg does not forward the Windows taskbar IME (for example, Microsoft Pinyin) to Linux GUI applications. In that
+environment OpenFilm can receive Latin key presses and pasted Chinese text, but it cannot receive an IME composition.
+This is a WSLg limitation, so changing the React editor or switching Electron between X11 and Wayland does not fix it.
+Use a Windows-native OpenFilm build when Windows IME input is required, or install and run a Linux IME inside WSL
+(Fcitx5/IBus) and configure it for the WSLg session.
 To use an already running Chromium browser, set `OPENFILM_BROWSER_CDP_URL` to its local CDP address. Set
 `OPENFILM_SKIP_BROWSER_DOWNLOAD=1` to report a missing browser instead of downloading one. These two settings can
 also be stored as strings in `.dev/runtime/browser.json` (git-ignored); explicit environment values take precedence.

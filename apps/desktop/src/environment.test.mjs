@@ -5,12 +5,14 @@ import { childEnvironment, environmentCache, expandWindowsVars, launcherEnvironm
 test('the Linux launcher preserves the desktop session without passing agent configuration', { skip: process.platform !== 'linux' }, () => {
   const source = { HOME: '/tmp/example-home', DISPLAY: ':0', WAYLAND_DISPLAY: 'wayland-0',
     XDG_RUNTIME_DIR: '/run/user/1000', XAUTHORITY: '/tmp/example.auth', DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
-    PULSE_SERVER: 'unix:/tmp/pulse', LD_LIBRARY_PATH: '/opt/example/lib', OPENFILM_DESKTOP_FLAVOR: 'dev',
+    PULSE_SERVER: 'unix:/tmp/pulse', LD_LIBRARY_PATH: '/opt/example/lib', GTK_IM_MODULE: 'fcitx', QT_IM_MODULE: 'fcitx',
+    XMODIFIERS: '@im=fcitx', FCITX_DBUS_ADDRESS: 'unix:path=/run/user/1000/fcitx', OPENFILM_DESKTOP_FLAVOR: 'dev',
     CLAUDECODE: '1', ANTHROPIC_API_KEY: 'example', NODE_OPTIONS: '--inspect', ELECTRON_RUN_AS_NODE: '1' };
   const env = launcherEnvironment(source, '/usr/bin:/bin');
   for (const key of ['DISPLAY', 'WAYLAND_DISPLAY', 'XDG_RUNTIME_DIR', 'XAUTHORITY', 'DBUS_SESSION_BUS_ADDRESS', 'PULSE_SERVER', 'LD_LIBRARY_PATH']) {
     assert.equal(env[key], source[key]);
   }
+  for (const key of ['GTK_IM_MODULE', 'QT_IM_MODULE', 'XMODIFIERS', 'FCITX_DBUS_ADDRESS']) assert.equal(env[key], source[key]);
   assert.equal(env.PATH, '/usr/bin:/bin');
   assert.equal(env.CLAUDECODE, undefined);
   assert.equal(env.ANTHROPIC_API_KEY, undefined);

@@ -12,8 +12,17 @@ test('native requests stay in the active project while preserving Codex turn sha
   assert.equal(Object.hasOwn(out.params, 'environments'), false, 'native local execution must stay enabled');
 });
 
-test('native project sessions cannot change host settings or run host commands', () => {
-  for (const method of ['config/value/write', 'config/batchWrite', 'account/login/start', 'account/logout', 'command/exec', 'process/exec', 'fs/writeFile']) {
+test('native project sessions cannot change host settings', () => {
+  for (const method of ['config/value/write', 'config/batchWrite', 'account/login/start', 'account/logout']) {
     assert.throws(() => projectRequest({ method, params: {} }, '/tmp/openfilm-project'), /Project sessions/);
   }
+});
+
+test('legacy execution requests stay inside the active project sandbox', () => {
+  const root = '/tmp/openfilm-project';
+  const command = projectRequest({ method: 'command/exec', params: { command: 'openfilm look' } }, root);
+  assert.equal(command.params.cwd, root);
+  assert.deepEqual(command.params.sandboxPolicy.writableRoots, [root]);
+  assert.throws(() => projectRequest({ method: 'fs/writeFile', params: { path: '/tmp/other.txt' } }, root), /outside/);
+  assert.doesNotThrow(() => projectRequest({ method: 'fs/writeFile', params: { path: `${root}/film.html` } }, root));
 });

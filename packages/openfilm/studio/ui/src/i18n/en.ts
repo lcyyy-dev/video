@@ -1531,7 +1531,7 @@ export const en = {
       appFailed: 'Could not complete the update. Try again later.',
     },
     agents: {
-      intro: 'Connect the Codex installed on this computer for advertising edits. Install and sign in to Codex, then connect here. Other agents and cloud media services are outside this client’s current scope.',
+      intro: 'Connect the Codex installed on this computer for video edits. Install and sign in to Codex, then connect here. Other agents and cloud media services are outside this client’s current scope.',
       managedIntro: 'Codex is included with this app. Sign in to start editing ads. Updates are delivered with app updates.',
       byokName: 'Your own key',
       groupYours: 'Your agents',

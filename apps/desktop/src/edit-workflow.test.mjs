@@ -28,3 +28,13 @@ test('project template remains local context and malformed files fail clearly', 
   assert.match(prepareEditPrompt(root, '继续').text, /模板配置无法读取/);
   assert.match(prepareEditPrompt(root, '1\+1').text, /1\+1/);
 });
+
+test('each enabled template routes to its own bundled workflow', () => {
+  const root = project();
+  for (const [kind, skill] of [['ad', 'ad-editing'], ['talk', 'talk-editing'], ['copy', 'copy-rewrite'], ['live', 'live-clips']]) {
+    saveTemplate(root, { ...initialTemplate(), kind });
+    const prepared = prepareEditPrompt(root, '继续');
+    assert.equal(prepared.workflow.skill, skill);
+    assert.match(prepared.text, new RegExp(`openfilm skill ${skill}`));
+  }
+});

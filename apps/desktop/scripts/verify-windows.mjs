@@ -11,6 +11,9 @@ export function verifyWindowsApp(dir, { run = process.platform === 'win32' } = {
   const required = ['OpenFilm.exe', 'resources/app.asar',
     'resources/app.asar.unpacked/node_modules/@agentclientprotocol/codex-acp/dist/index.js',
     'resources/app.asar.unpacked/node_modules/openfilm/skills/ad-editing/SKILL.md',
+    'resources/app.asar.unpacked/node_modules/openfilm/skills/talk-editing/SKILL.md',
+    'resources/app.asar.unpacked/node_modules/openfilm/skills/copy-rewrite/SKILL.md',
+    'resources/app.asar.unpacked/node_modules/openfilm/skills/live-clips/SKILL.md',
     'resources/runtime/ffmpeg/ffmpeg.exe', 'resources/runtime/ffmpeg/ffprobe.exe'];
   for (const file of required) if (!existsSync(join(dir, file))) throw new Error(`Windows package is incomplete: ${file}`);
   const browsers = join(runtime, 'ms-playwright');

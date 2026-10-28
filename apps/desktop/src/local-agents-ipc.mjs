@@ -182,7 +182,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
       const dataDir = videoSecurity?.dataDir ?? skills?.dataDir;
       const cwd = join(dataDir, 'codex-probe');
       mkdirSync(cwd, { recursive: true });
-      session = new ProjectSession({ agent, cwd, dataDir, fallbackDir, env, skills });
+      session = new ProjectSession({ agent, cwd, dataDir, fallbackDir, env, skills, storage: videoSecurity?.storage });
       const info = await session.start();
       return { ok: true, info: { ...info, commands: [] } };
     } catch (e) {
@@ -221,6 +221,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
         env,
         skills,
         dataDir: videoSecurity?.dataDir ?? skills?.dataDir,
+        storage: videoSecurity?.storage,
         onUpdate: (update) => send(entry, key, { kind: 'update', update }),
         onPermission: (params) => new Promise((resolve) => {
           const requestId = randomUUID();

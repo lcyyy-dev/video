@@ -1,0 +1,9 @@
+{
+  "version": "0.1.0",
+  "kind": "workflow",
+  "order": 4,
+  "icon": "radio",
+  "title": { "en": "Livestream clips", "zh-CN": "直播切片", "ja": "配信クリップ", "ko": "라이브 클립", "es": "Clips de directo" },
+  "summary": { "en": "Find a complete moment in a long recording and cut it into a focused, captioned clip.", "zh-CN": "从长直播中找出完整观点，剪成重点清晰、带字幕的短片。", "ja": "長い配信から話が完結する瞬間を見つけ、字幕付きの集中したクリップにします。", "ko": "긴 라이브에서 완결된 순간을 찾아 집중도 높은 자막 클립으로 만듭니다.", "es": "Encuentra un momento completo en una grabación larga y conviértelo en un clip claro con subtítulos." },
+  "details": { "en": "For livestreams, webinars, classes and podcasts. Keeps enough context to avoid misleading edits and records the exact source range.", "zh-CN": "适合直播、网络研讨会、课程和播客。保留必要上下文，避免断章取义，并记录精确来源区间。", "ja": "配信、ウェビナー、授業、ポッドキャスト向け。誤解を招かない文脈を残し、正確な出典範囲を記録します。", "ko": "라이브, 웨비나, 강의, 팟캐스트에 적합합니다. 오해를 막을 맥락을 남기고 정확한 원본 구간을 기록합니다.", "es": "Para directos, seminarios, clases y podcasts. Conserva el contexto necesario y registra el rango exacto de origen." }
+}

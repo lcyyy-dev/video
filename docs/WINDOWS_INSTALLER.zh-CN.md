@@ -15,19 +15,53 @@ pnpm --filter @openfilm/desktop test
 pnpm release:win
 ```
 
+如果在 WSL/Linux 环境中开发，也可以直接在仓库根目录重复执行最后一条命令导出 Windows x64 安装包：
+
+```bash
+pnpm release:win
+```
+
+该命令会重新构建客户端窗口、打包当前源码和内置运行时，并生成：
+
+```text
+apps/desktop/.release/win-x64/out/OpenFilm-Setup-x64.exe
+```
+
+后续修改代码或内置 skill 后，无需手动清理 `.release/`，再次运行 `pnpm release:win` 即可覆盖生成新包。安装包当前未配置 Windows 代码签名，首次安装可能显示“未知发布者”。
+
 输出目录为 `apps/desktop/.release/win-x64/out/`：
 
 - `OpenFilm-Setup-x64.exe`：给用户的完整 NSIS 安装包，可选择安装位置，默认安装到当前用户目录。
 - `build-manifest.json`：客户端、Electron、Codex 版本、Codex 来源和安装包 SHA-256。
 - `win-unpacked/`：构建后的完整应用目录，用于校验和本地试运行。
 
-脚本在生成安装包前检查完整 Codex 运行时、适配器、广告技能、FFmpeg 和 Windows x64 Chromium。缺少组件、下载校验失败或版本不符时构建失败，不输出可交付成功结论。
+脚本在生成安装包前检查完整 Codex 运行时、适配器、四种视频工作流技能、FFmpeg 和 Windows x64 Chromium。缺少组件、下载校验失败或版本不符时构建失败，不输出可交付成功结论。
 
 在 Windows 上验证解包后的应用，或已经安装的目录：
 
 ```powershell
 node apps/desktop/scripts/verify-windows.mjs apps/desktop/.release/win-x64/out/win-unpacked
 ```
+
+Linux/WSL 上可以验证 Windows 文件、架构和内置运行时是否齐全；Codex、FFmpeg、FFprobe 和 Chromium 的实际启动检查需要在 Windows 上执行：
+
+```bash
+node apps/desktop/scripts/verify-windows.mjs apps/desktop/.release/win-x64/out/win-unpacked
+```
+
+安装包的 SHA-256 可用以下命令记录或提供给 Windows 用户核对：
+
+```bash
+sha256sum apps/desktop/.release/win-x64/out/OpenFilm-Setup-x64.exe
+```
+
+当前工作区最近一次构建的 SHA-256：
+
+```text
+b76ec61f29661df9e3e0c9311d3ab7f11d35b5231c5f3b6e7c4218de4a2467d7
+```
+
+本版同时包含 Windows 项目执行权限边界修复、中文输入法组合输入修复、模板原文逐句 TTS 规则，以及 WSL 下临时 502/503/504 的自动重试。
 
 此命令检查文件完整性并运行 Codex、rg、FFmpeg、FFprobe 和浏览器的版本命令，不发送模型请求。Linux/macOS 上只能检查 Windows 文件完整性及架构，不能替代 Windows 真机验收。
 
@@ -48,7 +82,7 @@ Windows 安装包固定使用 `resources/runtime/codex/bin/codex.exe`，不采�
 1. 确定要使用的 Codex 版本，并检查 ACP 适配器兼容性；需要升级适配器时同步更新 `pnpm-lock.yaml`。
 2. 更新 `codex-build.json` 的版本、下载地址和官方包完整性值，更新 `build/licenses/codex/` 中对应版本的 LICENSE、NOTICE。
 3. 更新客户端发布版本，执行上述检查和构建命令。
-4. 在干净的 Windows 环境完成安装、登录、中文和含空格路径、广告生成、取消／重试、预览、视频导出和剪映草稿导出的验收。
+4. 在干净的 Windows 环境完成安装、登录、中文和含空格路径、四种模板生成、取消／重试、预览、视频导出和剪映草稿导出的验收。
 5. 记录 `build-manifest.json`，再向用户交付安装包。
 
 下载缓存位于 `apps/desktop/.release/cache/`，每次使用仍检查 Codex 压缩包完整性；失败时不会采用未经校验的副本。构建的 npm 运行时依赖采用当前锁定版本，避免打包时自动升级适配器。

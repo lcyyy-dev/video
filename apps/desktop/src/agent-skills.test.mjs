@@ -25,14 +25,14 @@ function world() {
   return { root, home, project, mine, config, dataDir: join(root, 'data') };
 }
 
-test('Codex receives only the advertising workflow; personal configuration stays unchanged', async () => {
+test('Codex receives the packaged video workflows; personal configuration stays unchanged', async () => {
   const w = world();
   const before = readFileSync(w.config, 'utf8');
   assert.deepEqual((await ownSkills('codex', { home: w.home, cwd: w.project })).map((skill) => skill.name), ['personal']);
   assert.deepEqual(ownMcpServers('codex', { home: w.home }).map((server) => server.name), ['personal']);
   const result = await sessionSkills('codex', { cwd: w.project, home: w.home, dataDir: w.dataDir, mine: w.mine });
-  assert.deepEqual(result.log.openfilm, ['ad-editing']);
-  assert.ok(existsSync(join(result.additionalDirectories[0], '.agents/skills/ad-editing/SKILL.md')));
+  assert.deepEqual(result.log.openfilm, ['ad-editing', 'copy-rewrite', 'live-clips', 'talk-editing']);
+  for (const skill of result.log.openfilm) assert.ok(existsSync(join(result.additionalDirectories[0], `.agents/skills/${skill}/SKILL.md`)));
   assert.ok(!existsSync(join(result.additionalDirectories[0], '.claude-plugin')));
   assert.equal(result.codexConfig['mcp_servers.personal.enabled'], false);
   assert.ok(!('mcp_servers.node_repl.enabled' in result.codexConfig));

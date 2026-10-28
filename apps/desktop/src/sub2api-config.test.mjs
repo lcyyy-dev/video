@@ -24,6 +24,15 @@ test('stored settings survive reopening and a blank key keeps the saved key', ()
   assert.equal(readSub2ApiConfig({}, dir), null);
 });
 
+test('uses the supplied OS-store adapter instead of writing the key as plain text', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'of-sub2api-secure-'));
+  const storage = { encrypt: value => Buffer.from(value, 'utf8').toString('base64'), decrypt: value => Buffer.from(value, 'base64').toString('utf8') };
+  saveSub2ApiConfig(dir, { baseUrl: 'http://127.0.0.1:8188/v1', apiKey: 'saved-key', model: 'gpt-6.1-sol' }, storage);
+  const raw = readFileSync(join(dir, 'sub2api.json'), 'utf8');
+  assert.doesNotMatch(raw, /saved-key/);
+  assert.equal(readSub2ApiConfig({}, dir, storage).apiKey, 'saved-key');
+});
+
 test('model test sends the selected model and saved key to Responses', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'sub2api-test-'));
   try {

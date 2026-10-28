@@ -1,0 +1,9 @@
+{
+  "version": "0.1.0",
+  "kind": "workflow",
+  "order": 3,
+  "icon": "file-text",
+  "title": { "en": "Copy rewrite", "zh-CN": "文案二创", "ja": "コピーリライト", "ko": "카피 재작성", "es": "Reescritura de guion" },
+  "summary": { "en": "Rewrite supplied copy in the requested direction and turn it into a timed, editable video.", "zh-CN": "按指定方向改写已有文案，制作成有节奏且可编辑的视频。", "ja": "渡されたコピーを指定の方向で書き直し、タイミングを合わせた編集可能な動画にします。", "ko": "받은 카피를 요청한 방향으로 다시 쓰고 타이밍에 맞는 편집 가능한 영상으로 만듭니다.", "es": "Reescribe el texto entregado en la dirección pedida y conviértelo en un vídeo editable y bien medido." },
+  "details": { "en": "Preserves supplied facts and separates the original, final spoken script and display copy. No unsupported claims are added.", "zh-CN": "保留原文事实，分别保存原始文案、最终口播稿和画面文字，不添加未经提供的宣传承诺。", "ja": "渡された事実を守り、原文・最終台本・表示文を分けて保存します。根拠のない主張は追加しません。", "ko": "받은 사실을 지키고 원문·최종 대본·화면 문구를 분리합니다. 근거 없는 주장은 추가하지 않습니다.", "es": "Conserva los hechos entregados y separa el original, el guion hablado y el texto en pantalla sin añadir promesas sin respaldo." }
+}

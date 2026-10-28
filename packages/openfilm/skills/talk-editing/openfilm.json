@@ -1,0 +1,9 @@
+{
+  "version": "0.1.0",
+  "kind": "workflow",
+  "order": 2,
+  "icon": "mic",
+  "title": { "en": "Talking-head edit", "zh-CN": "口播剪辑", "ja": "トーク編集", "ko": "토킹헤드 편집", "es": "Edición de presentador" },
+  "summary": { "en": "Clean a presenter recording, keep the meaning, and add readable captions.", "zh-CN": "保留口播原意，剪掉停顿和口误，并配上清晰字幕。", "ja": "話し手の意味を保ったまま間や言い間違いを整え、読みやすい字幕を付けます。", "ko": "말의 뜻은 지키고 멈춤과 실수를 다듬어 읽기 쉬운 자막을 붙입니다.", "es": "Limpia una grabación del presentador, conserva su sentido y añade subtítulos legibles." },
+  "details": { "en": "For presenter, lesson, commentary and interview recordings. Uses the supplied voice and footage; it does not invent claims or people.", "zh-CN": "适合口播、课程、评论和采访。使用已有声音与素材，不编造事实、人物或资历。", "ja": "プレゼン、授業、解説、インタビュー向け。渡された音声と素材を使い、主張や人物を作りません。", "ko": "발표, 강의, 해설, 인터뷰에 적합합니다. 받은 음성과 소재만 사용하며 주장이나 인물을 만들지 않습니다.", "es": "Para presentaciones, clases, comentarios y entrevistas. Usa la voz y el material entregados sin inventar datos ni personas." }
+}

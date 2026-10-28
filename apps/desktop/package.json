@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "productName": "OpenFilm",
-  "description": "OpenFilm advertising editor with local Codex.",
+  "description": "OpenFilm video editor with local Codex.",
   "main": "src/main.mjs",
   "scripts": {
     "start": "node scripts/start.mjs",
