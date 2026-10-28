@@ -11,7 +11,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { constants, createReadStream, createWriteStream, existsSync, lstatSync, realpathSync, statSync } from 'node:fs';
-import { copyFile, cp, lstat, mkdir, readFile, readdir, readlink, rename, rm, stat, symlink, unlink, utimes, writeFile } from 'node:fs/promises';
+import { copyFile, cp, lstat, mkdir, readFile, readdir, readlink, rename, rm, rmdir, stat, symlink, unlink, utimes, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -464,9 +464,35 @@ export async function freezeFrame(root, rel, ms) {
  */
 export async function trashFile(/** @type {string} */ root, /** @type {string} */ rel) {
   const abs = entryInside(root, rel);
-  if (lstatSync(abs, { throwIfNoEntry: false })?.isSymbolicLink()) { await unlink(abs); return; }
-  if (!existsSync(abs)) throw new FileError(`${rel} is not there`, 404);
-  await moveToTrash(abs);
+  if (lstatSync(abs, { throwIfNoEntry: false })?.isSymbolicLink()) await unlink(abs);
+  else {
+    if (!existsSync(abs)) throw new FileError(`${rel} is not there`, 404);
+    await moveToTrash(abs);
+  }
+  await pruneEmptyMediaParents(root, abs);
+}
+
+/** Remove only empty parents of the deleted item, stopping at the media root. */
+async function pruneEmptyMediaParents(/** @type {string} */ root, /** @type {string} */ deleted) {
+  const mediaRoot = join(root, ASSETS);
+  const rel = relative(mediaRoot, deleted);
+  if (!rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return;
+  for (let dir = dirname(deleted); dir !== mediaRoot; dir = dirname(dir)) {
+    let kept = false;
+    try {
+      const entries = await readdir(dir, { withFileTypes: true });
+      if (entries.length === 1 && entries[0].name === KEEP && entries[0].isFile()) {
+        const marker = join(dir, KEEP);
+        if ((await lstat(marker)).size !== 0) break;
+        await unlink(marker);
+        kept = true;
+      } else if (entries.length) break;
+      await rmdir(dir);
+    } catch {
+      if (kept) await writeFile(join(dir, KEEP), '', { flag: 'wx' }).catch(() => {});
+      break;
+    }
+  }
 }
 
 /* ── media kept elsewhere: copied in (cloned where the disk can) or linked (src/media-links.mjs) ── */

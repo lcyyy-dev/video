@@ -122,6 +122,15 @@ export function containMotion(natural, stage, box) {
   return { kind: 'motion', motion: { scale, center } };
 }
 
+/** Contain is already represented by Basic Motion; other CSS needs rendering.
+ * @param {{ class?: string, style?: string }} clip
+ */
+export function hasPictureEffects(clip) {
+  if (clip.class?.trim()) return true;
+  return (clip.style ?? '').split(';').some((declaration) => declaration.trim()
+    && !/^\s*object-fit\s*:\s*contain\s*(?:!important\s*)?$/i.test(declaration));
+}
+
 /**
  * Which stem a sound of the film goes in: a video's own sound is its footage's (what was recorded with the picture, not
  * a voice-over); any other sound by film-doc's soundRole (its folder, its name, else a voice). An export's stems and an

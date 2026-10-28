@@ -226,3 +226,15 @@ test('each file is in the draft\'s media library, once, and each material names 
   const shot = library.find((e) => e.file_Path.endsWith('a.mp4'));
   assert.deepEqual([shot.width, shot.height, shot.duration], [960, 540, 10_000_000]);
 });
+
+test('portable drafts use media paths relative to the draft folder', () => {
+  const { info, meta } = jianyingDraft(plan(), { name: 'Portable', folder: '/tmp/Portable', root: '/tmp', portable: true });
+  const video = info.materials.videos[0];
+  const audio = info.materials.audios[0];
+  const library = meta.draft_materials.find((group) => group.type === 0).value;
+  assert.match(video.path, /^##_draftpath_placeholder_[^/]+##\/Resources\/local\//);
+  assert.match(audio.path, /^##_draftpath_placeholder_[^/]+##\/Resources\/local\//);
+  assert.match(library[0].file_Path, /^\.\/Resources\/local\//);
+  assert.equal(meta.draft_fold_path, '');
+  assert.equal(meta.draft_root_path, '');
+});

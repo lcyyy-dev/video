@@ -43,11 +43,20 @@ export function publicSub2ApiConfig(dataDir) {
   return config ? { baseUrl: config.baseUrl, model: config.model, configured: true } : { baseUrl: 'http://127.0.0.1:8188/v1', model: 'gpt-6.1-sol', configured: false };
 }
 
-export async function checkSub2ApiConfig(dataDir, input = {}) {
+export async function checkSub2ApiConfig(dataDir, input = {}, fetchImpl = fetch) {
   const stored = storedFor(dataDir);
-  const config = readSub2ApiConfig({ OPENFILM_SUB2API_BASE_URL: input.baseUrl || stored.baseUrl, OPENFILM_SUB2API_API_KEY: input.apiKey || stored.apiKey });
+  if (input.model !== undefined && !/^[\w.-]+$/.test(input.model)) throw new VideoPolicyError('模型名称无效。');
+  const config = readSub2ApiConfig({ OPENFILM_SUB2API_BASE_URL: input.baseUrl || stored.baseUrl, OPENFILM_SUB2API_API_KEY: input.apiKey || stored.apiKey, OPENFILM_SUB2API_MODEL: input.model || stored.model });
   if (!config) throw new VideoPolicyError('请先填写 Sub2API 地址和 Key。');
-  const response = await fetch(`${config.baseUrl}/models`, { headers: { authorization: `Bearer ${config.apiKey}`, accept: 'application/json' }, signal: AbortSignal.timeout(12_000) });
-  if (!response.ok) throw new VideoPolicyError(`连接失败（HTTP ${response.status}）。`);
+  const response = await fetchImpl(`${config.baseUrl}/responses`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${config.apiKey}`, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ model: config.model, input: 'Reply with OK.', stream: false }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!response.ok) throw new VideoPolicyError(`模型连接失败（HTTP ${response.status}）。`);
+  const result = await response.json().catch(() => null);
+  const replied = result?.output?.some?.(item => item.type === 'message' && item.content?.some?.(part => part.type === 'output_text' && typeof part.text === 'string' && part.text.trim()));
+  if (result?.status !== 'completed' || !replied) throw new VideoPolicyError('模型未成功完成回复，请检查模型配置。');
   return { ok: true, baseUrl: config.baseUrl, model: config.model };
 }

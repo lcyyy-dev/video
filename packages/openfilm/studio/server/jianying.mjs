@@ -73,6 +73,7 @@ const PLATFORM = /** @type {Record<DraftApp, object>} */ ({
   jianying: { app_id: 3704, app_source: 'lv', app_version: '5.9.0', os: 'windows' },
   capcut: { app_id: 359289, app_source: 'cc', app_version: '5.9.0', os: 'windows' },
 });
+const DRAFT_PATH_PLACEHOLDER = '##_draftpath_placeholder_0E685133-18CE-45ED-8CB8-2904A212EC80_##';
 
 /** A clip's picture settings: none (as placed), or scaled and moved. */
 const clipSettings = (/** @type {number} */ scale, /** @type {number} */ x, /** @type {number} */ y) => ({
@@ -85,7 +86,7 @@ const round6 = (/** @type {number} */ n) => { const r = Math.round(n * 1e6) / 1e
  * The draft: `info` (draft_info.json) and `meta` (draft_meta_info.json), for the folder `folder` in the app's drafts
  * folder `root`.
  * @param {NleTimeline} timeline
- * @param {{ app?: DraftApp, name: string, folder: string, root: string, cues?: readonly JianyingCue[], now?: number,
+ * @param {{ app?: DraftApp, name: string, folder: string, root: string, portable?: boolean, cues?: readonly JianyingCue[], now?: number,
  *   textPages?: Map<string, import('../../src/text-page.mjs').TextPage> }} opts
  */
 export function jianyingDraft(timeline, opts) {
@@ -95,6 +96,10 @@ export function jianyingDraft(timeline, opts) {
   const us = (/** @type {number} */ frame) => Math.round((frame * 1e6) / fps);
   const span = (/** @type {number} */ from, /** @type {number} */ to) => ({ start: us(from), duration: us(to) - us(from) });
   const files = new Map(timeline.files.map((f) => [f.id, f]));
+  /* A portable draft is copied as one folder. Keep media references relative to that folder. */
+  const mediaName = (/** @type {NleFile} */ file) => file.path.split(/[\\/]/).pop() ?? file.name;
+  const mediaPath = (/** @type {NleFile} */ file) => opts.portable ? `${DRAFT_PATH_PLACEHOLDER}/Resources/local/${mediaName(file)}` : file.path;
+  const libraryPath = (/** @type {NleFile} */ file) => opts.portable ? `./Resources/local/${mediaName(file)}` : file.path;
   /** @type {Record<string, any[]>} */
   const materials = Object.fromEntries(MATERIAL_KINDS.map((k) => [k, []]));
   /** @type {Map<string, string>} one material a file, however many clips use it */
@@ -109,7 +114,7 @@ export function jianyingDraft(timeline, opts) {
     const id = randomUUID().toUpperCase();
     library.push({
       ai_group_type: '', create_time: -1, duration: kind === 'photo' ? 5_000_000 : us(file.durationFrames), enter_from: 0,
-      extra_info: name, file_Path: file.path, height: file.video?.h ?? 0, id, import_time: -1, import_time_ms: -1, item_source: 1,
+      extra_info: name, file_Path: libraryPath(file), height: file.video?.h ?? 0, id, import_time: -1, import_time_ms: -1, item_source: 1,
       material_color_tag: '', md5: '', metetype: kind, roughcut_time_range: { duration: -1, start: -1 },
       sub_time_range: { duration: -1, start: -1 }, type: 0, width: file.video?.w ?? 0,
     });
@@ -131,13 +136,13 @@ export function jianyingDraft(timeline, opts) {
         crop_ratio: 'free', crop_scale: 1, duration: still ? PHOTO_US : us(file.durationFrames),
         height: file.video?.h ?? timeline.height, width: file.video?.w ?? timeline.width,
         id, local_material_id: register(file, still ? 'photo' : 'video', name), material_id: id, material_name: name, media_path: '',
-        path: file.path, type: still ? 'photo' : 'video',
+        path: mediaPath(file), type: still ? 'photo' : 'video',
       });
     } else {
       materials.audios.push({
         app_id: 0, category_id: '', category_name: 'local', check_flag: 3, copyright_limit_type: 'none',
         duration: us(file.durationFrames), effect_id: '', formula_id: '', id, local_material_id: register(file, 'music', name), music_id: id,
-        name, path: file.path,
+        name, path: mediaPath(file),
         source_platform: 0, type: 'extract_music', wave_points: [],
       });
     }
@@ -351,10 +356,10 @@ export function jianyingDraft(timeline, opts) {
     draft_cloud_materials: [], draft_cloud_purchase_info: '', draft_cloud_template_id: '', draft_cloud_tutorial_info: '',
     draft_cloud_videocut_purchase_info: '', draft_cover: '', draft_deeplink_url: '',
     draft_enterprise_info: { draft_enterprise_extra: '', draft_enterprise_id: '', draft_enterprise_name: '', enterprise_material: [] },
-    draft_fold_path: opts.folder, draft_id: draftId, draft_is_ai_packaging_used: false, draft_is_ai_shorts: false,
+    draft_fold_path: opts.portable ? '' : opts.folder, draft_id: draftId, draft_is_ai_packaging_used: false, draft_is_ai_shorts: false,
     draft_is_ai_translate: false, draft_is_article_video_draft: false, draft_is_from_deeplink: 'false', draft_is_invisible: false,
     draft_materials: [0, 1, 2, 3, 6, 7, 8].map((type) => ({ type, value: type === 0 ? library : [] })), draft_materials_copied_info: [],
-    draft_name: opts.name, draft_new_version: '', draft_removable_storage_device: '', draft_root_path: opts.root,
+    draft_name: opts.name, draft_new_version: '', draft_removable_storage_device: '', draft_root_path: opts.portable ? '' : opts.root,
     draft_segment_extra_info: [], draft_type: '', tm_draft_cloud_completed: '', tm_draft_cloud_modified: 0,
     tm_draft_create: now * 1000, tm_draft_modified: now * 1000, tm_draft_removed: 0, tm_duration: duration,
   };

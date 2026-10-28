@@ -6,7 +6,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createExports, exportCapabilities, exportsRoot, ExportError, frameBox, dimsForShortEdge, hardwareEncoder, hardwareOptions, projectFiles, projectSizes } from './exports.mjs';
-import { allocateLanes, containMotion, fadeKeyframes, frameSpan, nleRate, planNleTimeline, xmemlDocument } from './nle.mjs';
+import { allocateLanes, containMotion, fadeKeyframes, frameSpan, hasPictureEffects, nleRate, planNleTimeline, xmemlDocument } from './nle.mjs';
 import { pptxParts } from './slides.mjs';
 import { filmSubtitleSrt, parseFilmSubtitleStyle } from './film-subtitle.mjs';
 import { zipFiles } from './zip.mjs';
@@ -118,7 +118,8 @@ test('structured text exports directly to native draft JSON, respecting trim and
   mkdirSync(path);
   writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 3,
     texts: [{ text: 'Native title', x: 160, y: 90, fontSize: 32, color: '#ff0000',
-      runs: [{ text: 'Native ', color: '#ffff00' }, { text: 'title', color: '#ffffff', stroke: { color: '#000000', width: 2 } }],
+      runs: [{ text: '', color: '#ffff00' }, { text: 'Native ', color: '#ffff00' },
+        { text: 'title', color: '#ffffff', stroke: { color: '#000000', width: 2 } }, { text: '' }],
       keyframes: { x: [{ time: 0, value: 0 }, { time: 2, value: 320 }] } }] }));
   writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
     { clips: [{ id: 'title', src: 'title.html', at: 1, time: [1, 2] }] },
@@ -483,6 +484,50 @@ test('the editor\'s timeline: frames rounded edge by edge, tracks spread, placem
   assert.deepEqual(containMotion({ w: 100, h: 100 }, { w: 1920, h: 1080 }, { x: 760, y: 0, w: 400, h: 200 }), { kind: 'motion', motion: { scale: 200, center: { h: 0, v: -0.407407 } } });
   assert.equal(containMotion({ w: 100, h: 100 }, { w: 1920, h: 1080 }, { x: 0, y: 0, r: 10 }).kind, 'bake');
   assert.equal(containMotion({}, { w: 1920, h: 1080 }).kind, 'bake');
+});
+
+test('contain layout preserves source media while effects still require rendering', () => {
+  for (const style of [undefined, '', ' ; ', 'object-fit: contain', ' OBJECT-FIT : contain !important; ']) {
+    assert.equal(hasPictureEffects({ style }), false, style);
+  }
+  for (const clip of [{ class: 'rounded' }, { style: 'object-fit: cover' },
+    { style: 'object-fit: contain; filter: grayscale(1)' }, { style: 'object-position: top' }]) {
+    assert.equal(hasPictureEffects(clip), true);
+  }
+});
+
+test('draft export copies original video and audio, with trims and editable text in JSON', ffmpeg, async () => {
+  const path = join(scratch, 'NativeMedia');
+  mkdirSync(path);
+  const source = join(path, 'shot.mp4');
+  execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=160x90:r=30:d=2',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', source]);
+  writeFileSync(join(path, 'voice.wav'), readFileSync(join(root, 'assets/tone.wav')));
+  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 1,
+    texts: [{ text: '可编辑文字', x: 160, y: 40, fontSize: 32, color: '#FFEA00' }] }));
+  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
+    { clips: [{ id: 'title', src: 'title.html', time: [0, 1] }] },
+    { clips: [{ id: 'shot', src: 'shot.mp4', time: [0.5, 1.5], muted: true,
+      box: { x: 0, y: 0, w: 320, h: 180 }, style: 'object-fit: contain' }] },
+    { clips: [{ id: 'voice', src: 'voice.wav', time: [0, 1] }] },
+  ] }));
+  for (const format of ['jianying', 'capcut']) {
+    const exports = createExports({ drafts: () => null });
+    const job = await ended(exports, exports.start(project(`NativeMedia-${format}`, path),
+      { kind: 'nle', format, fps: 60, audio: 'clips', media: 'copy', subtitles: false }));
+    assert.equal(job.status, 'done', job.error);
+    assert.equal(job.framesDone, 0, 'draft media needs no browser frame rendering');
+    const draft = JSON.parse(readFileSync(job.out, 'utf8'));
+    assert.equal(draft.materials.videos.length, 1);
+    assert.equal(draft.materials.audios.length, 1);
+    assert.equal(draft.materials.texts.length, 1);
+    assert.deepEqual(readFileSync(draft.materials.videos[0].path), readFileSync(source));
+    assert.deepEqual(readFileSync(draft.materials.audios[0].path), readFileSync(join(path, 'voice.wav')));
+    const video = draft.tracks.find((track) => track.type === 'video').segments[0];
+    assert.deepEqual(video.source_timerange, { start: 500_000, duration: 1_000_000 });
+    assert.deepEqual(video.target_timerange, { start: 0, duration: 1_000_000 });
+    assert.equal(JSON.parse(draft.materials.texts[0].content).text, '可编辑文字');
+  }
 });
 
 test('fades in the editor\'s timeline: a picture that fades is rendered; a sound that fades is its own part with level keyframes', () => {

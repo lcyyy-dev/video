@@ -5,8 +5,9 @@ description: Edit a short promotional video from supplied footage and advertisin
 
 # Advertising edit
 
-Make the supplied footage tell the supplied message. Each spoken sentence gets a relevant shot and editable on-screen
-copy, with a consistent appearance. Reuse OpenFilm's existing agent, media tools, film format and exporter.
+Make the supplied footage tell the supplied message using relevant shots and editable on-screen copy. Choose shot,
+text and narration boundaries independently to serve the message. Reuse OpenFilm's existing agent, media tools, film
+format and exporter.
 
 ## Start from the brief
 
@@ -38,8 +39,12 @@ then `look <media-file> <seconds>` or `look <media-file> <from>-<to>` to inspect
 recording; filenames or first frames do not establish its contents. Record useful ranges and observed actions.
 Use supplied descriptions, but verify the selected range against actual footage.
 
-Match actions and scene meaning to each message unit, considering framing, clarity and complete movements. Save the
-chosen source, range and a short reason. Do not use every file just to fill a quota, manufacture visual evidence,
+Match actions and scene meaning to each message unit, considering framing, clarity and complete movements. A text
+unit can span several consecutive video clips: change shots while the same text and narration continue when it improves
+the story. Limit each video clip to at most 3 seconds on the timeline unless the user explicitly requests a longer
+shot. Choose cuts independently of text boundaries rather than forcing a one-to-one correspondence. Preserve natural
+playback speed; for longer narration or text, use multiple relevant shots instead of accelerating the footage. Save
+each chosen source, range and a short reason. Do not use every file just to fill a quota, manufacture visual evidence,
 or silently fill shortages with unrelated shots. If nothing fits, identify the sentence and continue usable work.
 
 ## Time narration before final cuts
@@ -56,7 +61,8 @@ A requested silent video may use explicitly recorded shot durations and must be 
 
 Place each line after the previous line's actual end plus any separately specified pause. Do not add pauses already
 in the audio. Keep precision until converting boundaries to frames. Video and text cover the spoken line; narration
-stays intact. If footage is too short, prefer another relevant interval. Multiple shots, holds or speed changes
+stays intact. One uninterrupted text clip may cover multiple shots, with video cuts placed at natural visual moments.
+If footage is too short, prefer another relevant interval. Multiple shots, holds or speed changes
 must fit the brief and be recorded. If an exact total length cannot be met naturally, report the mismatch and
 obtain any needed copy or speech-rate change instead of truncating voice.
 
@@ -72,8 +78,10 @@ openfilm text-styles rules
 ```
 
 An explicit style wins. Otherwise start from the saved default, applying scene-informed choices from the suggested
-ranges. Keep a main font and coherent style. Inspect the footage behind the intended text area when choosing fill
-and outline colors; check readability across the interval. Record concrete values and selection rationale.
+ranges. Give the film a coherent visual direction without requiring identical styles for every text clip. Vary color,
+size, weight, emphasis, placement or background where the message and footage call for it; preserve legibility and
+respect explicit user choices. Inspect the footage behind the intended text area when choosing fill and outline
+colors, including every shot beneath a text clip that spans cuts; check readability across the interval. Record concrete values and selection rationale.
 Backgrounds and shadows are optional according to the scene.
 
 Read SPEC.md's “Text style validation status” for unsupported or uncalibrated settings. Panel values are not preview
@@ -102,7 +110,8 @@ conceal an unsupported property.
 - Put copy in stable empty space. Keep the whole wrapped text, outline and shadow inside frame margins and clear
   of other captions and known platform controls. Do not assume a fixed bottom position is safe for every shot.
 - Check contrast at normal viewing size against the changing footage. Use readable type, intentional line breaks
-  and enough display time; keep a coherent style and avoid distracting position changes within a shot.
+  and enough display time; keep styles visually related while allowing purposeful variation between text clips.
+  Avoid distracting position changes within a shot.
 - For a 1080×1920 ad, prefer a prominent display size around 88–120px. Choose fill and outline/shadow colors from
   the actual frames: light copy over dark footage and dark copy over bright footage. Avoid pale colors over bright
   backgrounds even when they match the brand palette.

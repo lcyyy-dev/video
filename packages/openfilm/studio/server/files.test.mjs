@@ -187,6 +187,23 @@ test('delete goes to the trash, not away', async () => {
   await assert.rejects(makeFolder(root, 'assets/new'), (e) => e.status === 409);
 });
 
+test('deleting media removes empty parent folders but keeps other contents and the media root', async () => {
+  await makeFolder(root, 'assets/outer/inner');
+  put('assets/outer/inner/a.mp4', 'media');
+  await trashFile(root, 'assets/outer/inner/a.mp4');
+  assert.equal(existsSync(join(root, 'assets', 'outer')), false);
+  assert.equal(existsSync(join(root, 'assets')), true);
+  assert.equal(readFileSync(join(trash, 'a.mp4'), 'utf8'), 'media');
+
+  put('assets/keep/one.mp4');
+  put('assets/keep/.hidden', 'keep');
+  await trashFile(root, 'assets/keep/one.mp4');
+  assert.equal(readFileSync(join(root, 'assets', 'keep', '.hidden'), 'utf8'), 'keep');
+  put('scenes/other/page.html');
+  await trashFile(root, 'scenes/other/page.html');
+  assert.equal(existsSync(join(root, 'scenes', 'other')), true);
+});
+
 test('one naming rule for imports, renames, moves and new folders: spaces and every script stay', async () => {
   assert.equal(cleanName('镜头 01.mp4'), '镜头 01.mp4');
   assert.equal(cleanName('Logos & Ünïcode'), 'Logos & Ünïcode');

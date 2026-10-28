@@ -58,7 +58,7 @@ import { fileURLToPath } from 'node:url';
 import { FilmPage, launch } from '../../src/host.mjs';
 import { filmSound, kill as killProcess, mix, open } from '../../src/shared.mjs';
 import { FILM_FILE, clipFade, filmHtml, fittedFade, kindOf, pictureRect, readFilmFile } from '../../src/film-doc.mjs';
-import { NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
+import { hasPictureEffects, NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
 import { readTextPage, textValueAt } from '../../src/text-page.mjs';
 import { bundledTextFont } from './text-fonts.mjs';
@@ -1165,7 +1165,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
               f = { ...f, w: Math.max(1, Math.round(f.w * k)), h: Math.max(1, Math.round(f.h * k)) };
             }
             pictures.push({ id: row.id, kind, src: row.src, path, at: c.at, end: c.end, from: c.from, speed: c.speed, box: row.box,
-              track: ti, hidden: Boolean(track.hidden), styled: Boolean(row.class || row.style), ...(fade ? { faded: true } : {}), facts: f });
+              track: ti, hidden: Boolean(track.hidden), styled: hasPictureEffects(row), ...(fade ? { faded: true } : {}), facts: f });
           }
           if (kind === 'sound' || kind === 'video') {
             const f = await factsOf(path);
@@ -1178,7 +1178,8 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       }
       if (!pictures.length && !sounds.length) throw new ExportError('the film is empty');
 
-      await mkdir(join(staging, 'media'), { recursive: true });
+      const mediaRoot = app ? 'Resources/local' : 'media';
+      await mkdir(join(staging, mediaRoot), { recursive: true });
       /* stems: each role's sound mixed (what is heard: muted tracks and silenced clips out) */
       /** @type {Map<import('./nle.mjs').SoundRole, string>} */
       const stems = new Map();
@@ -1197,8 +1198,8 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       }
 
       const timeline = planNleTimeline({ stage: doc.stage, duration: duration || 0.001, pictures, sounds },
-        { title, fps, audio: mode, media: ask.media ?? 'copy', mediaDir: join(final, 'media'), stems: [...stems.keys()] });
-      const staged = (/** @type {import('./nle.mjs').NleFile} */ f) => join(staging, 'media', basename(f.path));
+        { title, fps, audio: mode, media: ask.media ?? 'copy', mediaDir: join(final, mediaRoot), stems: [...stems.keys()] });
+      const staged = (/** @type {import('./nle.mjs').NleFile} */ f) => join(staging, mediaRoot, basename(f.path));
 
       /* each web page (and each picture Basic Motion can't place) drawn alone, full frame, with alpha */
       const renders = timeline.files.filter((f) => f.job.kind === 'render' && !textPages.has(f.job.clip));
@@ -1260,13 +1261,13 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
         for (const page of textPages.values()) for (const item of page.texts) {
           const font = bundledTextFont(item.fontFamily);
           if (!font || (item.fontPath && item.fontPath !== font.path && item.fontPath !== `openfilm-font:${font.id}`)) continue;
-          const target = join(staging, 'media', 'fonts', font.file);
+          const target = join(staging, mediaRoot, 'fonts', font.file);
           await mkdir(dirname(target), { recursive: true });
           await copyFile(font.path, target);
-          item.fontPath = join(final, 'media', 'fonts', font.file);
+          item.fontPath = join(final, mediaRoot, 'fonts', font.file);
         }
         /* the app on Windows reads draft_content.json, on a Mac draft_info.json: the same draft in both */
-        const draft = jianyingDraft(timeline, { app, name: basename(final), folder: final, root: dir, cues, textPages });
+        const draft = jianyingDraft(timeline, { app, name: basename(final), folder: final, root: dir, portable: true, cues, textPages });
         const info = JSON.stringify(draft.info);
         await writeFile(join(staging, 'draft_info.json'), info, 'utf8');
         await writeFile(join(staging, 'draft_content.json'), info, 'utf8');
@@ -1278,9 +1279,9 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
         await writeFile(join(staging, `${title}.xml`), xmemlDocument(timeline), 'utf8');
       }
       if (signal.aborted) throw new Error('cancelled');
-      if (!(await readdir(join(staging, 'media'))).length) await rmdir(join(staging, 'media'));
+      if (!(await readdir(join(staging, mediaRoot))).length) await rmdir(join(staging, mediaRoot));
       await rename(staging, final);
-      const media = existsSync(join(final, 'media')) ? (await readdir(join(final, 'media'))).sort().map((n) => join(final, 'media', n)) : [];
+      const media = existsSync(join(final, mediaRoot)) ? (await readdir(join(final, mediaRoot))).sort().map((n) => join(final, mediaRoot, n)) : [];
       const first = app ? 'draft_info.json' : '.xml';
       const top = (await readdir(final)).filter((n) => n !== 'media').sort((a, b) => Number(!a.endsWith(first)) - Number(!b.endsWith(first)) || a.localeCompare(b));
       /* the XML (the draft) first: "Show in Finder" shows the first */

@@ -34,3 +34,17 @@ test('rich text runs inherit defaults and cover the complete text, including new
   assert.throws(() => validateTextPage({ ...input, texts: [{ ...item, runs: [{ text: '漏掉内容' }] }] }), /cover exactly/);
   assert.deepEqual(textStyleRuns({ ...item, text: '火🔥热身', runs: [{ text: '火🔥' }, { text: '热身' }] }).map((r) => r.range), [[0, 3], [3, 5]]);
 });
+
+test('empty rich text fragments do not block reading or create empty draft style ranges', () => {
+  const item = { ...page.texts[0], text: '火🔥\n热身', runs: [
+    { text: '', color: '#ffffff' }, { text: '火🔥\n', color: '#FFEA00' },
+    { text: '' }, { text: '热身' }, { text: '', bold: true },
+  ] };
+  const parsed = readTextPage(textPageHtml({ ...page, texts: [item] }));
+  assert.deepEqual(textStyleRuns(parsed.texts[0]).map((run) => [run.text, run.range]), [
+    ['火🔥\n', [0, 4]], ['热身', [4, 6]],
+  ]);
+  assert.throws(() => validateTextPage({ ...page, texts: [{ ...item,
+    runs: [...item.runs, { text: '', color: 'invalid' }],
+  }] }), /Invalid text run style/);
+});

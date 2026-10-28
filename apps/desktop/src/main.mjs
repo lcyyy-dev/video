@@ -428,7 +428,7 @@ async function start() {
     void roster?.refresh();
     return result;
   });
-  ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? '') }) : null);
+  ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? '') }) : null);
   /* the chat's column as the person left it (the page sizes it; the window keeps it for next time) */
   ipcMain.on('desktop:layout', (event, next) => {
     if (!fromPage(event) || !next || typeof next !== 'object') return;

@@ -57,7 +57,7 @@ export function validateTextPage(input) {
       if (!Array.isArray(item.runs) || !item.runs.length || item.runs.map((r) => r?.text ?? '').join('') !== item.text) throw new Error('Text runs must cover exactly the full text');
       for (const run of item.runs) {
         if (!run || Object.keys(run).some((k) => !['text', 'fontSize', 'color', 'bold', 'italic', 'underline', 'stroke'].includes(k))
-          || typeof run.text !== 'string' || !run.text.length
+          || typeof run.text !== 'string'
           || (run.fontSize !== undefined && !positive(run.fontSize)) || (run.color !== undefined && !color(run.color))
           || (run.bold !== undefined && typeof run.bold !== 'boolean')
           || (run.italic !== undefined && typeof run.italic !== 'boolean')
@@ -82,10 +82,10 @@ export function validateTextPage(input) {
   return page;
 }
 
-/** All runs inherit defaults. Draft ranges are [start, end] in UTF-16 code units. @param {TextItem} item */
+/** All nonempty runs inherit defaults. Draft ranges are [start, end] in UTF-16 code units. @param {TextItem} item */
 export function textStyleRuns(item) {
   let offset = 0;
-  return (item.runs ?? [{ text: item.text }]).map((run) => {
+  return (item.runs ?? [{ text: item.text }]).filter((run) => run.text.length > 0).map((run) => {
     const length = run.text.length;
     const result = { ...item, ...run, range: [offset, offset + length] };
     offset += length;

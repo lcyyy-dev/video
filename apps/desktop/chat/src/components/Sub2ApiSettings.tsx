@@ -17,8 +17,8 @@ export function Sub2ApiSettings({ onClose }: { onClose: () => void }) {
     finally { setBusy(false); }
   }
   async function test() {
-    setBusy(true); setMessage('正在测试连接…');
-    try { await app.sub2api.test({ baseUrl, apiKey: key }); setMessage('连接成功'); }
+    setBusy(true); setMessage('正在测试模型连接…');
+    try { await app.sub2api.test({ baseUrl, apiKey: key, model }); setMessage('模型连接成功'); }
     catch (error) { setMessage(error instanceof Error ? error.message : '连接失败。'); }
     finally { setBusy(false); }
   }
@@ -27,6 +27,6 @@ export function Sub2ApiSettings({ onClose }: { onClose: () => void }) {
     <label className="mb-2 block text-[11px] text-[var(--text-muted)]">服务地址（固定域名 + /v1）<input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} placeholder="https://xxx.ngrok-free.dev/v1" className="mt-1 h-8 w-full rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 text-[12px] text-[var(--text)]" /></label>
     <label className="mb-2 block text-[11px] text-[var(--text-muted)]">用户 Key<input type="password" value={key} onChange={e => setKey(e.target.value)} placeholder={configured ? 'Key 已保存，留空保持不变' : '输入 Sub2API 用户 Key'} className="mt-1 h-8 w-full rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 text-[12px] text-[var(--text)]" /></label>
     <label className="mb-3 block text-[11px] text-[var(--text-muted)]">模型<input value={model} onChange={e => setModel(e.target.value)} className="mt-1 h-8 w-full rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 text-[12px] text-[var(--text)]" /></label>
-    <div className="flex items-center gap-2"><button disabled={busy} onClick={() => void test()} className="h-8 rounded border border-[var(--border)] px-2 text-[12px] text-[var(--text)] disabled:opacity-50">测试连接</button><button disabled={busy} onClick={() => void save()} className="flex h-8 items-center gap-1 rounded bg-[var(--accent)] px-3 text-[12px] text-white disabled:opacity-50"><Save size={13} />保存</button></div><div className="mt-2 text-[11px] text-[var(--text-muted)]">{message || (configured ? '已保存连接信息' : '尚未配置 Key')}</div>
+    <div className="flex items-center gap-2"><button disabled={busy} onClick={() => void test()} className="h-8 rounded border border-[var(--border)] px-2 text-[12px] text-[var(--text)] disabled:opacity-50">测试模型</button><button disabled={busy} onClick={() => void save()} className="flex h-8 items-center gap-1 rounded bg-[var(--accent)] px-3 text-[12px] text-white disabled:opacity-50"><Save size={13} />保存</button></div><div className="mt-2 text-[11px] text-[var(--text-muted)]">{message || (configured ? '已保存连接信息' : '尚未配置 Key')}</div>
   </div>;
 }

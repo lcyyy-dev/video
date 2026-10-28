@@ -44,11 +44,15 @@ Populate values as work proceeds:
   it when the source changes. Keep confirmed file facts alongside the analysis.
 - `voice`: `src`, measured `duration`, source (`recording`, `local-speech` or `simulation`), text used and effective local voice/settings. Simulations must be labeled as drafts.
   Continuous recordings also need measured sentence boundaries. No secrets.
-- `selection`: media ID, source `from`/`to` and reason. Record speed or multiple shots when used.
+- `selection`: record each selected shot's media ID, source `from`/`to` and reason, including speed when changed.
+  A message unit can contain multiple consecutive shots under one continuous text clip; record each shot and its
+  placement independently of the text boundaries. By default, each video clip lasts at most 3 seconds on the
+  timeline; an explicitly requested longer shot takes precedence.
 - `timeline`: `start`/`end` in seconds, from real voice durations and explicit pauses. Round boundaries consistently
   to project FPS when writing the film; do not accumulate rounding per duration.
 - `textPage`: relative file, preset ID/version, resolved appearance and placement rationale, including inspected times
-  and how copy avoids the subject/action. Re-read page data instead of maintaining a conflicting text representation.
+  across all shots behind it and how copy avoids the subject/action. Individual text clips may have related but distinct
+  styles. Re-read page data instead of maintaining a conflicting text representation.
 - `status`: `pending`, `ready` or `blocked`; `issues` explains missing audio, insufficient footage or unsupported
   effects. A blocked sentence stays in the final report. Preserve confirmed `locked` selections.
 - `outputs`: actual paths, kind, completed/failed state and checks performed. Distinguish native-text file checks,
