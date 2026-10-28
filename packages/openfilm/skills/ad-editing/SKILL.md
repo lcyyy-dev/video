@@ -30,8 +30,8 @@ When the template uses **原声 · 无朗读**, keep the supplied audio and do n
 following role mapping is required for this mode unless the person explicitly requests another style. Read every filled
 template field first, then assign it to a role; never invent missing wording:
 
-- `titleText` → top headline.
-- `subtitleText` → core selling point.
+- `titleText` → top headline. Fit the title to one line: calculate a smaller canvas font size from the actual text width (down to about 42px when necessary), keep `white-space: nowrap`, and never insert a line break or let the title wrap.
+- `subtitleTexts[]` → ordered core selling point lines. Each array item is one independent subtitle input and one independent text item; keep every item in order and do not merge the items into a paragraph.
 - `bodyText` → sentence-sized emphasis/evidence lines, preserving every character and sentence order.
 - `locationText` → separate location label.
 
@@ -39,8 +39,9 @@ If a field contains several sentences, split the display into sentence-sized tex
 Do not put a long multi-sentence body into one oversized paragraph when it can be split without changing the wording.
 Choose the visual variant after inspecting the frame:
 
-1. **Top headline**: one or two short lines near the upper area. Use a strong colored fill or a blue bar with bold white
-   text and a dark shadow/outline. Required canvas font size: 78–112 px.
+1. **Top headline**: one single line near the upper area. Use a strong colored fill or a blue bar with bold white
+   text and a dark shadow/outline. Start around 78–112 px, then reduce the actual title until the complete title fits
+   inside the safe width; one line and legibility take priority over preserving the starting size.
 2. **Core selling point**: one line in a blue rounded/rectangular label with bold white text, or a white label with dark
    blue lettering. Required canvas font size: 68–100 px. Keep the label behind the text and clear of the subject.
 3. **Emphasis line**: one benefit or action line in yellow, orange or red with a dark outline, optionally without a bar.
@@ -63,6 +64,11 @@ to confirm that the text blocks do not hide the person or equipment, and reduce 
 leave the safe area. The final check must explicitly verify: role order, at least two treatments when possible, no
 oversized paragraph, readable contrast, and a separate location label. If any check fails, revise the text pages before
 reporting completion.
+
+For a reusable implementation example, read `references/html-text-layouts/README.zh-CN.md` and
+`references/html-text-layouts/original-audio-vertical.html`. Copy its structured page layout and replace only the sample
+words with the template's exact fields. Keep the `openfilm-text` JSON structure so the page remains eligible for the
+draft exporter; arbitrary HTML/CSS may render correctly in Studio but cannot be assumed to become native Jianying text.
 
 ## Start from the brief
 

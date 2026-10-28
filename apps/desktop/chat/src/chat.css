@@ -1890,6 +1890,13 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .edit-template-toggle input:checked + .edit-template-switch::after { background: white; transform: translateX(12px); }
 .edit-template-toggle input:focus-visible + .edit-template-switch { outline: 2px solid var(--text); outline-offset: 3px; }
 .edit-template-element-fields { display: flex; flex-direction: column; gap: 9px; padding: 0 14px 14px; }
+.edit-template-subtitles { display: flex; flex-direction: column; gap: 8px; }
+.edit-template-subtitle-row { display: flex; align-items: center; gap: 7px; }
+.edit-template-subtitle-row input { flex: 1; min-width: 0; }
+.edit-template-remove-subtitle, .edit-template-add-subtitle { border: 1px solid var(--border); border-radius: 7px; color: var(--text-muted); background: var(--surface); font-size: 11px; padding: 7px 9px; white-space: nowrap; }
+.edit-template-remove-subtitle:disabled { opacity: .45; cursor: not-allowed; }
+.edit-template-add-subtitle { align-self: flex-start; color: var(--tl-accent); border-color: color-mix(in srgb, var(--tl-accent) 55%, var(--border)); }
+.edit-template-remove-subtitle:hover:not(:disabled), .edit-template-add-subtitle:hover { background: var(--bg-hover); color: var(--text); }
 .edit-template-dialog input:not([type='checkbox']), .edit-template-dialog textarea, .edit-template-dialog select { width: 100%; min-width: 0; padding: 10px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 12px; line-height: 1.7; }
 .edit-template-dialog textarea { resize: vertical; min-height: 78px; }
 .edit-template-dialog input::placeholder, .edit-template-dialog textarea::placeholder { color: var(--text-faint); }
@@ -1939,6 +1946,7 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .template-native-stepper .edit-template-toggle { color: var(--text); font-size: 14px; }
 .template-native-stepper .edit-template-switch { background: var(--surface-3); }
 .template-native-stepper .edit-template-toggle input:checked + .edit-template-switch { background: var(--accent); }
+.template-native-stepper .edit-template-remove-subtitle, .template-native-stepper .edit-template-add-subtitle { font-size: 12px; }
 .template-native-stepper input:not([type='checkbox']), .template-native-stepper textarea, .template-native-stepper select { display: block; width: 100%; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg); color: var(--text); padding: 10px 12px; font: 15px/1.7 "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "PingFang SC", sans-serif; }
 .template-native-stepper input::placeholder, .template-native-stepper textarea::placeholder { color: var(--text-muted); }
 .template-native-stepper textarea { resize: vertical; }

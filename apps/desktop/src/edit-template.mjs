@@ -6,7 +6,20 @@ export const TEMPLATE_TYPES = Object.freeze([
   { id: 'live', name: '直播切片', hint: '完整观点 · 精华剪辑', skill: 'live-clips' },
 ]);
 export const AD_MODES = ['文案朗读 + 音频', '原声 · 无朗读', '动作分享', '大字报', '正确动作教学'];
-export const initialTemplate = () => ({ kind: 'ad', adMode: AD_MODES[0], title: true, titleText: '', subtitles: false, subtitleText: '', body: true, bodyText: '', reveal: '直出', highlight: true, location: false, locationText: '', opening: true, pip: false, cover: true, coverText: '', scenes: true, source: '', rewrite: '保留原意，优化表达', logic: '亮点开场 → 核心观点 → 论据 / 演示 → 总结', notes: '' });
+export const initialTemplate = () => ({ kind: 'ad', adMode: AD_MODES[0], title: true, titleText: '', subtitles: false, subtitleTexts: [], body: true, bodyText: '', reveal: '直出', highlight: true, location: false, locationText: '', opening: true, pip: false, cover: true, coverText: '', scenes: true, source: '', rewrite: '保留原意，优化表达', logic: '亮点开场 → 核心观点 → 论据 / 演示 → 总结', notes: '' });
+
+/** The title is fitted before a page is written. CJK characters are full-width; Latin text is narrower. */
+export function titleFontSize(text, { maxWidth = 930, max = 112, min = 42 } = {}) {
+  const cells = [...String(text ?? '')].reduce((sum, char) => sum + (/[\x00-\xff]/.test(char) ? 0.58 : 1), 0);
+  if (!cells) return max;
+  return Math.max(min, Math.min(max, Math.floor((maxWidth / cells) * 0.9)));
+}
+
+function legacySubtitleTexts(raw) {
+  if (Array.isArray(raw.subtitleTexts)) return raw.subtitleTexts;
+  if (typeof raw.subtitleText === 'string') return raw.subtitleText.split(/\r?\n/);
+  return [];
+}
 
 export function templateRoute(kind) {
   const route = TEMPLATE_TYPES.find(t => t.id === kind);
@@ -18,12 +31,17 @@ export function templateRoute(kind) {
 export function normalizeTemplate(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('无效的剪辑模板配置。');
   templateRoute(raw.kind);
+  const migrated = { ...raw, subtitleTexts: legacySubtitleTexts(raw) };
   const config = initialTemplate();
   for (const key of Object.keys(config)) {
-    if (raw[key] === undefined) continue;
-    if (typeof raw[key] !== typeof config[key]) throw new Error(`无效的模板字段：${key}`);
-    if (typeof raw[key] === 'string' && raw[key].length > 20000) throw new Error('模板文字过长。');
-    config[key] = raw[key];
+    if (migrated[key] === undefined) continue;
+    if (typeof migrated[key] !== typeof config[key] && !(Array.isArray(config[key]) && Array.isArray(migrated[key]))) throw new Error(`无效的模板字段：${key}`);
+    if (typeof migrated[key] === 'string' && migrated[key].length > 20000) throw new Error('模板文字过长。');
+    if (key === 'subtitleTexts') {
+      if (!Array.isArray(migrated[key])) throw new Error('副标题格式或长度无效。');
+      if (!migrated[key].every(text => typeof text === 'string' && text.length <= 2000)) throw new Error('副标题格式或长度无效。');
+      config[key] = migrated[key].slice(0, 12);
+    } else config[key] = migrated[key];
   }
   if (config.kind === 'ad' && (!AD_MODES.includes(config.adMode) || !['直出', '跳出'].includes(config.reveal))) throw new Error('无效的广告形式或文字呈现方式。');
   return config;
@@ -31,12 +49,20 @@ export function normalizeTemplate(raw) {
 
 export function templateSummary(config) {
   const route = templateRoute(config.kind);
+  const subtitles = config.subtitles
+    ? (config.subtitleTexts?.filter(Boolean).length
+      ? config.subtitleTexts.filter(Boolean).map((text, index) => `副标题${index + 1}：${text}`)
+      : ['副标题：需要，内容待补充'])
+    : ['副标题：不需要'];
+  const title = config.title
+    ? [`标题：${config.titleText || '需要，内容待补充'}`, `标题排版：${config.titleText ? `${titleFontSize(config.titleText)}px，单行，不换行` : '根据实际文案计算，单行，不换行'}`]
+    : ['标题：不需要'];
   if (config.kind === 'talk') return [
     `剪辑模板：${route.name}`,
     `封面：${config.cover ? config.coverText || '需要，内容待补充' : '不需要'}`,
     `场景剪辑：${config.scenes ? '需要' : '不需要'}`,
-    `标题：${config.title ? config.titleText || '需要，内容待补充' : '不需要'}`,
-    `副标题：${config.subtitles ? config.subtitleText || '需要，内容待补充' : '不需要'}`,
+    ...title,
+    ...subtitles,
     `正文：${config.body ? `${config.reveal}；关键词${config.highlight ? '高亮' : '不高亮'}；${config.bodyText || '根据口播整理'}` : '不需要'}`,
     ...(config.notes ? [`补充要求：${config.notes}`] : []),
   ].join('\n');
@@ -44,7 +70,7 @@ export function templateSummary(config) {
     `剪辑模板：${route.name}`,
     `原始文案：${config.source || '待补充'}`,
     `二创方向：${config.rewrite}`,
-    `标题：${config.title ? config.titleText || '需要，内容待补充' : '不需要'}`,
+    ...title,
     `正文：${config.body ? `${config.reveal}；${config.bodyText || '根据改写后的文案生成'}` : '不需要'}`,
     ...(config.notes ? [`补充要求：${config.notes}`] : []),
   ].join('\n');
@@ -52,7 +78,7 @@ export function templateSummary(config) {
     `剪辑模板：${route.name}`,
     '成品长度：约 01:00（以完整观点边界为准）',
     `切片内容逻辑：${config.logic || '开头引题 → 核心内容 → 完整结论'}`,
-    `标题：${config.title ? config.titleText || '需要，内容待补充' : '不需要'}`,
+    ...title,
     `正文：${config.body ? `${config.reveal}；${config.bodyText || '根据原声整理字幕'}` : '不需要'}`,
     ...(config.notes ? [`补充要求：${config.notes}`] : []),
   ].join('\n');
@@ -60,8 +86,8 @@ export function templateSummary(config) {
     `剪辑模板：${route.name} / ${config.adMode}`,
     `声音：${config.adMode === AD_MODES[0] ? '文案朗读 + 音频（优先使用提供的录音；没有录音时使用本地 TTS，TTS 暂不可用也不要阻断剪辑）' : config.adMode === AD_MODES[1] ? '保留原声，不添加朗读' : config.adMode === '大字报' ? '以文字呈现为主' : '随素材配置'}`,
     ...(config.adMode === '动作分享' ? [`开头：${config.opening ? '需要' : '不需要'}`, `AI 画中画：${config.pip ? '需要（当前仅使用提供的素材，缺失时说明）' : '不需要'}`] : []),
-    `标题：${config.title ? config.titleText || '需要，内容待补充' : '不需要'}`,
-    `副标题：${config.subtitles ? config.subtitleText || '需要，内容待补充' : '不需要'}`,
+    ...title,
+    ...subtitles,
     `正文：${config.body ? `${config.reveal}；关键词${config.highlight ? '高亮' : '不高亮'}；${config.bodyText || '内容待补充'}` : '不需要'}`,
     `地点：${config.location ? config.locationText || '需要，内容待补充' : '不需要'}`,
     ...(config.notes ? [`补充要求：${config.notes}`] : []),

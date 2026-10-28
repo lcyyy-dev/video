@@ -4,7 +4,7 @@ import SpotlightCard from './react-bits/SpotlightCard';
 import Stepper, { Step } from './react-bits/Stepper';
 
 import { app } from '../app-bridge';
-import { AD_MODES, TEMPLATE_TYPES, initialTemplate, templateSummary, type EditTemplateConfig as Config } from '../../../src/edit-template.mjs';
+import { AD_MODES, TEMPLATE_TYPES, initialTemplate, templateSummary, titleFontSize, type EditTemplateConfig as Config } from '../../../src/edit-template.mjs';
 
 const ICONS = { ad: Clapperboard, talk: Mic, copy: FileText, live: Radio };
 const TYPES = TEMPLATE_TYPES.map(type => ({ ...type, icon: ICONS[type.id] }));
@@ -54,7 +54,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     dialog.current?.focus();
   }, [open]);
   const patch = (value: Partial<Config>) => { setConfig(c => ({ ...c, ...value })); setSaveError(''); };
-  const textKeys = ['titleText', 'subtitleText', 'bodyText', 'locationText', 'coverText', 'source', 'logic', 'notes'] as const;
+  const textKeys = ['titleText', 'bodyText', 'locationText', 'coverText', 'source', 'logic', 'notes'] as const;
   const composing = useRef(false);
   const textChange = (key: typeof textKeys[number]) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     /* Do not replace the DOM value while an IME is composing a candidate. React's controlled
@@ -67,7 +67,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     composing.current = false;
     patch({ [key]: event.currentTarget.value } as Partial<Config>);
   };
-  const pasteText = (key: typeof textKeys[number]) => (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const pasteInto = (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>, apply: (value: string) => void) => {
     const plain = event.clipboardData.getData('text/plain');
     const html = event.clipboardData.getData('text/html');
     if (!plain && !html) return;
@@ -93,7 +93,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
       /* These fields are intentionally uncontrolled while editing. Set the DOM value first so a
          paste and a following IME composition are not replaced by React's next render. */
       target.value = next;
-      patch({ [key]: next } as Partial<Config>);
+      apply(next);
       requestAnimationFrame(() => { target.focus(); const caret = start + inserted.length; target.setSelectionRange(caret, caret); });
     };
     /* Only ask Electron for the native clipboard when Chromium reported suspicious text; a
@@ -101,6 +101,21 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     if (damaged || !plain) void app.clipboardText().catch(() => '').then(finish);
     else finish('');
   };
+  const pasteText = (key: typeof textKeys[number]) => (event: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => pasteInto(event, value => patch({ [key]: value } as Partial<Config>));
+  const subtitleChange = (index: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (composing.current || (event.nativeEvent as InputEvent).isComposing) return;
+    const subtitleTexts = [...config.subtitleTexts]; subtitleTexts[index] = event.currentTarget.value;
+    patch({ subtitleTexts });
+  };
+  const subtitleCompositionEnd = (index: number) => (event: React.CompositionEvent<HTMLInputElement>) => {
+    composing.current = false;
+    const subtitleTexts = [...config.subtitleTexts]; subtitleTexts[index] = event.currentTarget.value;
+    patch({ subtitleTexts });
+  };
+  const subtitlePaste = (index: number) => (event: React.ClipboardEvent<HTMLInputElement>) => pasteInto(event, value => {
+    const subtitleTexts = [...config.subtitleTexts]; subtitleTexts[index] = value;
+    patch({ subtitleTexts });
+  });
   const onDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     /* Keep keyboard shortcuts used by an input method inside the native composition flow. */
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;
@@ -115,6 +130,9 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   const text = (key: typeof textKeys[number], label: string, placeholder: string, multiline = false) => multiline
     ? <textarea aria-label={label} defaultValue={config[key]} onChange={textChange(key)} onCompositionStart={compositionStart} onCompositionEnd={compositionEnd(key)} onPaste={pasteText(key)} placeholder={placeholder} rows={3} />
     : <input aria-label={label} defaultValue={config[key]} onChange={textChange(key)} onCompositionStart={compositionStart} onCompositionEnd={compositionEnd(key)} onPaste={pasteText(key)} placeholder={placeholder} />;
+  const subtitleFields = config.subtitleTexts.length ? config.subtitleTexts : [''];
+  const addSubtitle = () => patch({ subtitles: true, subtitleTexts: [...config.subtitleTexts, ''] });
+  const removeSubtitle = (index: number) => patch({ subtitleTexts: config.subtitleTexts.filter((_, item) => item !== index) });
   const elements = [config.title && '标题', config.subtitles && '副标题', config.body && '正文', config.body && config.highlight && '关键词高亮', config.location && '地点'].filter(Boolean);
   const summary = templateSummary(config);
   const save = async () => {
@@ -163,8 +181,15 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
           </Step>
           <Step title="元素">
           <section><h3><span>03</span>组合画面元素</h3><div className="edit-template-group">
-            <Toggle label="标题" checked={config.title} onChange={title => patch({ title })}>{text('titleText', '标题内容', '输入标题，可稍后补充')}</Toggle>
-            <Toggle label="副标题 · 支持多条" checked={config.subtitles} onChange={subtitles => patch({ subtitles })}>{text('subtitleText', '副标题内容', '每行一条副标题', true)}</Toggle>
+            <Toggle label="标题" checked={config.title} onChange={title => patch({ title })}>{text('titleText', '标题内容', '输入标题，可稍后补充')}<p className="edit-template-help">当前建议字号：{titleFontSize(config.titleText)}px；生成时保持单行，不换行。</p></Toggle>
+            <Toggle label="副标题 · 支持多条" checked={config.subtitles} onChange={subtitles => patch({ subtitles, ...(subtitles && !config.subtitleTexts.length ? { subtitleTexts: [''] } : {}) })}>
+              <div className="edit-template-subtitles">{subtitleFields.map((value, index) => <div className="edit-template-subtitle-row" key={index}>
+                <input aria-label={`副标题 ${index + 1}`} defaultValue={value} onChange={subtitleChange(index)} onCompositionStart={compositionStart} onCompositionEnd={subtitleCompositionEnd(index)} onPaste={subtitlePaste(index)} placeholder={`输入第 ${index + 1} 条副标题`} />
+                <button type="button" className="edit-template-remove-subtitle" aria-label={`删除副标题 ${index + 1}`} onClick={() => removeSubtitle(index)} disabled={subtitleFields.length === 1}>删除</button>
+              </div>)}</div>
+              <button type="button" className="edit-template-add-subtitle" onClick={addSubtitle}>＋ 添加副标题</button>
+              <p className="edit-template-help">每个输入框只对应一条副标题，生成时逐条保留，不会把多条合并成一条。</p>
+            </Toggle>
             <Toggle label="正文 / 文案" checked={config.body} onChange={body => patch({ body })}><div className="edit-template-chips">{['直出', '跳出'].map(v => <button type="button" key={v} aria-pressed={config.reveal === v} onClick={() => patch({ reveal: v })}>{v}</button>)}</div><Toggle label="关键词高亮" checked={config.highlight} onChange={highlight => patch({ highlight })} />{text('bodyText', '正文内容', '输入正文或文案，可稍后补充', true)}</Toggle>
             <Toggle label="地点" checked={config.location} onChange={location => patch({ location })}>{text('locationText', '地点内容', '门店名称 / 地址 / 拍摄地点')}</Toggle>
           </div></section>
