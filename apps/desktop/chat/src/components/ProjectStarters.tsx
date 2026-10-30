@@ -1,6 +1,6 @@
 /** Advertising entry points. A suggestion fills the composer without starting generation. */
 import type { CSSProperties } from 'react';
-import { ArrowUpRight, Dumbbell, Scissors, ShoppingBag, Store, Upload } from 'lucide-react';
+import { ArrowUpRight, Dumbbell, Scissors, ShoppingBag, Store } from 'lucide-react';
 import { useT } from '@/i18n';
 import SpotlightCard from './react-bits/SpotlightCard';
 import { BrandLogo } from './BrandLogo';
@@ -12,9 +12,8 @@ const STARTERS = [
   { id: 's4', icon: Scissors },
 ] as const;
 
-export function ProjectStarters({ onPick, onAttach }: {
+export function ProjectStarters({ onPick }: {
   onPick: (text: string) => void;
-  onAttach: () => void;
 }) {
   const t = useT();
   return (
@@ -40,10 +39,6 @@ export function ProjectStarters({ onPick, onAttach }: {
           </li>
         ))}
       </ul>
-      <button type="button" onClick={onAttach}
-        className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-[12.5px] text-[var(--text-muted)] transition hover:text-[var(--text)]">
-        <Upload size={14} />{t('starter.attach')}
-      </button>
     </div>
   );
 }

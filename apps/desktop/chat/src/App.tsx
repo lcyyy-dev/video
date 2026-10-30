@@ -6,18 +6,14 @@
  * (lib/local-agent-run's saved turns).
  */
 import React from 'react';
-import { ArrowDown, Coins, CornerDownLeft, KeyRound, LibraryBig, Loader2, Plus, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
+import { ArrowDown, Coins, CornerDownLeft, KeyRound, LibraryBig, Loader2, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
 import { buildPromptDisplay, type Turn } from '@openfilm/shared';
 import { useT, useUiLocale } from '@/i18n';
 import { ConversationSessionBar } from '@/components/ConversationSessionBar';
 import { ProjectConversation, primeStoredTranscript } from '@/components/ProjectConversation';
 import { EditTemplateBuilder } from '@/components/EditTemplateBuilder';
-import { MaterialUploadArea } from '@/components/MaterialUploadArea';
-import { ProjectMaterialPicker } from '@/components/ProjectMaterialPicker';
-import { MaterialAttachmentList } from '@/components/MaterialAttachmentList';
 import AnimatedContent from '@/components/react-bits/AnimatedContent';
 import { ProjectStarters } from '@/components/ProjectStarters';
-import { AttachmentPreview, type AttachmentPreviewItem } from '@/components/AttachmentPreview';
 import { ModelDisplay } from '@/components/ModelDisplay';
 import { CardActions, CardButton, ComposerCard } from '@/components/ComposerCard';
 import { LocalAgentQuestionCard } from '@/components/TurnQuestionCard';
@@ -265,10 +261,6 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
   const [queued, setQueued] = React.useState(false);
   const [followUpError, setFollowUpError] = React.useState<string | null>(null);
   const composerFiles = useDesktopAttachments();
-  /* a file of the message being written, opened to look at */
-  const [openedFile, setOpenedFile] = React.useState<AttachmentPreviewItem | null>(null);
-  const [projectPickerOpen, setProjectPickerOpen] = React.useState(false);
-  const attachInputRef = React.useRef<HTMLInputElement>(null);
   const [dropping, setDropping] = React.useState(false);
   /** files of the project pointed at with @ (their pills turn back into their paths when sent) */
   const [fileRefs, setFileRefs] = React.useState<PromptReference[]>([]);
@@ -696,35 +688,8 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
 
   const agentName = agent === 'byok' ? t('composer.agentOwnKey') : la.roster?.find((a) => a.id === agent)?.name ?? agent;
 
-  function describeMaterial(file: DesktopAttachment) {
-    if (file.state !== 'ready' || !file.path) return;
-    const label = t('composer.materialNumber').replace('{number}', String(file.labelNumber));
-    const pill: PromptReference = { id: fileReferenceId(file.path), kind: 'file', label: `${label} · ${file.name}`, detail: formatFileSize(file.size) };
-    setFileRefs(list => [...list.filter(ref => ref.id !== pill.id), pill]);
-    requestAnimationFrame(() => {
-      if (followUp.trim()) composerRef.current?.insertText('\n');
-      composerRef.current?.insertReference(pill);
-      composerRef.current?.insertText(t('composer.materialDescribeSeparator'));
-      composerRef.current?.focus();
-    });
-  }
-
   const editComposerCard = (
     <AnimatedContent trigger="mount" distance={10} duration={0.45} className="creative-workbench relative flex flex-col gap-1">
-      <div className="creative-workflow" aria-label={t('workspace.session')}>
-        <span className={composerFiles.files.some(file => file.state === 'ready') ? 'is-ready' : 'is-current'}><i>01</i>{t('workspace.materials')}</span>
-        <span><i>02</i>{t('workspace.template')}</span>
-        <span><i>03</i>{t('workspace.create')}</span>
-      </div>
-      <MaterialUploadArea files={composerFiles.files} onFiles={composerFiles.add} onChoose={() => setProjectPickerOpen(true)}>
-        {composerFiles.files.length > 0 ? <MaterialAttachmentList files={composerFiles.files}
-          onRemove={composerFiles.drop} onDescribe={describeMaterial}
-          onChoose={() => setProjectPickerOpen(true)} onFiles={composerFiles.add}
-          onPreview={file => { if (file.previewUrl) setOpenedFile({ name: file.name, kind: file.kind, url: file.previewUrl, ...(file.mediaType ? { mediaType: file.mediaType } : {}) }); }}
-        /> : null}
-        {openedFile ? <AttachmentPreview item={openedFile} onClose={() => setOpenedFile(null)} /> : null}
-      </MaterialUploadArea>
-      {projectPickerOpen ? <ProjectMaterialPicker onClose={() => setProjectPickerOpen(false)} onPick={(files) => composerFiles.addProject(files)} /> : null}
       <EditTemplateBuilder key={project.path} projectPath={project.path} busy={active} onSaved={() => composerRef.current?.focus()} />
       {contextFull ? (
         <div className="flex items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--surface-2)] py-1.5 pl-3 pr-1.5 text-[12px] text-[var(--text-muted)]">
@@ -811,18 +776,6 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
       <div className="flex items-center gap-0.5 px-0.5">
         <ModelDisplay />
         <div className="min-w-0 flex-1" />
-        <input
-          ref={attachInputRef}
-          type="file"
-          multiple
-          hidden
-          onChange={(event) => { composerFiles.add(Array.from(event.target.files ?? [])); event.target.value = ''; }}
-        />
-        <Tooltip label={t('project.addAttachment')}>
-          <button type="button" onClick={() => setProjectPickerOpen(true)} className="openfilm-composer-tool" aria-label={t('project.addAttachment')}>
-            <Plus size={16} strokeWidth={1.75} />
-          </button>
-        </Tooltip>
         <Tooltip label={t('project.assets')}>
           <button type="button" onClick={() => app.setAssetsOpen(!assetsOpen)} aria-pressed={assetsOpen} className="openfilm-composer-tool" aria-label={t('project.assets')}>
             <LibraryBig size={16} strokeWidth={1.75} />
@@ -873,7 +826,6 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
                       <div ref={thread.contentRef}>
                         <ProjectStarters
                           onPick={(text) => { composerRef.current?.setText(text); composerRef.current?.focus(); }}
-                          onAttach={() => setProjectPickerOpen(true)}
                         />
                       </div>
                     ) : (

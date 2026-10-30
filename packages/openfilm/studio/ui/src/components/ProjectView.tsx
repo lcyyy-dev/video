@@ -1216,7 +1216,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
       onReveal={savedActions.reveal}
       onPick={onPick}
       onBring={(paths, into) => savedActions.bring(paths, into)}
-      links={false}
       scope="saved"
       onScope={switchMedia}
       onAdd={(file) => void placeSaved(file)}
@@ -1353,7 +1352,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     if (command.type === 'highlight') { setChatRef(command.ref ?? null); return; }
     if (command.type === 'draft-refs') { setDraftMarks(draftMarksOf(Array.isArray(command.refs) ? command.refs : [])); return; }
     if (command.type === 'export-draft') { setDraftExportOpen(true); return; }
-    if (command.type === 'settings') { setSettingsOpen('agents'); return; }
+    if (command.type === 'settings') { setSettingsOpen('general'); return; }
     if (command.type === 'seek' && Number.isFinite(command.time)) { pause(); seek(command.time * 1000); return; }
     if ((command.type === 'show-range' || command.type === 'show-subtitle') && Number.isFinite(command.start) && Number.isFinite(command.end)) {
       /* a subtitle's span marked, and the subtitle panel open: the playhead at its start lights the line there */
@@ -2926,7 +2925,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                     onDetachAudio={detachAudio}
                     onEditBlocks={editBlocks}
                     onEditOps={editOps}
-                    links={clipLinks}
                     fades={clipFades}
                     transitions={filmTransitions}
                     onTransition={askTransition}

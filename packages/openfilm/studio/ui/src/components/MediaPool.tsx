@@ -35,7 +35,6 @@ import {
   FolderPlus,
   LayoutGrid,
   List,
-  ListFilter,
   Pencil,
   Plus,
   Search,
@@ -173,8 +172,6 @@ export interface MediaPoolProps {
    */
   scope?: 'project' | 'saved';
   onScope?: (next: 'project' | 'saved') => void;
-  /** Upload may also link media kept elsewhere (a project's); without it, files are copied in only (Saved). */
-  links?: boolean;
   /**
    * The app around Studio has a chat (lib/host.ts `refer`): a file as a reference in it. With it the file menu has
    * "Reference in chat", and a dragged file carries the reference too (STUDIO_REF_TYPE), for the chat to take.
@@ -214,7 +211,6 @@ export function MediaPool({
   onSave,
   scope = 'project',
   onScope,
-  links = true,
   fileRef,
   onRefer,
   reveal,
@@ -598,20 +594,15 @@ export function MediaPool({
     { id: 'sep', separator: true },
     { id: 'delete', label: t('media.deleteMany').replace('{n}', String(keys.length)), icon: <Trash2 size={14} />, danger: true, onSelect: () => askDelete(keys) },
   ];
-  /* what Upload offers: a copy in the project, or a link to where the media is kept (a NAS, another disk); where
-     nothing is linked (Saved), Upload picks the files to copy in at once */
+  /* Upload copies files into the project; folders may still be linked to their existing local location. */
   const importMenu: ContextMenuEntry[] = [
     { id: 'import', label: t('media.importFiles'), note: t('media.importFilesNote'), icon: <Upload size={14} />, onSelect: () => { void bringFrom('copy', false); } },
-    { id: 'link', label: t('media.linkFiles'), note: t('media.linkFilesNote'), icon: <Link2 size={14} />, onSelect: () => { void bringFrom('link', false); } },
-    { id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } },
+    ...(!inSaved && onPick && onBring ? [{ id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } }] : []),
   ];
   const blankMenu: ContextMenuEntry[] = [
     { id: 'new-folder', label: t('assets.newFolder'), icon: <FolderPlus size={14} />, onSelect: () => setCreating(true) },
     { id: 'import', label: t('media.import'), icon: <Plus size={14} />, onSelect: () => (onPick && onBring ? void bringFrom('copy', false) : inputRef.current?.click()) },
-    ...(onPick && onBring && links ? [
-      { id: 'link', label: t('media.linkFiles'), icon: <Link2 size={14} />, onSelect: () => { void bringFrom('link', false); } },
-      { id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } },
-    ] : []),
+    ...(!inSaved && onPick && onBring ? [{ id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } }] : []),
   ];
   /** The bar button a menu hangs from: a press on it is not outside the menu, and a click on it closes the menu. */
   const menuFrom = React.useRef<HTMLElement | null>(null);
@@ -860,7 +851,7 @@ export function MediaPool({
         {/* bringing media in is what this pane is for: the one labeled button, right after the search */}
         <Tooltip label={t('media.import')} side="bottom">
           <button type="button" aria-label={t('media.import')} aria-haspopup={onPick && onBring ? 'menu' : undefined}
-            onClick={(e) => (onPick && onBring ? (links ? barMenu(e, importMenu) : void bringFrom('copy', false)) : inputRef.current?.click())}
+            onClick={(e) => (onPick && onBring ? barMenu(e, importMenu) : inputRef.current?.click())}
             className={`flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-md bg-[var(--bg-active)] text-[12.5px] font-medium text-[var(--text)] transition hover:bg-[var(--border-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--border-strong)] ${bar.uploadWord ? 'px-2.5' : 'w-7'}`}>
             <Upload size={13} strokeWidth={2.2} />
             {bar.uploadWord ? uploadWord : null}
@@ -875,9 +866,6 @@ export function MediaPool({
         <BarButton label={t(rows ? 'media.viewGrid' : 'media.viewList')} onClick={() => setView((v) => ({ ...v, layout: rows ? 'grid' : 'list' }))}>
           {rows ? <LayoutGrid size={14} /> : <List size={14} />}
         </BarButton>
-        <BarButton label={t('media.filter')} on={view.filter !== 'all'} onClick={(e) => barMenu(e, FILTERS.map((f) => ({
-          id: f, label: `${t(`media.filter_${f}`)}  ${counts[f]}`, checked: view.filter === f, onSelect: () => setView((v) => ({ ...v, filter: f })),
-        })))}><ListFilter size={14} /></BarButton>
         <BarButton label={t('media.sort')} onClick={(e) => barMenu(e, SORTS.map((key) => ({
           id: key, label: t(`media.sort_${key}`), checked: view.sort === key, onSelect: () => setView((v) => ({ ...v, sort: key })),
         })))}><ArrowUpDown size={14} /></BarButton>
@@ -888,32 +876,30 @@ export function MediaPool({
       </div>
 
       {/* where you are: All, then the folders you went into (drop a file on one to move it there) */}
-      <div className="flex h-7 shrink-0 items-center gap-0.5 overflow-hidden px-2.5 text-[12.5px]">
-        {flat ? (
-          <span className="truncate text-[var(--text-muted)]">
-            {view.filter !== 'all' ? t(`media.filter_${view.filter}`) : t('media.results')}
-          </span>
-        ) : (
-          <>
-            <button type="button" onClick={() => setAt('')} {...dropProps('')}
-              className={`shrink-0 rounded px-1 ${at ? 'text-[var(--text-muted)] hover:text-[var(--text)]' : 'font-medium text-[var(--text)]'} ${dropTarget === '' ? 'bg-[var(--bg-hover)] ring-1 ring-[var(--accent)]' : ''}`}>
-              {topName}
-            </button>
-            {crumbs.map((name, i) => {
-              const rel = crumbs.slice(0, i + 1).join('/');
-              const last = i === crumbs.length - 1;
-              return (
-                <React.Fragment key={rel}>
-                  <ChevronRight size={12} className="shrink-0 text-[var(--text-faint)]" />
-                  <button type="button" onClick={() => setAt(rel)} {...dropProps(rel)}
-                    className={`min-w-0 truncate rounded px-1 ${last ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'} ${dropTarget === rel ? 'bg-[var(--bg-hover)] ring-1 ring-[var(--accent)]' : ''}`}>
-                    {name}
-                  </button>
-                </React.Fragment>
-              );
-            })}
-          </>
-        )}
+      <div className="flex h-7 shrink-0 items-center gap-0.5 overflow-x-auto px-2.5 text-[12.5px]">
+        <button type="button" onClick={() => { setAt(''); setView((v) => ({ ...v, filter: 'all' })); }} {...dropProps('')}
+          className={`shrink-0 rounded px-1.5 py-0.5 ${view.filter === 'all' && !query ? 'bg-[var(--bg-active)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'} ${dropTarget === '' ? 'ring-1 ring-[var(--accent)]' : ''}`}>
+          {topName}
+        </button>
+        {!inSaved && !at ? FILTERS.slice(1).map((f) => (
+          <button key={f} type="button" onClick={() => setView((v) => ({ ...v, filter: f }))}
+            className={`shrink-0 rounded px-1.5 py-0.5 ${view.filter === f ? 'bg-[var(--bg-active)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
+            {t(`media.filter_${f}`)} <span className="text-[var(--text-faint)]">{counts[f]}</span>
+          </button>
+        )) : null}
+        {!flat ? crumbs.map((name, i) => {
+          const rel = crumbs.slice(0, i + 1).join('/');
+          const last = i === crumbs.length - 1;
+          return (
+            <React.Fragment key={rel}>
+              <ChevronRight size={12} className="shrink-0 text-[var(--text-faint)]" />
+              <button type="button" onClick={() => setAt(rel)} {...dropProps(rel)}
+                className={`min-w-0 truncate rounded px-1 ${last ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'} ${dropTarget === rel ? 'bg-[var(--bg-hover)] ring-1 ring-[var(--accent)]' : ''}`}>
+                {name}
+              </button>
+            </React.Fragment>
+          );
+        }) : null}
       </div>
 
       {notice ? (
