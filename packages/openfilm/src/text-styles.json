@@ -4,8 +4,8 @@
     {
       "id": "white-outline",
       "version": 1,
-      "name": "White with black outline",
-      "description": "A neutral caption for bright or detailed footage.",
+      "name": "白字黑描边",
+      "description": "通用口播字幕，白字配黑色描边，适合复杂背景。",
       "style": {
         "fontFamily": "sans-serif",
         "fontSize": 64,
@@ -19,8 +19,8 @@
     {
       "id": "yellow-headline",
       "version": 1,
-      "name": "Yellow headline",
-      "description": "A bold headline or selling point with a black outline and shadow.",
+      "name": "黄色主标题",
+      "description": "黄色粗体配黑色描边和阴影，适合开场标题与核心卖点。",
       "style": {
         "fontFamily": "sans-serif",
         "fontSize": 80,
@@ -35,8 +35,8 @@
     {
       "id": "red-emphasis",
       "version": 1,
-      "name": "Red emphasis",
-      "description": "An emphasized benefit or response with a white outline.",
+      "name": "红色重点",
+      "description": "红色强调文字配白色描边，适合结果句和利益点。",
       "style": {
         "fontFamily": "sans-serif",
         "fontSize": 68,
@@ -50,11 +50,13 @@
     {
       "id": "xinqingnian-yellow",
       "version": 1,
-      "name": "Xin Qing Nian with yellow fill and black outline",
-      "description": "Reference-inspired yellow W8 lettering with a heavy black outline using the packaged font.",
+      "name": "新青年体黄字",
+      "description": "新青年体黄色填充、黑色粗描边和阴影，适合强钩子标题。",
       "style": {
         "fontFamily": "WenYue XinQingNianTi (Non-Commercial Use) W8",
-        "fontSize": 96, "color": "#FFEA00", "bold": false,
+        "fontSize": 96,
+        "color": "#FFEA00",
+        "bold": false,
         "stroke": { "color": "#000000", "width": 14 },
         "shadow": { "color": "#000000", "opacity": 0.9, "blur": 2, "x": 4, "y": 5 }
       }
@@ -62,11 +64,13 @@
     {
       "id": "houxiandai-cyan",
       "version": 1,
-      "name": "Hou Xian Dai with cyan fill and black outline",
-      "description": "Reference-inspired cyan W4-75 lettering with a black outline using the packaged font.",
+      "name": "后现代体青字",
+      "description": "后现代体青色填充、黑色描边和阴影，适合运动和科技画面。",
       "style": {
         "fontFamily": "WenYue HouXianDaiTi (Authorization Required) W4-75",
-        "fontSize": 96, "color": "#00D5ED", "bold": false,
+        "fontSize": 96,
+        "color": "#00D5ED",
+        "bold": false,
         "stroke": { "color": "#000000", "width": 12 },
         "shadow": { "color": "#000000", "opacity": 0.85, "blur": 2, "x": 3, "y": 4 }
       }
@@ -74,29 +78,349 @@
     {
       "id": "zhongyuan-red",
       "version": 1,
-      "name": "HY Zhong Yuan with red fill and white outline",
-      "description": "Reference-inspired red rounded lettering with a white outline and black shadow; the screenshot's double outline is approximated with a single outline and shadow.",
+      "name": "中圆体红字",
+      "description": "中圆体红色填充、白色描边和黑色阴影，适合强调结果。",
       "style": {
         "fontFamily": "HYZhongYuanJ",
-        "fontSize": 96, "color": "#FF2349", "bold": false,
+        "fontSize": 96,
+        "color": "#FF2349",
+        "bold": false,
         "stroke": { "color": "#FFFFFF", "width": 12 },
         "shadow": { "color": "#000000", "opacity": 1, "blur": 3, "x": 4, "y": 5 }
       }
     },
     {
-      "id": "simsun-white", "version": 1, "name": "SimSun with white fill and black outline",
-      "description": "A serif caption using packaged SimSun, independent of system font installation.",
-      "style": { "fontFamily": "SimSun", "fontSize": 80, "color": "#FFFFFF", "bold": false, "stroke": { "color": "#000000", "width": 6 } }
+      "id": "simsun-white",
+      "version": 1,
+      "name": "宋体白字",
+      "description": "宋体白字配黑色描边，适合信息说明和地点标识。",
+      "style": {
+        "fontFamily": "SimSun",
+        "fontSize": 80,
+        "color": "#FFFFFF",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 6 }
+      }
     },
     {
-      "id": "simhei-yellow", "version": 1, "name": "SimHei with yellow fill and black outline",
-      "description": "A sans-serif headline using packaged SimHei, independent of system font installation.",
-      "style": { "fontFamily": "SimHei", "fontSize": 88, "color": "#FFEA00", "bold": false, "stroke": { "color": "#000000", "width": 8 } }
+      "id": "simhei-yellow",
+      "version": 1,
+      "name": "黑体黄字",
+      "description": "黑体黄色标题配黑色描边，清晰醒目，适合短句卖点。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 88,
+        "color": "#FFEA00",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 8 }
+      }
     },
     {
-      "id": "kaiti-white", "version": 1, "name": "KaiTi with white fill and black outline",
-      "description": "A calligraphic caption using packaged KaiTi, independent of system font installation.",
-      "style": { "fontFamily": "KaiTi", "fontSize": 88, "color": "#FFFFFF", "bold": false, "stroke": { "color": "#000000", "width": 6 } }
+      "id": "kaiti-white",
+      "version": 1,
+      "name": "楷体白字",
+      "description": "楷体白字配黑色描边，适合亲和、故事化字幕。",
+      "style": {
+        "fontFamily": "KaiTi",
+        "fontSize": 88,
+        "color": "#FFFFFF",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 6 }
+      }
+    },
+    {
+      "id": "headline-white-black",
+      "version": 1,
+      "name": "重黑边白标题",
+      "description": "黑体白字配较厚黑边和柔和阴影，适合顶部标题。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 84,
+        "color": "#FFFFFF",
+        "bold": true,
+        "stroke": { "color": "#000000", "width": 7 },
+        "shadow": { "color": "#000000", "opacity": 0.72, "blur": 6, "x": 0, "y": 4 }
+      }
+    },
+    {
+      "id": "headline-yellow-deep",
+      "version": 1,
+      "name": "深黄黑边标题",
+      "description": "深黄色粗体配黑边，强调力强且适合户外运动画面。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 86,
+        "color": "#FFD600",
+        "bold": true,
+        "stroke": { "color": "#111111", "width": 8 },
+        "shadow": { "color": "#000000", "opacity": 0.8, "blur": 5, "x": 0, "y": 4 }
+      }
+    },
+    {
+      "id": "caption-white-soft",
+      "version": 1,
+      "name": "柔和白字幕",
+      "description": "中等字号白字配细黑边和轻阴影，适合连续口播。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 56,
+        "color": "#FFFFFF",
+        "bold": true,
+        "stroke": { "color": "#1A1A1A", "width": 4 },
+        "shadow": { "color": "#000000", "opacity": 0.62, "blur": 5, "x": 0, "y": 3 }
+      }
+    },
+    {
+      "id": "caption-yellow-black",
+      "version": 1,
+      "name": "黄字黑边字幕",
+      "description": "黄色关键词配黑边，适合在一段字幕中突出核心词。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 58,
+        "color": "#FFE21F",
+        "bold": true,
+        "stroke": { "color": "#000000", "width": 5 },
+        "shadow": { "color": "#000000", "opacity": 0.55, "blur": 4, "x": 0, "y": 2 }
+      }
+    },
+    {
+      "id": "caption-cyan-black",
+      "version": 1,
+      "name": "青字黑边字幕",
+      "description": "青色后现代体配黑边，适合数据、动作和科技关键词。",
+      "style": {
+        "fontFamily": "WenYue HouXianDaiTi (Authorization Required) W4-75",
+        "fontSize": 62,
+        "color": "#00D5ED",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 7 },
+        "shadow": { "color": "#000000", "opacity": 0.72, "blur": 3, "x": 1, "y": 3 }
+      }
+    },
+    {
+      "id": "caption-red-white",
+      "version": 1,
+      "name": "红字白边字幕",
+      "description": "红色中圆体配白边和黑影，适合结果、警示和家长反馈。",
+      "style": {
+        "fontFamily": "HYZhongYuanJ",
+        "fontSize": 62,
+        "color": "#FF344D",
+        "bold": false,
+        "stroke": { "color": "#FFFFFF", "width": 7 },
+        "shadow": { "color": "#000000", "opacity": 0.85, "blur": 3, "x": 2, "y": 3 }
+      }
+    },
+    {
+      "id": "caption-green-black",
+      "version": 1,
+      "name": "绿字黑边字幕",
+      "description": "绿色黑体配黑边，适合健康、成长和运动状态。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 62,
+        "color": "#45E06F",
+        "bold": true,
+        "stroke": { "color": "#0B1B11", "width": 5 },
+        "shadow": { "color": "#000000", "opacity": 0.58, "blur": 4, "x": 0, "y": 2 }
+      }
+    },
+    {
+      "id": "caption-orange-black",
+      "version": 1,
+      "name": "橙字黑边字幕",
+      "description": "橙色新青年体配黑边，适合热烈、行动和促销关键词。",
+      "style": {
+        "fontFamily": "WenYue XinQingNianTi (Non-Commercial Use) W8",
+        "fontSize": 64,
+        "color": "#FF7A1A",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 8 },
+        "shadow": { "color": "#000000", "opacity": 0.75, "blur": 3, "x": 1, "y": 3 }
+      }
+    },
+    {
+      "id": "caption-purple-white",
+      "version": 1,
+      "name": "紫字白边字幕",
+      "description": "紫色中圆体配白边，适合年轻、潮流和课程标签。",
+      "style": {
+        "fontFamily": "HYZhongYuanJ",
+        "fontSize": 64,
+        "color": "#9B7BFF",
+        "bold": false,
+        "stroke": { "color": "#FFFFFF", "width": 7 },
+        "shadow": { "color": "#000000", "opacity": 0.8, "blur": 3, "x": 2, "y": 3 }
+      }
+    },
+    {
+      "id": "caption-blue-white",
+      "version": 1,
+      "name": "蓝字白边字幕",
+      "description": "蓝色黑体配白边，适合专业、服务和地点信息。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 64,
+        "color": "#3BA7FF",
+        "bold": true,
+        "stroke": { "color": "#FFFFFF", "width": 6 },
+        "shadow": { "color": "#000000", "opacity": 0.8, "blur": 3, "x": 1, "y": 3 }
+      }
+    },
+    {
+      "id": "data-white-cyan",
+      "version": 1,
+      "name": "数据白字青边",
+      "description": "白色后现代体配青色细边和阴影，适合数据播报。",
+      "style": {
+        "fontFamily": "WenYue HouXianDaiTi (Authorization Required) W4-75",
+        "fontSize": 60,
+        "color": "#FFFFFF",
+        "bold": false,
+        "stroke": { "color": "#00AFC5", "width": 4 },
+        "shadow": { "color": "#000000", "opacity": 0.78, "blur": 5, "x": 0, "y": 3 }
+      }
+    },
+    {
+      "id": "data-yellow-black",
+      "version": 1,
+      "name": "数据黄字黑边",
+      "description": "黄色黑体配黑边和低阴影，适合时间、次数和百分比。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 60,
+        "color": "#FFE21F",
+        "bold": true,
+        "stroke": { "color": "#000000", "width": 5 },
+        "shadow": { "color": "#000000", "opacity": 0.68, "blur": 3, "x": 0, "y": 2 }
+      }
+    },
+    {
+      "id": "minimal-white",
+      "version": 1,
+      "name": "极简白字",
+      "description": "宋体白字配轻阴影，适合画面干净时的克制信息。",
+      "style": {
+        "fontFamily": "SimSun",
+        "fontSize": 60,
+        "color": "#FFFFFF",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 2 },
+        "shadow": { "color": "#000000", "opacity": 0.66, "blur": 6, "x": 0, "y": 3 }
+      }
+    },
+    {
+      "id": "minimal-kaiti",
+      "version": 1,
+      "name": "极简楷体",
+      "description": "楷体白字配细黑边和柔和阴影，适合故事和人物口吻。",
+      "style": {
+        "fontFamily": "KaiTi",
+        "fontSize": 64,
+        "color": "#FFFFFF",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 3 },
+        "shadow": { "color": "#000000", "opacity": 0.65, "blur": 5, "x": 0, "y": 3 }
+      }
+    },
+    {
+      "id": "left-aligned-white",
+      "version": 1,
+      "name": "左对齐白字幕",
+      "description": "黑体白字配黑边，适合左上角标题和竖屏安全区排版。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 60,
+        "color": "#FFFFFF",
+        "bold": true,
+        "stroke": { "color": "#000000", "width": 4 },
+        "shadow": { "color": "#000000", "opacity": 0.68, "blur": 4, "x": 0, "y": 3 }
+      }
+    },
+    {
+      "id": "left-aligned-yellow",
+      "version": 1,
+      "name": "左对齐黄标题",
+      "description": "黑体黄字配黑边，适合左上角钩子和分段标题。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 62,
+        "color": "#FFEA00",
+        "bold": true,
+        "stroke": { "color": "#000000", "width": 5 },
+        "shadow": { "color": "#000000", "opacity": 0.7, "blur": 4, "x": 0, "y": 3 }
+      }
+    },
+    {
+      "id": "block-outline-white",
+      "version": 1,
+      "name": "厚边框感白字",
+      "description": "用超粗黑色描边制造文字块面感，仍可作为剪映原生文字编辑。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 72,
+        "color": "#FFFFFF",
+        "bold": true,
+        "stroke": { "color": "#000000", "width": 14 },
+        "shadow": { "color": "#000000", "opacity": 0.9, "blur": 3, "x": 2, "y": 4 }
+      }
+    },
+    {
+      "id": "block-outline-yellow",
+      "version": 1,
+      "name": "厚边框感黄字",
+      "description": "黄色填充配超粗黑边，模拟短视频标题的醒目块面效果。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 72,
+        "color": "#FFE21F",
+        "bold": true,
+        "stroke": { "color": "#000000", "width": 14 },
+        "shadow": { "color": "#000000", "opacity": 0.9, "blur": 3, "x": 2, "y": 4 }
+      }
+    },
+    {
+      "id": "block-outline-red",
+      "version": 1,
+      "name": "厚边框感红字",
+      "description": "红色中圆体配白色粗边和黑色阴影，适合结果型标题。",
+      "style": {
+        "fontFamily": "HYZhongYuanJ",
+        "fontSize": 72,
+        "color": "#FF2349",
+        "bold": false,
+        "stroke": { "color": "#FFFFFF", "width": 12 },
+        "shadow": { "color": "#000000", "opacity": 0.95, "blur": 4, "x": 3, "y": 5 }
+      }
+    },
+    {
+      "id": "block-outline-cyan",
+      "version": 1,
+      "name": "厚边框感青字",
+      "description": "青色后现代体配超粗黑边，适合动作和数据标题。",
+      "style": {
+        "fontFamily": "WenYue HouXianDaiTi (Authorization Required) W4-75",
+        "fontSize": 72,
+        "color": "#00D5ED",
+        "bold": false,
+        "stroke": { "color": "#000000", "width": 12 },
+        "shadow": { "color": "#000000", "opacity": 0.9, "blur": 3, "x": 2, "y": 4 }
+      }
+    },
+    {
+      "id": "block-outline-blue",
+      "version": 1,
+      "name": "厚边框感蓝字",
+      "description": "蓝色黑体配白色粗边和黑影，适合专业服务与地点标题。",
+      "style": {
+        "fontFamily": "SimHei",
+        "fontSize": 72,
+        "color": "#1976D2",
+        "bold": true,
+        "stroke": { "color": "#FFFFFF", "width": 11 },
+        "shadow": { "color": "#000000", "opacity": 0.9, "blur": 4, "x": 2, "y": 4 }
+      }
     }
   ]
 }

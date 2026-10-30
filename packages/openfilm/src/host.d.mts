@@ -3,7 +3,7 @@ export declare const HOST_FLAG: string;
 export declare const SEEK_INSIDE_FRAME: string;
 export declare const FILM_CLOCK: string;
 export declare function injectFirst(html: string, tag: string): string;
-export declare function serve(root: string, opts?: { port?: number }): Promise<{ url: string; close(): Promise<void> }>;
+export declare function serve(root: string, opts?: { port?: number; swap?: (file: string) => string | null; cache?: boolean }): Promise<{ url: string; close(): Promise<void> }>;
 export interface LaunchOptions { headed?: boolean; channel?: string | null; args?: string[]; env?: Record<string, string | undefined> }
 export declare function launch(opts?: LaunchOptions): Promise<Browser>;
 /** Close every browser launch() opened that is still open: what waits on one fails at once instead of never answering. */
@@ -26,4 +26,4 @@ export declare class FilmPage {
   close(): Promise<void>;
 }
 /** Serves one request for the files of `root` at `path`; false when the path leaves the folder. */
-export declare function folderFiles(root: string, opts?: { inject?: string; timelineInject?: string; headers?: Record<string, string>; swap?: (file: string) => string | null }): (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, path: string, query?: URLSearchParams) => boolean;
+export declare function folderFiles(root: string, opts?: { inject?: string; timelineInject?: string; headers?: Record<string, string>; swap?: (file: string) => string | null; cache?: boolean }): (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, path: string, query?: URLSearchParams) => boolean;

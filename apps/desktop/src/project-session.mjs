@@ -16,7 +16,9 @@ export class ProjectSession extends AgentSession {
     mkdirSync(home, { recursive: true, mode: 0o700 });
     const temp = join(root, '.film', 'tmp');
     mkdirSync(temp, { recursive: true });
-    const instructions = `${INSTRUCTIONS}\nThe active film project is your working directory. Understand natural language and operate directly on its files. Preserve unrelated content. Only run narration synthesis when requested or explicitly required by the selected template; deleting narration must never synthesize replacement audio. Inspect changes before reporting success. Any copy already entered in the template is locked verbatim: do not shorten, summarize, rewrite, add or remove words. Split it at sentence boundaries and synthesize one TTS file per complete sentence; never merge sentences or truncate one.`;
+    /* INSTRUCTIONS already contains the project boundary, copy-lock, narration and verification rules. Keep one
+       canonical copy in the session config so each turn does not carry a second version of the same policy. */
+    const instructions = INSTRUCTIONS;
     /* Keep the provider in a private Codex home.  This is TOML because Codex reads config.toml before the ACP
        handshake; passing the same object through the old planner JSON override makes it ignore the provider. */
     const toml = [

@@ -10,7 +10,7 @@ text and narration boundaries independently to serve the message. Reuse OpenFilm
 format and exporter.
 
 For a normal template generation request, keep the execution short: inspect the supplied media, read this skill, read
-the template's exact copy, synthesize the required sentence audio, assemble the timeline, run one final `openfilm look`
+the template's exact copy, synthesize the required sentence audio, assemble the timeline, use `openfilm look --quick` for progress, and run one final `openfilm look`
 or project check, and report. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
 
 ### Mode gate
@@ -26,49 +26,72 @@ The mode gate is authoritative for this skill. Do not let a generic narration in
 
 ## Reference text layout
 
-When the template uses **原声 · 无朗读**, keep the supplied audio and do not run any TTS or narration synthesis. The
-following role mapping is required for this mode unless the person explicitly requests another style. Read every filled
-template field first, then assign it to a role; never invent missing wording:
+When the template uses **原声 · 无朗读**, keep the supplied audio and do not run any TTS or narration synthesis. When it
+contains a title, supporting lines and a location, use this compact vertical-ad structure unless the person specifies
+another layout. Arrange these text roles as a compact group using the spacing rule below; choose a concrete preset ID
+from the local style library after inspecting the frame:
 
-- `titleText` → top headline. Fit the title to one line: calculate a smaller canvas font size from the actual text width (down to about 42px when necessary), keep `white-space: nowrap`, and never insert a line break or let the title wrap.
-- `subtitleTexts[]` → ordered core selling point lines. Each array item is one independent subtitle input and one independent text item; keep every item in order and do not merge the items into a paragraph.
-- `bodyText` → sentence-sized emphasis/evidence lines, preserving every character and sentence order.
-- `locationText` → separate location label.
-
-If a field contains several sentences, split the display into sentence-sized text clips while keeping the exact text.
-Do not put a long multi-sentence body into one oversized paragraph when it can be split without changing the wording.
-Choose the visual variant after inspecting the frame:
-
-1. **Top headline**: one single line near the upper area. Use a strong colored fill or a blue bar with bold white
-   text and a dark shadow/outline. Start around 78–112 px, then reduce the actual title until the complete title fits
-   inside the safe width; one line and legibility take priority over preserving the starting size.
-2. **Core selling point**: one line in a blue rounded/rectangular label with bold white text, or a white label with dark
-   blue lettering. Required canvas font size: 68–100 px. Keep the label behind the text and clear of the subject.
-3. **Emphasis line**: one benefit or action line in yellow, orange or red with a dark outline, optionally without a bar.
-   Required canvas font size: 58–88 px.
-4. **Evidence line**: one short supporting line in white, yellow or red with a dark outline/shadow; use a dark bar when
-   the frame is bright. Required canvas font size: 48–78 px.
-5. **Family/closing line**: an optional red or white statement with a dark outline, used only for supplied quote/result
-   text. Required canvas font size: 48–76 px.
+1. **Top headline**: one single line near the upper area; fit its font size to the available width. Use a strong
+   library preset with a colored fill and dark outline/shadow. Candidate canvas font size: 78–112 px.
+2. **Core selling point**: one line using a bold, high-contrast library preset. Do not add a background label to a
+   native text page. Candidate canvas font size: 68–100 px.
+3. **Emphasis line**: one benefit or action line using a yellow, orange or red library preset with a dark outline.
+   Candidate canvas font size: 58–88 px.
+4. **Evidence line**: one short supporting line using a white, yellow or red library preset with a dark outline/shadow.
+   Candidate canvas font size: 48–78 px.
+5. **Family/closing line**: an optional red or white statement with a dark outline, used for a supplied quote or result.
+   Candidate canvas font size: 48–76 px.
 6. **Location**: place the supplied location separately near a lower corner safe area, normally split into two short lines
    such as “山东” and “济南”. Use a blue/cyan or white fill with a dark outline and 52–82 px; do not invent a location
    or merge it into the title.
 
-Use at least two distinct visual treatments when two or more roles are present: for example, a blue label for the core
-selling point and yellow/red emphasis for the body. Do not render every text item with one fill color, one size or one
-layout unless the footage makes every alternative unreadable; if that exception is necessary, record the reason.
-
 These are layout roles, not permission to rewrite or compress the template. Keep each filled field verbatim. In 原声 · 无朗读
 mode, captions follow the supplied copy or source speech and never create replacement narration. Inspect the final frame
-to confirm that the text blocks do not hide the person or equipment, and reduce size or split lines when a block would
-leave the safe area. The final check must explicitly verify: role order, at least two treatments when possible, no
-oversized paragraph, readable contrast, and a separate location label. If any check fails, revise the text pages before
-reporting completion.
+to confirm that the text blocks do not hide the person or equipment. Fit horizontal title sizes using the single-line rule below;
+the vertical-title option below takes precedence when selected.
+Keep the location layout independent; it may still use two short lines.
 
-For a reusable implementation example, read `references/html-text-layouts/README.zh-CN.md` and
-`references/html-text-layouts/original-audio-vertical.html`. Copy its structured page layout and replace only the sample
-words with the template's exact fields. Keep the `openfilm-text` JSON structure so the page remains eligible for the
-draft exporter; arbitrary HTML/CSS may render correctly in Studio but cannot be assumed to become native Jianying text.
+### Compact title-group spacing
+
+When several promotional title lines appear together, stack them in one compact group near the upper safe area.
+Use an 18 px vertical gap between adjacent text bounds on a 1080 px-wide canvas; scale this gap in proportion to the
+actual canvas width. Measure gaps between rendered text bounds rather than between baselines. Use content-driven text
+heights and a line-height around 1.22; avoid independent fixed top positions that scatter the
+lines down the frame. Preserve each line's single-line sizing, colors and emphasis. Keep location labels separate.
+In HTML previews, use a vertical flex or grid stack; in film text pages, resolve each position from the preceding
+box's actual height plus the gap. Inspect outline/shadow clearance and subject visibility, adjusting the group
+position or gap when necessary. Explicit user spacing or placement takes priority.
+
+### Optional vertical titles for more than four titles
+
+When the supplied copy contains more than four title units (excluding location labels and speech subtitles),
+you may use vertical typography according to the actual frame. This is optional, not an automatic switch:
+choose it when available vertical space improves readability and keeps faces, working limbs and equipment clear.
+Vertical typography means characters running from top to bottom in a column, distinct from stacking horizontal titles.
+The group may combine horizontal and vertical titles when the frame supports it. Preserve every title's wording,
+punctuation, spaces, colors and emphasis; do not shorten copy to make a column fit.
+
+For selected vertical titles, fit the loaded font to the available safe height and measure both column height and width,
+including padding, outline and shadow. Use upright Chinese glyphs (in HTML, `writing-mode: vertical-rl` and
+`text-orientation: upright`); do not rotate the whole horizontal line. Keep each title in one column by default.
+Use the same 18 px edge-to-edge gap between adjacent title columns on a 1080 px-wide canvas, scaled with canvas width.
+The compact upper horizontal stack is no longer required for those columns; place them in clear space based on the frame.
+Inspect normal-size readability and subject visibility before choosing the layout. Without footage, treat it as a
+provisional preview rather than a verified scene-based placement. Explicit user orientation and placement take priority.
+
+### Single-line title sizing
+
+Keep each headline, selling point, emphasis line, evidence line and family/closing statement on one horizontal line by default,
+except titles selected for vertical typography under the more-than-four-title rule above.
+Preserve the supplied wording, punctuation and spaces. Location labels and speech subtitles are separate from this rule.
+Treat the role-specific font-size ranges and the 88–120 px display recommendation as starting points, not hard minimums.
+After the actual font is loaded, measure the complete line using its resolved font family, weight and letter spacing.
+Choose the largest size up to the role's chosen starting size that fits the available safe width after subtracting
+label padding, outline and shadow extents. Character count is only an initial estimate; verify the rendered width.
+Do not wrap, truncate, add ellipses or horizontally distort the text to force a fit. In HTML previews, prevent wrapping
+and recalculate after fonts load or the available width changes; save the resolved size in editable film text pages.
+If fitting makes the text unreadable, first widen or reposition its box within the safe area; report the conflict if
+no readable single-line layout fits. An explicit user choice of font size or wrapping takes priority.
 
 ## Start from the brief
 
@@ -96,8 +119,8 @@ modes, make one TTS file for each complete sentence. Never merge two template se
 truncate a sentence to meet a duration target. Visual shots may span several sentences, but narration and display text
 remain sentence-by-sentence and verbatim.
 
-Probe supplied media for duration, dimensions and sound. Use `openfilm look <media-file>` for a contact sheet,
-then `look <media-file> <seconds>` or `look <media-file> <from>-<to>` to inspect candidate intervals. Look across each
+Probe supplied media for duration, dimensions and sound. Use `openfilm look --quick <media-file>` for a fast contact sheet,
+then `look --quick <media-file> <seconds>` or `look --quick <media-file> <from>-<to>` to inspect candidate intervals. Look across each
 recording; filenames or first frames do not establish its contents. Record useful ranges and observed actions.
 Use supplied descriptions, but verify the selected range against actual footage.
 
@@ -135,28 +158,29 @@ obtain any needed copy or speech-rate change instead of truncating voice.
 Before creating text, read:
 
 ```sh
-openfilm text-styles list
+openfilm text-styles list --compact
 openfilm text-styles show default
-openfilm text-styles generation-rules
-openfilm text-styles rules
 ```
 
-An explicit style wins. Otherwise start from the saved default, applying scene-informed choices from the suggested
-ranges. Give the film a coherent visual direction without requiring identical styles for every text clip. Choose fill
-colors from the generation policy palette (yellow, orange, red, cyan, green, purple or black) after inspecting the
-footage; choose the clearest contrast for each scene and keep the main color consistent. White fill is reserved for an
-explicit user request. Vary color,
-size, weight, emphasis, placement or background where the message and footage call for it; preserve legibility and
-respect explicit user choices. Inspect the footage behind the intended text area when choosing fill and outline
-colors, including every shot beneath a text clip that spans cuts; check readability across the interval. Record concrete values and selection rationale.
-Backgrounds and shadows are optional according to the scene.
+After choosing a preset, read only that preset with `openfilm text-styles show <presetId>`. Read `rules` or
+`generation-rules` only when a requested effect is not clearly covered by the selected preset or its native export
+status needs checking; do not print both full rule documents for every edit.
+
+Every generated text item must start from a preset returned by `openfilm text-styles list`. An explicit user preset wins;
+otherwise use the saved default for the primary text role and choose any secondary role from the same library by its
+preset ID. Do not invent a new appearance object, sample random colors, or independently tune font, stroke or shadow
+numbers. Variation comes from selecting a different listed preset for a different role, not from random generation.
+Inspect the footage behind the intended text area to choose among the listed presets, keep one coherent visual direction,
+and record the selected preset ID, version and reason. Do not add background boxes, rounded labels or other unsupported
+appearance fields to a native text page.
 
 Read SPEC.md's “Text style validation status” for unsupported or uncalibrated settings. Panel values are not preview
-pixels: do not apply outline thickness 30–45 directly as pixels or invent draft mappings. Structured text pages
-support backgroundColor, backgroundOpacity, borderRadius and outline fields; when the user asks to remove a text
-background, set backgroundOpacity to 0 and preserve the text itself. Treat explicit user style requests as executable
-text-track edits and return the updated film rather than refusing or switching to a chat-only response. Range rules
-guide the agent; they are not an automatic vision engine.
+pixels: do not apply outline thickness 30–45 directly as pixels or invent draft mappings. Structured text pages must
+use the appearance fields from the selected preset. Do not add `backgroundColor`, `backgroundOpacity`, `borderRadius`
+or arbitrary CSS to a page intended for native export; those properties trigger rendered fallback. Treat explicit user
+style requests as executable text-track edits only when a matching library preset exists; otherwise record the missing
+preset instead of silently generating a one-off style. The generation rules guide preset selection; they are not a
+second appearance source or an automatic vision engine.
 
 Use structured text pages matching the film canvas for native editable export. For example:
 
@@ -165,25 +189,39 @@ openfilm text-styles page titles/s01.html --text 'Your line' --duration 3.2 --si
 ```
 
 Use unique output names: this command refuses overwrites. Update pages with `openfilm/text-page` when changing
-placement, wrapping or resolved appearance; preserve font embedding. For programmatic generation, pass
+placement, wrapping or layout; preserve the appearance copied from the selected preset. For programmatic generation,
+call `applyTextStyle(item, presetId, layoutOverrides)` from `openfilm/text-styles`, then pass
 `textFontCss(families, true)` from `openfilm/text-fonts` as `textPageHtml(page, { fontCss })`. Keep packaged fonts as
 `openfilm-font:<id>` references. Save full styles rather than live preset references. Do not replace structured copy with arbitrary HTML or a text MOV to
 conceal an unsupported property.
 
+### Font selection
+
+For generated on-screen text, the preset determines the font. Select a preset ID from the local library rather than
+choosing a font family first, and keep the selected preset's font, weight, outline and shadow together. An explicit
+user font choice takes priority only when it can be represented by an existing or saved library preset. Resolve the
+preset against the packaged font registry; do not invent an ID or silently substitute an unrelated family. If a
+selected preset's font is unavailable, choose another listed preset and record the substitution. Measure single-line
+sizing only after the resolved font has loaded. Record the actual preset ID/version, family, font ID, weight and
+resolved size in the execution plan.
+
 ### Composition and readability
 
+- Do not underline any displayed text, including titles, location labels and subtitles. In HTML previews,
+  set `text-decoration: none` and do not simulate underlines with borders, pseudo-elements or separate lines;
+  this also applies to line decorations alongside vertical text. Preserve the supplied copy itself.
 - Protect faces, the main person/product and key actions, including working limbs and equipment in fitness shots.
   Reframing, text and overlays must not hide them; preserve proportions and avoid crops that lose the action.
-- Put copy in stable empty space. Keep the whole wrapped text, outline and shadow inside frame margins and clear
+- Put copy in stable empty space. Keep the whole text, outline and shadow inside frame margins and clear
   of other captions and known platform controls. Do not assume a fixed bottom position is safe for every shot.
-- Check contrast at normal viewing size against the changing footage. Use readable type, intentional line breaks
+- Check contrast at normal viewing size against the changing footage. Use readable type, horizontal single-line titles or eligible vertical titles under the rules above
   and enough display time; keep styles visually related while allowing purposeful variation between text clips.
   Avoid distracting position changes within a shot.
 - For a 1080×1920 ad, prefer a prominent display size around 88–120px. Choose fill and outline/shadow colors from
   the actual frames: light copy over dark footage and dark copy over bright footage. Avoid pale colors over bright
   backgrounds even when they match the brand palette.
 - Inspect the start, middle, end and major movements of each selected interval, including text animation bounds.
-  If obstructed, reposition, reflow or choose another relevant interval; never solve it with unreadably small text.
+  If obstructed, reposition, fit title size or choose another relevant interval; never solve it with unreadably small text.
 - Record inspected times and a short placement reason. If no clear layout works, report the limitation. Frame
   sampling is a practical check, not continuous subject tracking or a guarantee for unknown platform overlays.
 

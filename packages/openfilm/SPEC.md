@@ -198,15 +198,17 @@ browser/editor font metrics, wrapping, spacing, outlines and shadows may differ 
 ### Local text style presets
 
 `openfilm/text-styles` provides `listTextStyles()`, `getTextStyle(id)` and
-`applyTextStyle(item, idOrPreset, overrides?)`. The built-in JSON library (`src/text-styles.json`) includes
-`white-outline`, `yellow-headline` and `red-emphasis`. These are basic OpenFilm presets, not imported proprietary
-text effects. They work offline and contain no font files or machine-specific paths.
+`applyTextStyle(item, idOrPreset, overrides?)`. The built-in JSON library (`src/text-styles.json`) now contains 30
+native-exportable presets. These are OpenFilm appearance presets, not imported proprietary text effects. They work
+offline and contain no font files or machine-specific paths.
 
 The reference-inspired presets `xinqingnian-yellow`, `houxiandai-cyan` and `zhongyuan-red` use bundled
 WenYue XinQingNianTi W8, WenYue HouXianDaiTi W4-75 and HYZhongYuanJ respectively. Their colors and effects are
 approximations of the supplied references, not calibrated Jianying panel conversions. Structured text currently
-supports one outline: the red preset approximates the reference's double outline with a white outline and black
-shadow. The font files live in `fonts/`, registered in `src/text-fonts.json` with their origins and authorization
+supports one outline per text run. The `block-outline-*` presets use a deliberately thick outline and shadow to
+create the block-like visual weight seen in short-video titles while remaining native text; they do not use an HTML
+background box. Actual background boxes and rounded labels still force rendered fallback. The font files live in
+`fonts/`, registered in `src/text-fonts.json` with their origins and authorization
 status; adding them does not establish commercial or redistribution rights. The library resolves font paths
 using portable `openfilm-font:<id>` references, without replacing explicitly selected files. Settings loads the font
 files through authenticated Studio endpoints. `text-styles page` embeds the selected font in its HTML so the page renders

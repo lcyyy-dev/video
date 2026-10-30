@@ -363,6 +363,7 @@ const pagesAwake = new Set();
  */
 function wakePage(c) {
   const mine = c.waking = {};
+  const hadLayout = c.nw != null && c.nh != null;
   c.awake = pageLimited(async () => {
     if (c.waking !== mine) return;
     const el = c.el;
@@ -390,6 +391,13 @@ function wakePage(c) {
     c.drawn = false;
     /* its own size, when it says one (else its clip's size, or the stage's: see settle) */
     if (c.child.width > 0 && c.child.height > 0) c.own = { w: c.child.width, h: c.child.height };
+    /* A finite #t page skipped its initial open and was laid out at the stage as a placeholder. Apply its real
+       dimensions now that it is awake; pages loaded during initial metadata discovery are dressed by settle(). */
+    if (hadLayout && c.row && c.own) {
+      c.nw = c.own.w;
+      c.nh = c.own.h;
+      dress(c, c.row);
+    }
     window.__filmEditor.stage.woke?.();
   });
   pagesAwake.add(c);
@@ -575,14 +583,20 @@ async function load(row, track, ti, el) {
     c.missing = true;
     c.nw = stage.w; c.nh = stage.h;
   } else {
-    /* opened to read its length (the host serves it unopened, see holdPages; filmStart gives it the stage's size) */
+    /* A page with an explicit finite #t range already has its clip length. Do not open every title page just to
+       discover a duration; it will be opened lazily when the playhead reaches it. Pages without a complete range
+       still have to be opened here because their own duration and size define the clip. */
     c.row = row;
-    await wakePage(c);
-    /* a page without a duration has no end: its clip's #t= is its length, as a still's */
-    const length = c.child.duration;
-    c.native = Number.isFinite(length) && length > 0 ? length : undefined;
-    /* more pages than are kept open: the ones read later close again until the playhead comes near (see near) */
-    if ([...pagesAwake].filter((p) => p.child).length > PAGES_AWAKE) restPage(c);
+    if (row.time?.length === 2) {
+      c.native = undefined;
+      c.nw = row.size?.w || stage.w;
+      c.nh = row.size?.h || stage.h;
+    } else {
+      await wakePage(c);
+      const length = c.child.duration;
+      c.native = Number.isFinite(length) && length > 0 ? length : undefined;
+      if ([...pagesAwake].filter((p) => p.child).length > PAGES_AWAKE) restPage(c);
+    }
   }
   settle(c, row, track, ti);
   progress++;

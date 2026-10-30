@@ -9,7 +9,7 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
   openfilm get     [what] [--options]  voice-over, music, sound effects, transcripts, images, video, from a connected service
   openfilm capture <url> <file.png>    a picture of a live web page, to show a product or a site as it is
   openfilm skills                      the skills this film can be made with; \`openfilm skill <name>\` prints one
-  openfilm text-styles [list | rules | generation-rules | show <id>]   text presets and generation rules
+  openfilm text-styles [list [--compact] | rules | generation-rules | show <id>]   text presets and generation rules
   openfilm update                      the newest OpenFilm; Studio starts again on it
 
   Run with no arguments for the manual; \`openfilm <command> --help\` for one command's options; --version for the version.
@@ -21,7 +21,7 @@ const COMMAND_HELP = {
   'text-styles': `openfilm text-styles [list | rules | generation-rules | show <id> | default [id]]
 openfilm text-styles page <file.html> --text <copy> --duration <seconds> [--size 1080x1920] [--preset <id>]
 
-  list        local text style presets as JSON (default)
+  list        local text style presets as JSON (default); --compact prints ids and names without appearance data
   rules       machine-readable properties, units, native draft mappings, dependencies and fallback rules
   generation-rules  scene-informed font candidates, appearance ranges and implementation limits as JSON
   show <id>   one preset as JSON; 'default' resolves the saved default
@@ -77,7 +77,8 @@ openfilm skill remove <name>
   Writes PNGs under .film/cache/look/ of the project and prints their paths. A project Studio has not shown yet is
   opened in Studio first, so the person watches it.
 
-  --count <n>     frames in a sheet (12)`,
+  --count <n>     frames in a sheet (12)
+  --quick         fast preview for generation; skips duplicate-frame and audio diagnostics`,
   render: `openfilm render [a-b]
 
   Render the project around the current folder to video.
@@ -146,7 +147,7 @@ try {
   parsed = parseArgs({
     allowPositionals: true,
     options: {
-      count: { type: 'string' }, out: { type: 'string', short: 'o' }, '4k': { type: 'boolean' }, scale: { type: 'string' },
+      count: { type: 'string' }, quick: { type: 'boolean' }, compact: { type: 'boolean' }, out: { type: 'string', short: 'o' }, '4k': { type: 'boolean' }, scale: { type: 'string' },
       blur: { type: 'boolean' }, samples: { type: 'string' }, shutter: { type: 'string' }, alpha: { type: 'boolean' },
       fps: { type: 'string' }, workers: { type: 'string' }, help: { type: 'boolean', short: 'h' },
       size: { type: 'string' }, full: { type: 'boolean' }, wait: { type: 'string' }, dark: { type: 'boolean' },
@@ -179,7 +180,10 @@ const commands = {
     const styles = await import('../src/text-styles.mjs');
     const saved = await import('../studio/server/text-styles.mjs');
     let data;
-    if (!args.length || (args.length === 1 && args[0] === 'list')) data = saved.textStyleLibrary().presets;
+    if (!args.length || (args.length === 1 && args[0] === 'list')) {
+      const presets = saved.textStyleLibrary().presets;
+      data = o.compact ? presets.map(({ id, version, name, description }) => ({ id, version, name, description })) : presets;
+    }
     else if (args.length === 1 && args[0] === 'rules') data = styles.getTextStyleCompatibility();
     else if (args.length === 1 && args[0] === 'generation-rules') data = styles.getTextStyleGenerationRules();
     else if (args.length === 2 && args[0] === 'show') {

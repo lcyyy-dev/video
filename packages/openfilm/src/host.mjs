@@ -62,9 +62,9 @@ const TYPES = {
  * `root`, or leads out of it through a link.
  * `swap(file)` may name another file to serve in a file's place (a render's fast-seeking copy of a video, seekable.mjs;
  * the preview's proxy of heavy footage, studio/server/proxies.mjs); not for `?film-facts`, which asks what the file is.
- * @param {string} root @param {{ inject?: string, timelineInject?: string, headers?: Record<string, string>, swap?: (file: string) => string | null }} [options]
+ * @param {string} root @param {{ inject?: string, timelineInject?: string, headers?: Record<string, string>, swap?: (file: string) => string | null, cache?: boolean }} [options]
  */
-export function folderFiles(root, { inject = `<script>${HOST_FLAG}</script>`, timelineInject = inject, headers: extraHeaders = {}, swap } = {}) {
+export function folderFiles(root, { inject = `<script>${HOST_FLAG}</script>`, timelineInject = inject, headers: extraHeaders = {}, swap, cache = false } = {}) {
   root = resolve(root);
   return (req, res, path, query) => {
     /* beside any film, wherever in the folder it is (its page asks for them relative to itself) */
@@ -108,7 +108,9 @@ export function folderFiles(root, { inject = `<script>${HOST_FLAG}</script>`, ti
     try { stat = statSync(file); } catch { res.writeHead(404, extraHeaders).end('not found'); return true; }
     if (stat.isDirectory()) { res.writeHead(302, { ...extraHeaders, location: `${path}/` }).end(); return true; }
     const type = TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream';
-    const headers = { ...extraHeaders, 'content-type': type, 'cache-control': 'no-store', 'accept-ranges': 'bytes' };
+    /* A look/render server serves a fixed snapshot for one process, so its pages and fonts can be reused when an
+       iframe is reopened. Studio leaves this off because the person may edit a file while its page is alive. */
+    const headers = { ...extraHeaders, 'content-type': type, 'cache-control': cache ? 'private, max-age=31536000, immutable' : 'no-store', 'accept-ranges': 'bytes' };
     /* a HEAD has no body (the browser cancels one that brings it) */
     if (req.method === 'HEAD') { res.writeHead(200, headers).end(); return true; }
     if (type.startsWith('text/html') && query?.get('film-host') !== '0') {
@@ -177,8 +179,8 @@ export function frameDuration(file) {
  * Serve `root`. HTML gets the host flag injected before any page script;
  * ?film-host=0 serves the page untouched, as a visitor would see it.
  */
-export function serve(root, { port = 0, swap } = {}) {
-  const files = folderFiles(root, { swap });
+export function serve(root, { port = 0, swap, cache = false } = {}) {
+  const files = folderFiles(root, { swap, cache });
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     if (!files(req, res, url.pathname, url.searchParams)) res.writeHead(403).end();

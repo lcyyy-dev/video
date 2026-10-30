@@ -9,12 +9,15 @@
     "units": "Numbers refer to Jianying panel controls, not preview pixels. Calibrate panel-to-draft and panel-to-preview conversions using real drafts before applying unresolved controls."
   },
   "selection": {
-    "mode": "scene-informed",
+    "mode": "library-only",
+    "source": "src/text-styles.json",
+    "presetIdRequired": true,
+    "allowAdHocAppearance": false,
     "rangeBounds": "inclusive",
     "randomizePerCaption": false,
-    "consistency": "Choose a main style for the film; adjust individual captions only when the footage requires it.",
+    "consistency": "Choose a main preset for the film; choose secondary roles only from the same library when the footage requires it.",
     "explicitUserStyleTakesPriority": true,
-    "output": "Save concrete resolved appearance values in each project text item, not ranges or live library references."
+    "output": "Save presetId, preset version, selection reason and concrete resolved appearance values in each project text item; never emit an unlisted appearance."
   },
   "font": {
     "candidates": ["宋体", "新青年体", "后现代体", "黑体", "圆体", "楷体"],
@@ -66,6 +69,8 @@
   },
   "implementation": {
     "executor": "AI agent reading this policy; no automatic pixel-analysis engine is implied.",
+    "presetResolution": "Resolve every appearance through text-styles.json and applyTextStyle; layout and timing remain separate.",
+    "unlistedPreset": "Reject and report; do not synthesize a replacement style.",
     "readAlongside": "text-style-compatibility.json",
     "supportedAppearance": ["fontFamily", "fontPath", "color", "stroke.color", "shadow.opacity"],
     "requiresConversion": ["stroke.thickness", "shadow.blur", "shadow.distance", "shadow.angle"],

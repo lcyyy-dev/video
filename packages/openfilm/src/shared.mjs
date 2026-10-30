@@ -69,7 +69,7 @@ export async function open(target, opts = {}) {
     const { problems } = readFilmFile(readFileSync(join(loc.dir, FILM_FILE), 'utf8'));
     if (problems.length) throw new FrameError(problems.length === 1 ? problems[0] : `${FILM_FILE} has ${problems.length} problems:\n  ${problems.join('\n  ')}`);
   }
-  const site = await serve(loc.root, { swap: opts.swap });
+  const site = await serve(loc.root, { swap: opts.swap, cache: opts.cache === true });
   let browser;
   try { browser = await launch(opts.launch); }
   catch (e) { await site.close(); throw e; }
@@ -313,15 +313,24 @@ function filterScriptOption() {
   return scriptOption;
 }
 
+/** A single utility page per browser avoids starting and tearing down a renderer for every image comparison. */
+const utilityPages = new WeakMap();
+async function utilityPage(browser) {
+  const old = utilityPages.get(browser);
+  if (old && !old.isClosed()) return old;
+  const page = await browser.newPage();
+  utilityPages.set(browser, page);
+  return page;
+}
+
 /**
  * How different two renders of the same t really are: the largest channel difference after averaging 8×8 blocks.
  * Anti-aliasing noise (text and edges rasterized a little differently) averages out below ~20; content that moved,
  * changed color or appeared does not.
  */
 export async function blockDiff(browser, a, b) {
-  const page = await browser.newPage();
-  try {
-    return await page.evaluate(async ([a, b]) => {
+  const page = await utilityPage(browser);
+  return await page.evaluate(async ([a, b]) => {
       const load = async (b64) => createImageBitmap(await (await fetch(`data:image/*;base64,${b64}`)).blob());
       const [x, y] = await Promise.all([load(a), load(b)]);
       if (x.width !== y.width || x.height !== y.height) return 255;
@@ -332,15 +341,13 @@ export async function blockDiff(browser, a, b) {
       for (let i = 0; i < p.length; i += 4) for (let k = 0; k < 4; k++) max = Math.max(max, Math.abs(p[i + k] - q[i + k]));
       return max;
     }, [a.toString('base64'), b.toString('base64')]);
-  } finally { await page.close(); }
 }
 
 /** How far apart the lightest and darkest parts of a picture are (0–255, after 8×8 averaging, over black): a picture
  * under 6 is one flat color. */
 export async function spread(browser, png) {
-  const page = await browser.newPage();
-  try {
-    return await page.evaluate(async (b64) => {
+  const page = await utilityPage(browser);
+  return await page.evaluate(async (b64) => {
       const img = await createImageBitmap(await (await fetch(`data:image/*;base64,${b64}`)).blob());
       const w = Math.max(1, Math.round(img.width / 8)), h = Math.max(1, Math.round(img.height / 8));
       const c = new OffscreenCanvas(w, h).getContext('2d');
@@ -350,7 +357,6 @@ export async function spread(browser, png) {
       for (let i = 0; i < d.length; i += 4) { const y = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; lo = Math.min(lo, y); hi = Math.max(hi, y); }
       return hi - lo;
     }, png.toString('base64'));
-  } finally { await page.close(); }
 }
 
 /**

@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "width": 1080,
+  "height": 1920,
+  "duration": 8,
+  "texts": [
+    {
+      "text": "01  高冲击主标题 · 新青年体",
+      "x": 540,
+      "y": 95,
+      "width": 920,
+      "fontSize": 24,
+      "color": "#A8B3C7",
+      "fontFamily": "SimHei",
+      "align": "left"
+    },
+    {
+      "text": "训练，从今天开始",
+      "x": 540,
+      "y": 190,
+      "width": 950,
+      "fontFamily": "WenYue XinQingNianTi (Non-Commercial Use) W8",
+      "fontSize": 112,
+      "color": "#FFEA00",
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 12
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.9,
+        "blur": 3,
+        "x": 0,
+        "y": 5
+      }
+    },
+    {
+      "text": "黄色填充 + 黑色粗描边，适合开场卖点和大标题",
+      "x": 540,
+      "y": 300,
+      "width": 920,
+      "fontFamily": "SimHei",
+      "fontSize": 42,
+      "color": "#FFFFFF",
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 4
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.65,
+        "blur": 5,
+        "x": 0,
+        "y": 3
+      }
+    },
+    {
+      "text": "02  干净口播字幕 · 黑体",
+      "x": 540,
+      "y": 410,
+      "width": 920,
+      "fontSize": 24,
+      "color": "#A8B3C7",
+      "fontFamily": "SimHei",
+      "align": "left"
+    },
+    {
+      "text": "每一次进步，都值得被看见",
+      "x": 540,
+      "y": 505,
+      "width": 920,
+      "fontFamily": "SimHei",
+      "fontSize": 72,
+      "color": "#FFFFFF",
+      "bold": true,
+      "align": "center",
+      "stroke": {
+        "color": "#111111",
+        "width": 5
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.82,
+        "blur": 6,
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "text": "白字 + 黑描边，复杂背景里也保持清晰",
+      "x": 540,
+      "y": 600,
+      "width": 900,
+      "fontFamily": "SimHei",
+      "fontSize": 38,
+      "color": "#DCE5F4",
+      "align": "center",
+      "stroke": {
+        "color": "#111111",
+        "width": 3
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.55,
+        "blur": 4,
+        "x": 0,
+        "y": 3
+      }
+    },
+    {
+      "text": "03  重点强调 · 中圆体",
+      "x": 540,
+      "y": 705,
+      "width": 920,
+      "fontSize": 24,
+      "color": "#A8B3C7",
+      "fontFamily": "SimHei",
+      "align": "left"
+    },
+    {
+      "text": "专业教练 · 科学训练",
+      "x": 540,
+      "y": 800,
+      "width": 920,
+      "fontFamily": "HYZhongYuanJ",
+      "fontSize": 82,
+      "color": "#FF2349",
+      "align": "center",
+      "stroke": {
+        "color": "#FFFFFF",
+        "width": 10
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.95,
+        "blur": 3,
+        "x": 0,
+        "y": 5
+      }
+    },
+    {
+      "text": "红色信息点配白色描边，适合利益点和结果句",
+      "x": 540,
+      "y": 900,
+      "width": 900,
+      "fontFamily": "SimHei",
+      "fontSize": 38,
+      "color": "#FFFFFF",
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 3
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.58,
+        "blur": 4,
+        "x": 0,
+        "y": 3
+      }
+    },
+    {
+      "text": "04  清爽科技感 · 后现代体",
+      "x": 540,
+      "y": 1005,
+      "width": 920,
+      "fontSize": 24,
+      "color": "#A8B3C7",
+      "fontFamily": "SimHei",
+      "align": "left"
+    },
+    {
+      "text": "实时记录 · 看见变化",
+      "x": 540,
+      "y": 1100,
+      "width": 920,
+      "fontFamily": "WenYue HouXianDaiTi (Authorization Required) W4-75",
+      "fontSize": 88,
+      "color": "#00D5ED",
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 10
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.86,
+        "blur": 3,
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "text": "青色填充 + 黑色轮廓，适合数据、功能和科技感画面",
+      "x": 540,
+      "y": 1200,
+      "width": 920,
+      "fontFamily": "SimHei",
+      "fontSize": 36,
+      "color": "#E9F4FF",
+      "align": "center",
+      "stroke": {
+        "color": "#07131D",
+        "width": 3
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.58,
+        "blur": 5,
+        "x": 0,
+        "y": 3
+      }
+    },
+    {
+      "text": "05  轻量高级 · 宋体",
+      "x": 540,
+      "y": 1305,
+      "width": 920,
+      "fontSize": 24,
+      "color": "#A8B3C7",
+      "fontFamily": "SimHei",
+      "align": "left"
+    },
+    {
+      "text": "把复杂的事，讲得更简单",
+      "x": 540,
+      "y": 1400,
+      "width": 920,
+      "fontFamily": "SimSun",
+      "fontSize": 70,
+      "color": "#FFFFFF",
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 3
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.72,
+        "blur": 6,
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "text": "细描边和低强度阴影，让画面更克制",
+      "x": 540,
+      "y": 1495,
+      "width": 900,
+      "fontFamily": "SimHei",
+      "fontSize": 38,
+      "color": "#C7D2E5",
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 2
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.48,
+        "blur": 4,
+        "x": 0,
+        "y": 2
+      }
+    },
+    {
+      "text": "06  双色信息层级 · 结构化 runs",
+      "x": 540,
+      "y": 1600,
+      "width": 920,
+      "fontSize": 24,
+      "color": "#A8B3C7",
+      "fontFamily": "SimHei",
+      "align": "left"
+    },
+    {
+      "text": "19:30 · 济南",
+      "x": 540,
+      "y": 1698,
+      "width": 920,
+      "fontFamily": "SimHei",
+      "fontSize": 76,
+      "color": "#FFFFFF",
+      "bold": true,
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 5
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.82,
+        "blur": 5,
+        "x": 0,
+        "y": 4
+      },
+      "runs": [
+        {
+          "text": "19:30 · ",
+          "color": "#FFFFFF",
+          "bold": true
+        },
+        {
+          "text": "济南",
+          "color": "#FFEA00",
+          "bold": true,
+          "stroke": {
+            "color": "#000000",
+            "width": 5
+          }
+        }
+      ]
+    },
+    {
+      "text": "同一条文字里做主次颜色，仍然可以保持原生文字编辑",
+      "x": 540,
+      "y": 1795,
+      "width": 920,
+      "fontFamily": "SimHei",
+      "fontSize": 36,
+      "color": "#FFFFFF",
+      "align": "center",
+      "stroke": {
+        "color": "#000000",
+        "width": 3
+      },
+      "shadow": {
+        "color": "#000000",
+        "opacity": 0.55,
+        "blur": 4,
+        "x": 0,
+        "y": 3
+      }
+    }
+  ]
+}

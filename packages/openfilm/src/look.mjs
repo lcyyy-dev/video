@@ -9,10 +9,11 @@ import { blockDiff, checkSound, cutText, fileOf, ffmpeg, filmSound, fmt, hash, h
 const MEDIA = /\.(mp4|mov|m4v|webm|mkv|avi|png|jpe?g|webp|gif|mp3|wav|m4a|aac|ogg|flac)$/i;
 
 export async function look(args, opts = {}) {
+  const quick = opts.quick === true;
   const { film: target, at, range } = parseTarget(args);
   if (MEDIA.test(target)) return lookMedia(target, at, range, opts);
   let s;
-  try { s = await open(target, { root: opts.root, offline: opts.offline, network: opts.network, transparent: true, launch: opts.launch }); }
+  try { s = await open(target, { root: opts.root, offline: opts.offline, network: opts.network, transparent: true, launch: opts.launch, cache: true }); }
   catch (e) { if (e instanceof FrameError) return { ok: false, lines: [`✗ ${e.message}`], files: [] }; throw e; }
   const { film, browser } = s;
   const m = film.meta;
@@ -31,10 +32,12 @@ export async function look(args, opts = {}) {
     if (m.duration == null && at == null && !range) throw new UsageError('this page has no duration, so it has no end: say what to look at, a range (openfilm look 0-6) or a time (openfilm look 2)');
     if (!(Number.isInteger(m.width) && m.width > 0 && Number.isInteger(m.height) && m.height > 0)) errors.push('film.width and film.height, when set, must both be positive whole numbers of CSS pixels');
     for (const clip of m.sounds) if (!existsSync(fileOf(s.root, s.entry, clip.src))) errors.push(`sound not found: ${clip.src}`);
-    /* a page plays no sound of its own: what it still lists in `audio` is heard nowhere until it is a clip */
-    for (const page of await pagesWithAudio()) warnings.push(`${page}: window.film.audio is not played: a sound is a clip in film.html`);
-    const gpu = await film.gpu();
-    if (/swiftshader|llvmpipe|software/i.test(gpu)) warnings.push(`WebGL runs in software (${gpu}): slow, and pictures may differ from a GPU`);
+    /* A page plays no sound of its own: this diagnostic is useful for the final check, not every generation preview. */
+    if (!quick) for (const page of await pagesWithAudio()) warnings.push(`${page}: window.film.audio is not played: a sound is a clip in film.html`);
+    if (!quick) {
+      const gpu = await film.gpu();
+      if (/swiftshader|llvmpipe|software/i.test(gpu)) warnings.push(`WebGL runs in software (${gpu}): slow, and pictures may differ from a GPU`);
+    }
     if (errors.length) return finish();
 
     try { await draw(); } catch (e) {
@@ -74,19 +77,21 @@ export async function look(args, opts = {}) {
       const file = join(dir, `${fmt(t)}.png`);
       writeFileSync(file, png);
       files.push(file);
-      /* another frame between: half the film away, or a second on for a page with no end */
-      await shoot(Number.isFinite(dur) ? (t < dur / 2 ? t + dur / 2 : t - dur / 2) : t + 1);
-      await film.seek(t);
-      const again = await film.capture({ format: 'png' });
-      if (await compare([[t, png, again]], 'png')) passed.push('drawn again after another frame: same picture');
+      if (!quick) {
+        /* another frame between: half the film away, or a second on for a page with no end */
+        await shoot(Number.isFinite(dur) ? (t < dur / 2 ? t + dur / 2 : t - dur / 2) : t + 1);
+        await film.seek(t);
+        const again = await film.capture({ format: 'png' });
+        if (await compare([[t, png, again]], 'png')) passed.push('drawn again after another frame: same picture');
+      }
     } else {
       if (range && range[0] >= dur) throw new UsageError(`range ${fmt(range[0])}-${fmt(range[1])} starts at or after the film's end (${fmt(dur)})`);
       if (range && range[1] > dur) warnings.push(`${fmt(range[0])}-${fmt(range[1])} runs past the film's end (${fmt(dur)}): the sheet stops there`);
       const [from, to] = range ? [clamp(range[0]), Math.min(range[1], dur)] : [0, dur];
-      const count = Math.max(1, Math.round(opts.count ?? 12));
+      const count = Math.max(1, Math.round(opts.count ?? (quick ? 3 : 12)));
       const times = Array.from({ length: count }, (_, i) => clamp(from + ((to - from) * i) / count));
-      // Twice, each time in its own shuffled order, the way a person scrubs: a frame that depends on what was
-      // drawn before it shows up as two different pictures.
+      // Full checks draw twice in shuffled orders, the way a person scrubs. Quick previews draw once and leave this
+      // consistency check for the final pass.
       const cut = new Map();
       const pass = async (order, scan) => {
         const out = new Map();
@@ -94,11 +99,11 @@ export async function look(args, opts = {}) {
         return out;
       };
       /* an agent's shell shows nothing until the command ends: say what is being done, so a long look never looks hung */
-      if (!process.stderr.isTTY) process.stderr.write(`  drawing ${count} frames twice (${fmt(from)}–${fmt(to)}) and mixing the sound…\n`);
-      const first = await pass(shuffled(times, 1), true);
-      const second = await pass(shuffled(times, 2));
+      if (!process.stderr.isTTY) process.stderr.write(`  drawing ${count} frame${count === 1 ? '' : 's'}${quick ? '' : ' twice'} (${fmt(from)}–${fmt(to)})${quick ? '…' : ' and mixing the sound…'}\n`);
+      const first = await pass(quick ? times : shuffled(times, 1), !quick);
+      const second = quick ? first : await pass(shuffled(times, 2));
       const shots = times.map((t) => ({ t, png: first.get(t) }));
-      if (await compare(times.map((t) => [t, first.get(t), second.get(t)]), 'png')) passed.push(`${times.length} frames drawn twice, in two shuffled orders: same t, same picture`);
+      if (!quick && await compare(times.map((t) => [t, first.get(t), second.get(t)]), 'png')) passed.push(`${times.length} frames drawn twice, in two shuffled orders: same t, same picture`);
       if (new Set(shots.map((x) => hash(x.png))).size === 1 && shots.length > 1) warnings.push('every frame looks the same: frame(t) may not draw anything that changes with t');
       /* text cut off in two frames or more: once can be text on its way in */
       for (const [key, seen] of cut) {
@@ -106,16 +111,20 @@ export async function look(args, opts = {}) {
         const when = seen.times.sort((x, y) => x - y).map(fmt);
         warnings.push(`text cut off ${seen.why === 'edge' ? 'by the edge of the frame' : 'by its box'} at ${when.length > 4 ? `${when.slice(0, 3).join(', ')} … (${when.length} frames)` : when.join(', ')}: "${seen.text}" (${key.split('\n')[1]} in ${seen.page})`);
       }
-      await checkCuts(from, to);
-      await checkOverlaps();
-      const wave = await waveform(s, from, to);
-      const marks = joinPieces(m.sounds).filter((c) => (c.at ?? 0) >= from && (c.at ?? 0) < to).map((c) => ({ t: c.at ?? 0, name: basename(c.src) }));
+      if (!quick) {
+        await checkCuts(from, to);
+        await checkOverlaps();
+      }
+      const wave = quick ? null : await waveform(s, from, to);
+      const marks = quick ? [] : joinPieces(m.sounds).filter((c) => (c.at ?? 0) >= from && (c.at ?? 0) < to).map((c) => ({ t: c.at ?? 0, name: basename(c.src) }));
       const file = join(dir, `${Number(from.toFixed(3))}-${fmt(to)}.png`);
       writeFileSync(file, await sheet(browser, shots, m, from, to, wave, marks));
       files.push(file);
     }
-    sounds.push(...listSounds(s, m, at != null ? [at, at] : range ?? [0, end], warnings));
-    if (s.loudness) sounds.push(s.loudness);
+    if (!quick) {
+      sounds.push(...listSounds(s, m, at != null ? [at, at] : range ?? [0, end], warnings));
+      if (s.loudness) sounds.push(s.loudness);
+    }
   }
 
   /* every web page drawn in this frame, checked for text a viewer cannot read whole */
@@ -337,10 +346,10 @@ async function lookMedia(target, at, range, opts) {
     writeFileSync(out, grab(t)); files.push(out);
   } else {
     const [from, to] = range ? [Math.max(0, range[0]), Math.min(range[1], dur)] : [0, dur];
-    const count = Math.max(1, Math.round(opts.count ?? 12));
+    const count = Math.max(1, Math.round(opts.count ?? (opts.quick ? 3 : 12)));
     const times = video ? Array.from({ length: count }, (_, i) => from + ((to - from) * i) / count) : [];
     let wave = null;
-    if (audio) {
+    if (audio && !opts.quick) {
       const png = join(dir, `.${name}-wave.png`);
       /* a sound on its own: the waveform is the whole sheet, so it gets the height to read beats in */
       await ffmpeg(['-ss', String(from), '-t', String(to - from), '-i', file, '-filter_complex', `aformat=channel_layouts=mono,showwavespic=s=1920x${video ? 160 : 640}:colors=#ff8a4c:scale=sqrt`, '-frames:v', '1', png]).done;

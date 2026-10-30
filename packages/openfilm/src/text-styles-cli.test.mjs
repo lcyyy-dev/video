@@ -18,6 +18,9 @@ test('the text styles command exposes presets and rules as JSON without opening 
   assert.equal(list.status, 0, list.stderr);
   const presets = JSON.parse(list.stdout);
   assert.ok(presets.length > 0);
+  const compact = run('list', '--compact');
+  assert.equal(compact.status, 0, compact.stderr);
+  assert.deepEqual(Object.keys(JSON.parse(compact.stdout)[0]).sort(), ['description', 'id', 'name', 'version']);
   const show = run('show', presets[0].id);
   assert.equal(show.status, 0, show.stderr);
   assert.deepEqual(JSON.parse(show.stdout), presets[0]);
@@ -55,6 +58,10 @@ test('agents can read scene-adaptive ranges without confusing them with renderab
   assert.deepEqual(policy.font.candidates, ['宋体', '新青年体', '后现代体', '黑体', '圆体', '楷体']);
   assert.equal(policy.rangePolicy.strength, 'advisory');
   assert.equal(policy.rangePolicy.reference, 'jianying-panel');
+  assert.equal(policy.selection.mode, 'library-only');
+  assert.equal(policy.selection.presetIdRequired, true);
+  assert.equal(policy.selection.allowAdHocAppearance, false);
+  assert.equal(policy.selection.randomizePerCaption, false);
   assert.equal(policy.stroke.thickness.unit, 'jianying-panel-value');
   assert.equal(policy.shadow.distance.unit, 'jianying-panel-value');
   assert.equal(policy.background.enabled, 'when-needed-for-scene-readability');
@@ -74,7 +81,6 @@ test('agents can read scene-adaptive ranges without confusing them with renderab
   assert.deepEqual(range(policy.shadow.blur), [15, 25]);
   assert.deepEqual(range(policy.shadow.distance), [5, 10]);
   assert.deepEqual(range(policy.shadow.angle), [-150, -30]);
-  assert.equal(policy.selection.randomizePerCaption, false);
   assert.ok(policy.implementation.notYetSupportedInStructuredText.includes('background'));
   assert.equal(run('generation-rules', 'extra').status, 2);
 });

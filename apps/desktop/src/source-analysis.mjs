@@ -2,7 +2,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, renameSync, realpathSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, renameSync, realpathSync, rmSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { videoFile, assertVideoStorage } from './video-policy.mjs';
 
@@ -61,11 +61,25 @@ async function analyze({ root, ffmpegDir }) {
     const duration = still ? null : Number(info.format?.duration ?? stream.duration);
     if (!still && (!Number.isFinite(duration) || duration <= 0)) throw new Error(`素材时长无效：${name}`);
     const item = { path: name, signature, duration, width: stream.width, height: stream.height, frames: [] };
-    for (let time = 0; time < (still ? 1 : duration); time += 2) {
-      const path = `.film/source-analysis/${signature}-${time}.png`;
-      const bytes = await invoke('ffmpeg', ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-format_whitelist', formats, '-ss', String(time), '-i', source, '-frames:v', '1', '-vf', 'scale=480:480:force_original_aspect_ratio=decrease', '-f', 'image2pipe', '-vcodec', 'png', 'pipe:1']);
-      writeFileSync(join(root, path), bytes);
-      item.frames.push({ time, path });
+    const frameCount = still ? 1 : Math.max(1, Math.ceil(duration / 2));
+    const temp = join(folder, `.frames-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    mkdirSync(temp, { recursive: true });
+    try {
+      /* Decode each source once. The old loop started ffmpeg once per two-second frame, which repeated process
+         startup and video decoding for long uploads. fps=1/2 preserves the same 0,2,4... sampling grid. */
+      await invoke('ffmpeg', ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-format_whitelist', formats,
+        '-i', source, '-map', '0:v:0', '-vf', 'fps=1/2,scale=480:480:force_original_aspect_ratio=decrease',
+        '-frames:v', String(frameCount), '-start_number', '1', join(temp, '%08d.png')]);
+      const files = readdirSync(temp).filter(name => /^\d+\.png$/.test(name)).sort();
+      if (!files.length) throw new Error(`无法生成素材预览帧：${name}`);
+      for (let index = 0; index < Math.min(frameCount, files.length); index++) {
+        const time = still ? 0 : index * 2;
+        const path = `.film/source-analysis/${signature}-${time}.png`;
+        writeFileSync(join(root, path), readFileSync(join(temp, files[index])));
+        item.frames.push({ time, path });
+      }
+    } finally {
+      rmSync(temp, { recursive: true, force: true });
     }
     index.sources.push(item);
   }

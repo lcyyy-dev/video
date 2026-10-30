@@ -272,8 +272,9 @@ async function openTabs() {
   const front = tabs.activeId();
   if (front) showTab(front);
   else { showPage(HOME); tellTabs(); }
-  /* Existing projects restored at startup get the same upload analysis as newly imported media. */
-  for (const project of projects) void precomputeUploadFrames({ root: project.path, ffmpegDir: appFfmpegDir }).catch(error => log(`startup upload analysis failed: ${error?.message ?? error}\n`));
+  /* Upload analysis is queued when media is imported. Do not rescan every project at startup: opening the
+     window should restore tabs, not start ffmpeg work for unrelated projects. Existing cached indexes remain
+     available to the agent and Studio, and a changed upload is analyzed on the next import. */
 }
 
 /** The projects the chat's agents work in, and wait for an answer in, by Studio's ids (from their folders), on each tab. */

@@ -50,11 +50,11 @@ In your replies you can point at things in Studio for the person: [[clip:ID]] (a
 export const INSTRUCTIONS = `You are working inside OpenFilm, a desktop app for editing footage-based videos. Beside this chat the person sees OpenFilm Studio,
 the video editor, showing the project in your working directory; it updates live as you save files.
 
-The project is an OpenFilm film: pages with window.film, cut together by film.html. Before you change anything, run
-\`openfilm\` with no arguments and read the manual it prints; follow it. Use the \`openfilm\` command on your PATH (this
+The project is an OpenFilm film: pages with window.film, cut together by film.html. Before your first edit in a session, run
+\`openfilm\` with no arguments and read the manual it prints; reuse that manual for later turns unless the CLI changes. Use the \`openfilm\` command on your PATH (this
 app's own, on the Studio beside you), not \`npx openfilm\`, whatever a skill says. Studio is already open on this
-project: you never need \`openfilm open\` and never open Studio in a browser. Run \`openfilm look\` after each change
-to see what you made. Render the MP4 only when the person asks for it; they can also export from Studio. Reply in the
+project: you never need \`openfilm open\` and never open Studio in a browser. After a batch of edits, run
+\`openfilm look --quick\` to inspect the result; reserve one full \`openfilm look\` for the final project check. Render the MP4 only when the person asks for it; they can also export from Studio. Reply in the
 language the person writes in.
 
 Original footage lives in assets/upload. When available, .film/source-analysis/index.json maps cached two-second

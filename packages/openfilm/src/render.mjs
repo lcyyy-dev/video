@@ -31,10 +31,9 @@ export async function render(args, opts = {}) {
     if (clipKind(file) === 'video') videos.add(file);
     return copies.get(file) ?? null;
   };
-  const probe = await open(target, { ...(opts.root ? { root: opts.root } : {}), swap });
-  const { entry, dir, name, site, browser, isFilm, root } = probe;
+  const probe = await open(target, { ...(opts.root ? { root: opts.root } : {}), swap, cache: true, transparent: Boolean(opts.alpha) });
+  const { entry, dir, name, site, isFilm, root } = probe;
   const meta = probe.film.meta;
-  await probe.film.close();
 
   const fps = Number(opts.fps ?? 30);
   /* a page without a duration has no end: it is rendered by a range */
@@ -105,8 +104,10 @@ export async function render(args, opts = {}) {
   const unlessCancelled = (/** @type {Promise<any>} */ step) => { step.catch(() => {}); return Promise.race([step, cancelled]); };
   try {
     /* a browser each: pages sharing one browser share its GPU process, and stop getting faster after three or four */
+    /* The first open already loaded the film and its metadata. Keep that page as worker 1 instead of closing it and
+       loading the whole project a second time; only the additional workers need a new browser and FilmPage. */
     const more = await unlessCancelled(Promise.all(Array.from({ length: workers - 1 }, () => launch().then((b) => { browsers.push(b); return b; }))));
-    const pages = await unlessCancelled(Promise.all([browser, ...more].map((b) => FilmPage.open(b, site.url, entry, { scale, transparent: alpha }))));
+    const pages = await unlessCancelled(Promise.all([probe.film, ...more.map((b) => FilmPage.open(b, site.url, entry, { scale, transparent: alpha }))]));
     /* a film paints its stage behind its clips (black, or its own background): with alpha, only what the clips draw is kept */
     if (alpha && isFilm) await Promise.all(pages.map((p) => p.page.addStyleTag({ content: 'html, body { background: transparent !important; }' })));
     const per = Math.ceil(total / workers);

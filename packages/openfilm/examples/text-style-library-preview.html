@@ -1,0 +1,2259 @@
+<!doctype html><meta charset="utf-8"><title>OpenFilm 30 native text styles</title><style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#080d16;color:#e9eef7}
+body{margin:0;padding:28px;background:radial-gradient(circle at 50% -10%,#20314a 0,#080d16 48%);min-height:100vh}
+h1{margin:0 0 8px;font-size:28px} .intro{color:#aab7ca;margin:0 0 22px;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;max-width:1200px;margin:auto}
+.card{background:#121a27;border:1px solid #263650;border-radius:14px;padding:12px;box-shadow:0 10px 30px #0004}
+.meta{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:2px 2px 8px}.meta strong{font-size:15px}.meta code{color:#7f91ac;font-size:11px}
+iframe{display:block;width:100%;height:220px;border:0;border-radius:9px;background:#111827}
+.card p{color:#aab7ca;font-size:12px;line-height:1.5;margin:9px 2px 2px;min-height:36px}
+</style><body><main><h1>OpenFilm · 30 种剪映原生文字样式</h1><p class="intro">每张卡片内部都是 <code>openfilm-text</code> 结构化页面，只使用字体、颜色、描边和阴影等原生字段。没有背景框、圆角标签或其他会触发渲染回退的属性。</p><section class="grid"><article class="card"><div class="meta"><strong>1. 白字黑描边</strong><code>white-outline</code></div><iframe title="白字黑描边" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;sans-serif&quot;,&quot;fontSize&quot;:64,&quot;color&quot;:&quot;#ffffff&quot;,&quot;bold&quot;:true,&quot;italic&quot;:false,&quot;underline&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>通用口播字幕，白字配黑色描边，适合复杂背景。</p></article>
+<article class="card"><div class="meta"><strong>2. 黄色主标题</strong><code>yellow-headline</code></div><iframe title="黄色主标题" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;sans-serif&quot;,&quot;fontSize&quot;:80,&quot;color&quot;:&quot;#ffe21f&quot;,&quot;bold&quot;:true,&quot;italic&quot;:false,&quot;underline&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:5},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.45,&quot;blur&quot;:4,&quot;x&quot;:0,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黄色粗体配黑色描边和阴影，适合开场标题与核心卖点。</p></article>
+<article class="card"><div class="meta"><strong>3. 红色重点</strong><code>red-emphasis</code></div><iframe title="红色重点" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;sans-serif&quot;,&quot;fontSize&quot;:68,&quot;color&quot;:&quot;#ff344d&quot;,&quot;bold&quot;:true,&quot;italic&quot;:false,&quot;underline&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#ffffff&quot;,&quot;width&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>红色强调文字配白色描边，适合结果句和利益点。</p></article>
+<article class="card"><div class="meta"><strong>4. 新青年体黄字</strong><code>xinqingnian-yellow</code></div><iframe title="新青年体黄字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;,&quot;fontSize&quot;:96,&quot;color&quot;:&quot;#FFEA00&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:14},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.9,&quot;blur&quot;:2,&quot;x&quot;:4,&quot;y&quot;:5}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>新青年体黄色填充、黑色粗描边和阴影，适合强钩子标题。</p></article>
+<article class="card"><div class="meta"><strong>5. 后现代体青字</strong><code>houxiandai-cyan</code></div><iframe title="后现代体青字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;,&quot;fontSize&quot;:96,&quot;color&quot;:&quot;#00D5ED&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:12},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.85,&quot;blur&quot;:2,&quot;x&quot;:3,&quot;y&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>后现代体青色填充、黑色描边和阴影，适合运动和科技画面。</p></article>
+<article class="card"><div class="meta"><strong>6. 中圆体红字</strong><code>zhongyuan-red</code></div><iframe title="中圆体红字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;HYZhongYuanJ&quot;,&quot;fontSize&quot;:96,&quot;color&quot;:&quot;#FF2349&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;width&quot;:12},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:1,&quot;blur&quot;:3,&quot;x&quot;:4,&quot;y&quot;:5}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>中圆体红色填充、白色描边和黑色阴影，适合强调结果。</p></article>
+<article class="card"><div class="meta"><strong>7. 宋体白字</strong><code>simsun-white</code></div><iframe title="宋体白字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimSun&quot;,&quot;fontSize&quot;:80,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:6}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>宋体白字配黑色描边，适合信息说明和地点标识。</p></article>
+<article class="card"><div class="meta"><strong>8. 黑体黄字</strong><code>simhei-yellow</code></div><iframe title="黑体黄字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:88,&quot;color&quot;:&quot;#FFEA00&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:8}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黑体黄色标题配黑色描边，清晰醒目，适合短句卖点。</p></article>
+<article class="card"><div class="meta"><strong>9. 楷体白字</strong><code>kaiti-white</code></div><iframe title="楷体白字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;KaiTi&quot;,&quot;fontSize&quot;:88,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:6}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>楷体白字配黑色描边，适合亲和、故事化字幕。</p></article>
+<article class="card"><div class="meta"><strong>10. 重黑边白标题</strong><code>headline-white-black</code></div><iframe title="重黑边白标题" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:84,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:7},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.72,&quot;blur&quot;:6,&quot;x&quot;:0,&quot;y&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黑体白字配较厚黑边和柔和阴影，适合顶部标题。</p></article>
+<article class="card"><div class="meta"><strong>11. 深黄黑边标题</strong><code>headline-yellow-deep</code></div><iframe title="深黄黑边标题" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:86,&quot;color&quot;:&quot;#FFD600&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#111111&quot;,&quot;width&quot;:8},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.8,&quot;blur&quot;:5,&quot;x&quot;:0,&quot;y&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>深黄色粗体配黑边，强调力强且适合户外运动画面。</p></article>
+<article class="card"><div class="meta"><strong>12. 柔和白字幕</strong><code>caption-white-soft</code></div><iframe title="柔和白字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:56,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#1A1A1A&quot;,&quot;width&quot;:4},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.62,&quot;blur&quot;:5,&quot;x&quot;:0,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>中等字号白字配细黑边和轻阴影，适合连续口播。</p></article>
+<article class="card"><div class="meta"><strong>13. 黄字黑边字幕</strong><code>caption-yellow-black</code></div><iframe title="黄字黑边字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:58,&quot;color&quot;:&quot;#FFE21F&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:5},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.55,&quot;blur&quot;:4,&quot;x&quot;:0,&quot;y&quot;:2}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黄色关键词配黑边，适合在一段字幕中突出核心词。</p></article>
+<article class="card"><div class="meta"><strong>14. 青字黑边字幕</strong><code>caption-cyan-black</code></div><iframe title="青字黑边字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;,&quot;fontSize&quot;:62,&quot;color&quot;:&quot;#00D5ED&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:7},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.72,&quot;blur&quot;:3,&quot;x&quot;:1,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>青色后现代体配黑边，适合数据、动作和科技关键词。</p></article>
+<article class="card"><div class="meta"><strong>15. 红字白边字幕</strong><code>caption-red-white</code></div><iframe title="红字白边字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;HYZhongYuanJ&quot;,&quot;fontSize&quot;:62,&quot;color&quot;:&quot;#FF344D&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;width&quot;:7},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.85,&quot;blur&quot;:3,&quot;x&quot;:2,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>红色中圆体配白边和黑影，适合结果、警示和家长反馈。</p></article>
+<article class="card"><div class="meta"><strong>16. 绿字黑边字幕</strong><code>caption-green-black</code></div><iframe title="绿字黑边字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:62,&quot;color&quot;:&quot;#45E06F&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#0B1B11&quot;,&quot;width&quot;:5},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.58,&quot;blur&quot;:4,&quot;x&quot;:0,&quot;y&quot;:2}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>绿色黑体配黑边，适合健康、成长和运动状态。</p></article>
+<article class="card"><div class="meta"><strong>17. 橙字黑边字幕</strong><code>caption-orange-black</code></div><iframe title="橙字黑边字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;,&quot;fontSize&quot;:64,&quot;color&quot;:&quot;#FF7A1A&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:8},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.75,&quot;blur&quot;:3,&quot;x&quot;:1,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>橙色新青年体配黑边，适合热烈、行动和促销关键词。</p></article>
+<article class="card"><div class="meta"><strong>18. 紫字白边字幕</strong><code>caption-purple-white</code></div><iframe title="紫字白边字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;HYZhongYuanJ&quot;,&quot;fontSize&quot;:64,&quot;color&quot;:&quot;#9B7BFF&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;width&quot;:7},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.8,&quot;blur&quot;:3,&quot;x&quot;:2,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>紫色中圆体配白边，适合年轻、潮流和课程标签。</p></article>
+<article class="card"><div class="meta"><strong>19. 蓝字白边字幕</strong><code>caption-blue-white</code></div><iframe title="蓝字白边字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:64,&quot;color&quot;:&quot;#3BA7FF&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;width&quot;:6},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.8,&quot;blur&quot;:3,&quot;x&quot;:1,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>蓝色黑体配白边，适合专业、服务和地点信息。</p></article>
+<article class="card"><div class="meta"><strong>20. 数据白字青边</strong><code>data-white-cyan</code></div><iframe title="数据白字青边" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;,&quot;fontSize&quot;:60,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#00AFC5&quot;,&quot;width&quot;:4},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.78,&quot;blur&quot;:5,&quot;x&quot;:0,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>白色后现代体配青色细边和阴影，适合数据播报。</p></article>
+<article class="card"><div class="meta"><strong>21. 数据黄字黑边</strong><code>data-yellow-black</code></div><iframe title="数据黄字黑边" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:60,&quot;color&quot;:&quot;#FFE21F&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:5},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.68,&quot;blur&quot;:3,&quot;x&quot;:0,&quot;y&quot;:2}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黄色黑体配黑边和低阴影，适合时间、次数和百分比。</p></article>
+<article class="card"><div class="meta"><strong>22. 极简白字</strong><code>minimal-white</code></div><iframe title="极简白字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimSun&quot;,&quot;fontSize&quot;:60,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:2},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.66,&quot;blur&quot;:6,&quot;x&quot;:0,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>宋体白字配轻阴影，适合画面干净时的克制信息。</p></article>
+<article class="card"><div class="meta"><strong>23. 极简楷体</strong><code>minimal-kaiti</code></div><iframe title="极简楷体" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;KaiTi&quot;,&quot;fontSize&quot;:64,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:3},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.65,&quot;blur&quot;:5,&quot;x&quot;:0,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>楷体白字配细黑边和柔和阴影，适合故事和人物口吻。</p></article>
+<article class="card"><div class="meta"><strong>24. 左对齐白字幕</strong><code>left-aligned-white</code></div><iframe title="左对齐白字幕" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:60,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:4},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.68,&quot;blur&quot;:4,&quot;x&quot;:0,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黑体白字配黑边，适合左上角标题和竖屏安全区排版。</p></article>
+<article class="card"><div class="meta"><strong>25. 左对齐黄标题</strong><code>left-aligned-yellow</code></div><iframe title="左对齐黄标题" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:62,&quot;color&quot;:&quot;#FFEA00&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:5},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.7,&quot;blur&quot;:4,&quot;x&quot;:0,&quot;y&quot;:3}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黑体黄字配黑边，适合左上角钩子和分段标题。</p></article>
+<article class="card"><div class="meta"><strong>26. 厚边框感白字</strong><code>block-outline-white</code></div><iframe title="厚边框感白字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:72,&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:14},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.9,&quot;blur&quot;:3,&quot;x&quot;:2,&quot;y&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>用超粗黑色描边制造文字块面感，仍可作为剪映原生文字编辑。</p></article>
+<article class="card"><div class="meta"><strong>27. 厚边框感黄字</strong><code>block-outline-yellow</code></div><iframe title="厚边框感黄字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:72,&quot;color&quot;:&quot;#FFE21F&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:14},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.9,&quot;blur&quot;:3,&quot;x&quot;:2,&quot;y&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>黄色填充配超粗黑边，模拟短视频标题的醒目块面效果。</p></article>
+<article class="card"><div class="meta"><strong>28. 厚边框感红字</strong><code>block-outline-red</code></div><iframe title="厚边框感红字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;专业训练·看见变化&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;HYZhongYuanJ&quot;,&quot;fontSize&quot;:72,&quot;color&quot;:&quot;#FF2349&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;width&quot;:12},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.95,&quot;blur&quot;:4,&quot;x&quot;:3,&quot;y&quot;:5}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>红色中圆体配白色粗边和黑色阴影，适合结果型标题。</p></article>
+<article class="card"><div class="meta"><strong>29. 厚边框感青字</strong><code>block-outline-cyan</code></div><iframe title="厚边框感青字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;每天进步一点点&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;,&quot;fontSize&quot;:72,&quot;color&quot;:&quot;#00D5ED&quot;,&quot;bold&quot;:false,&quot;stroke&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;width&quot;:12},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.9,&quot;blur&quot;:3,&quot;x&quot;:2,&quot;y&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>青色后现代体配超粗黑边，适合动作和数据标题。</p></article>
+<article class="card"><div class="meta"><strong>30. 厚边框感蓝字</strong><code>block-outline-blue</code></div><iframe title="厚边框感蓝字" srcdoc="&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;style&gt;@font-face{font-family:&quot;WenYue XinQingNianTi (Non-Commercial Use) W8&quot;;src:url(&quot;../fonts/xinqingnian-w8.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;WenYue HouXianDaiTi (Authorization Required) W4-75&quot;;src:url(&quot;../fonts/houxiandai-w4-75.otf&quot;) format(&quot;opentype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;HYZhongYuanJ&quot;;src:url(&quot;../fonts/hy-zhongyuan.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimSun&quot;;src:url(&quot;../fonts/simsun.ttc&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;SimHei&quot;;src:url(&quot;../fonts/simhei.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:&quot;KaiTi&quot;;src:url(&quot;../fonts/simkai.ttf&quot;) format(&quot;truetype&quot;);font-weight:400;font-style:normal;font-display:block;}html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);width:640px;height:220px;overflow:hidden}&lt;/style&gt;&lt;body&gt;
+&lt;script id=&quot;openfilm-text&quot; type=&quot;application/json&quot;&gt;{&quot;version&quot;:1,&quot;width&quot;:640,&quot;height&quot;:220,&quot;duration&quot;:2,&quot;texts&quot;:[{&quot;text&quot;:&quot;济南体适能训练&quot;,&quot;x&quot;:320,&quot;y&quot;:112,&quot;width&quot;:570,&quot;align&quot;:&quot;center&quot;,&quot;fontFamily&quot;:&quot;SimHei&quot;,&quot;fontSize&quot;:72,&quot;color&quot;:&quot;#1976D2&quot;,&quot;bold&quot;:true,&quot;stroke&quot;:{&quot;color&quot;:&quot;#FFFFFF&quot;,&quot;width&quot;:11},&quot;shadow&quot;:{&quot;color&quot;:&quot;#000000&quot;,&quot;opacity&quot;:0.9,&quot;blur&quot;:4,&quot;x&quot;:2,&quot;y&quot;:4}}]}&lt;/script&gt;
+&lt;script&gt;function textValueAt(points, time) {
+  if (time &lt;= points[0].time) return points[0].value;
+  for (let i = 1; i &lt; points.length; i++) {
+    if (time &lt;= points[i].time) {
+      const a = points[i - 1], b = points[i];
+      return a.value + (b.value - a.value) * (time - a.time) / (b.time - a.time);
+    }
+  }
+  return points[points.length - 1].value;
+};function textStyleRuns(item) {
+  let offset = 0;
+  return (item.runs ?? [{ text: item.text }]).filter((run) =&gt; run.text.length &gt; 0).map((run) =&gt; {
+    const length = run.text.length;
+    const result = { ...item, ...run, range: [offset, offset + length] };
+    offset += length;
+    return result;
+  });
+};window.film=(function mountTextPage(page, root = document.body) {
+  const nodes = page.texts.map((item) =&gt; {
+    const node = document.createElement('div');
+    node.textContent = item.text;
+    Object.assign(node.style, {
+      position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
+      width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
+      fontFamily: !item.fontFamily ? 'sans-serif'
+        : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),
+      fontSize: `${item.fontSize}px`,
+      fontWeight: item.bold ? '700' : '400', fontStyle: item.italic ? 'italic' : 'normal', color: item.color ?? '#ffffff',
+      textDecoration: item.underline ? 'underline' : 'none',
+      boxSizing: 'border-box', padding: item.backgroundColor ? '14px 24px' : '0',
+      backgroundColor: item.backgroundColor ? `rgba(${parseInt(item.backgroundColor.slice(1, 3), 16)},${parseInt(item.backgroundColor.slice(3, 5), 16)},${parseInt(item.backgroundColor.slice(5, 7), 16)},${item.backgroundOpacity ?? .58})` : 'transparent',
+      borderRadius: `${item.borderRadius ?? 16}px`,
+      webkitTextStroke: item.stroke ? `${item.stroke.width}px ${item.stroke.color}` : '', paintOrder: 'stroke fill',
+      textShadow: item.shadow ? `${item.shadow.x}px ${item.shadow.y}px ${item.shadow.blur}px rgba(${parseInt(item.shadow.color.slice(1, 3), 16)},${parseInt(item.shadow.color.slice(3, 5), 16)},${parseInt(item.shadow.color.slice(5, 7), 16)},${item.shadow.opacity})` : '',
+    });
+    if (item.runs) {
+      node.textContent = '';
+      for (const run of textStyleRuns(item)) {
+        const span = document.createElement('span');
+        span.textContent = run.text;
+        Object.assign(span.style, {
+          fontSize: `${run.fontSize}px`, fontWeight: run.bold ? '700' : '400', color: run.color ?? '#ffffff',
+          fontStyle: run.italic ? 'italic' : 'normal', textDecoration: run.underline ? 'underline' : 'none',
+          webkitTextStroke: run.stroke ? `${run.stroke.width}px ${run.stroke.color}` : '0px', paintOrder: 'stroke fill',
+        });
+        node.append(span);
+      }
+    }
+    root.append(node);
+    return node;
+  });
+  const film = {
+    width: page.width, height: page.height, duration: page.duration, ready: document.fonts.ready,
+    frame(/** @type {number} */ time) {
+      page.texts.forEach((item, i) =&gt; {
+        const value = (/** @type {'x' | 'y' | 'scale' | 'opacity'} */ key, /** @type {number} */ base) =&gt; item.keyframes?.[key] ? textValueAt(item.keyframes[key], time) : base;
+        const node = nodes[i];
+        node.style.left = `${value('x', item.x)}px`;
+        node.style.top = `${value('y', item.y)}px`;
+        node.style.transform = `translate(-50%,-50%) scale(${value('scale', item.scale ?? 1)})`;
+        node.style.opacity = String(value('opacity', item.opacity ?? 1));
+      });
+    },
+  };
+  film.frame(0);
+  return film;
+})(JSON.parse(document.getElementById('openfilm-text').textContent));&lt;/script&gt;&lt;/body&gt;"></iframe><p>蓝色黑体配白色粗边和黑影，适合专业服务与地点标题。</p></article></section></main></body>
