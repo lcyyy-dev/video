@@ -35,6 +35,26 @@ test('each enabled template routes to its own bundled workflow', () => {
     saveTemplate(root, { ...initialTemplate(), kind });
     const prepared = prepareEditPrompt(root, '继续');
     assert.equal(prepared.workflow.skill, skill);
+    if (kind === 'copy') {
+      assert.match(prepared.text, /文案二创是纯文字润色/);
+      assert.doesNotMatch(prepared.text, /文字颜色与行宽规则|同屏文案规则|去标点规则：/);
+      continue;
+    }
+    assert.match(prepared.text, /所有模板均不调用本地、云端、系统语音或其他 TTS/);
+    assert.match(prepared.text, /直接跳过音频生成/);
+    assert.match(prepared.text, /不询问配音方案/);
+    assert.match(prepared.text, /不删字、不精简、不只用标题/);
+    assert.match(prepared.text, /保持用户指定时长/);
+    assert.match(prepared.text, /同一画面允许同时展示两句或多句文案/);
+    assert.match(prepared.text, /标题、多个副标题和正文文案应使用不同的文字填充色/);
+    assert.match(prepared.text, /每行尽量铺满可用宽度/);
+    assert.match(prepared.text, /不以 JSON 文本框宽度代替文字宽度/);
+    assert.match(prepared.text, /人物避让优先于铺满行宽/);
+    assert.match(prepared.text, /每个小句必须是结构化文字 JSON 的独立 texts 元素/);
+    assert.match(prepared.text, /画面文字去掉语句标点/);
+    assert.match(prepared.text, /原始输入和模板配置原样保存/);
+    assert.match(prepared.text, /主视频画面必须铺满画布/);
+    assert.match(prepared.text, /任何文字排版规则都不能成为缩小主视频的理由/);
     assert.match(prepared.text, new RegExp(`openfilm skill ${skill}`));
     assert.match(prepared.text, new RegExp(`<selected-workflow name="${skill}">`));
     assert.match(prepared.text, new RegExp(`name: ${skill}`));
@@ -51,15 +71,16 @@ test('selected text styles become a strict generation constraint in the agent co
   assert.match(prepared.text, /"textStyleIds":\["yellow-headline","red-emphasis"\]/);
 });
 
-test('copy template authorizes its source rewrite while final wording remains locked', () => {
+test('copy template polishes source without video context or hidden advertising fields', () => {
   const prepared = prepareEditPrompt(project(), '生成视频', { config: {
     ...initialTemplate(), kind: 'copy', source: '原始事实', rewrite: '增强开头吸引力', titleText: '固定标题', bodyText: '固定正文',
   } });
   assert.equal(prepared.workflow.skill, 'copy-rewrite');
-  assert.match(prepared.text, /source 是待改写原文，按 rewrite 执行/);
-  assert.match(prepared.text, /titleText、bodyText 等明确填写的成品文案仍逐字保留/);
-  assert.match(prepared.text, /二创方向：增强开头吸引力/);
-  assert.match(prepared.text, /固定正文/);
+  assert.match(prepared.text, /原始事实/);
+  assert.match(prepared.text, /不剪辑视频、不修改工程/);
+  assert.match(prepared.text, /正常保留标点和段落/);
+  assert.doesNotMatch(prepared.text, /二创方向：增强开头吸引力/);
+  assert.doesNotMatch(prepared.text, /固定正文|固定标题/);
 });
 
 test('every selected workflow executes and reports without automatic preview or verification', () => {

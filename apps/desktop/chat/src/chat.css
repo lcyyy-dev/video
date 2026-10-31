@@ -1904,7 +1904,7 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .edit-template-fields { display: flex; flex-direction: column; gap: 14px; }
 .edit-template-fields label { display: flex; flex-direction: column; gap: 7px; font-size: 12px; color: var(--text-muted); }
 .edit-template-help { padding: 10px 14px; font-size: 10.5px; line-height: 1.8; color: var(--text-muted); }
-.edit-template-style-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; color: var(--text-muted); font-size: 11px; }
+.edit-template-style-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 32px; min-height: 32px; flex-wrap: nowrap; margin: 0 0 10px; color: var(--text-muted); font-size: 11px; }
 .edit-template-style-actions button { border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; color: var(--text-muted); background: var(--surface); }
 .edit-template-style-actions button:hover { color: var(--text); background: var(--bg-hover); }
 .edit-template-style-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 390px; overflow-y: auto; padding: 2px; }
@@ -2088,10 +2088,33 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .composer-model-effort { color: var(--text-muted); font-weight: 400; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .composer-model-display { transition: none; } }
 
-.edit-template-live-preview { position: relative; overflow: hidden; width: 100%; aspect-ratio: 1080 / 300; margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(135deg, #152a25, #25394c); }
+.edit-template-live-preview { position: relative; overflow: hidden; width: 100%; aspect-ratio: 1080 / 180; margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; background: linear-gradient(135deg, #152a25, #25394c); }
 .edit-template-style-filters, .edit-template-new-style { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
 .edit-template-new-style { padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
 .edit-template-new-style label { display: flex; min-width: 0; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-muted); }
 .edit-template-style-filters button, .edit-template-new-style > button { border: 1px solid var(--border-strong); border-radius: 10px; padding: 9px 12px; color: var(--text); background: var(--surface); font-size: 13px; cursor: pointer; }
 .edit-template-new-style > button:disabled { opacity: .5; cursor: default; }
 .template-native-stepper .edit-template-new-style input[type='color'] { height: 46px; padding: 5px; }
+
+.edit-template-toggle { justify-content: flex-start; gap: 10px; }
+.edit-template-toggle > label:first-child { cursor: pointer; }
+.edit-template-toggle-control { margin-left: auto; display: flex; align-items: center; cursor: pointer; }
+.edit-template-toggle > .edit-template-add-subtitle { align-self: center; }
+
+.edit-template-style-library > input[aria-label="搜索文字样式"] { width: 100%; box-sizing: border-box; margin: 12px 0 10px; }
+.edit-template-style-library > .edit-template-style-filters { grid-template-columns: 1fr; }
+
+.edit-template-style-actions strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.edit-template-style-actions button { flex-shrink: 0; }
+.edit-template-new-style > .edit-template-bold { height: 46px; align-self: end; }
+.edit-template-new-style > .edit-template-save-style { grid-column: 1 / -1; width: 100%; }
+.edit-template-new-style > .edit-template-bold[aria-pressed='true'],
+.edit-template-narration[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+
+.edit-template-trigger > .template-trigger-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; line-height: 0; }
+.template-trigger-icon > svg { display: block; flex-shrink: 0; margin: 0; }
+.edit-template-trigger > .template-trigger-copy { flex: 1; justify-content: flex-start; }
+
+.edit-template-copy-source { display: flex; flex-direction: column; gap: 10px; padding: 14px; font-size: 14px; }
+.template-native-stepper textarea[aria-label='正文内容'],
+.template-native-stepper textarea[aria-label='文案二创'] { min-height: 200px; }

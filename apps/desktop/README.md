@@ -22,7 +22,7 @@ Sub2API domain and user key as described in [the hosted Codex guide](../../docs/
 the video planner does not inherit the user's ChatGPT credentials. Windows uses an app-private Codex home and receives Codex updates through
 app releases. Source runs and macOS builds still use a separately installed Codex. This client carries four fixed video workflows: `ad-editing`, `talk-editing`, `copy-rewrite` and `live-clips`. It does not include other agent
 runtimes, a skill marketplace, remote project galleries, or cloud media-provider configuration. For narration,
-use supplied recordings or explicitly requested local simulated audio; cloud TTS is deferred.
+use original video audio only; TTS is not connected and narration generation is deferred.
 
 Exports are limited to video, Jianying/CapCut drafts, and project archives/folders. The underlying film format,
 renderer and media utilities remain shared with the CLI. See [the scope record](../../docs/CLIENT_SIMPLIFICATION.zh-CN.md).

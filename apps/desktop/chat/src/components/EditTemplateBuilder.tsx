@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { Check, ChevronRight, Clapperboard, FileText, Layers, Mic, Radio, X } from 'lucide-react';
 import SpotlightCard from './react-bits/SpotlightCard';
 import Stepper, { Step } from './react-bits/Stepper';
@@ -6,10 +6,10 @@ import { applyTextStyle, getTextElementLibrary, listTextStyles, type TextStylePr
 
 import { mountTextPage } from 'openfilm/text-page';
 import { app } from '../app-bridge';
-import { AD_MODES, TEMPLATE_TYPES, initialTemplate, templateSummary, type EditTemplateConfig as Config } from '../../../src/edit-template.mjs';
+import { TEMPLATE_TYPES, initialTemplate, templateSummary, type EditTemplateConfig as Config } from '../../../src/edit-template.mjs';
 
 const ICONS = { ad: Clapperboard, talk: Mic, copy: FileText, live: Radio };
-const TYPES = TEMPLATE_TYPES.map(type => ({ ...type, icon: ICONS[type.id] }));
+const TYPES = TEMPLATE_TYPES.map(type => ({ ...type, icon: ICONS[type.id], available: type.id === 'ad' || type.id === 'copy' }));
 const BUILTIN_TEXT_STYLES = listTextStyles();
 const FONT_CHOICES = getTextElementLibrary().elements.fonts;
 const BUILTIN_IDS = new Set(BUILTIN_TEXT_STYLES.map(preset => preset.id));
@@ -31,8 +31,9 @@ const WIZARD_STYLE = {
   '--stepper-solid-ink': '#ffffff',
 } as CSSProperties;
 
-function Toggle({ label, checked, onChange, children }: { label: string; checked: boolean; onChange: (value: boolean) => void; children?: React.ReactNode }) {
-  return <div className="edit-template-element"><label className="edit-template-toggle"><span>{label}</span><input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><span className="edit-template-switch" aria-hidden="true" /></label>{checked && children ? <div className="edit-template-element-fields">{children}</div> : null}</div>;
+function Toggle({ label, checked, onChange, children, action }: { label: string; checked: boolean; onChange: (value: boolean) => void; children?: React.ReactNode; action?: React.ReactNode }) {
+  const id = useId();
+  return <div className="edit-template-element"><div className="edit-template-toggle"><label htmlFor={id}>{label}</label>{action}<label className="edit-template-toggle-control" htmlFor={id}><input id={id} aria-label={label} type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} /><span className="edit-template-switch" aria-hidden="true" /></label></div>{checked && children ? <div className="edit-template-element-fields">{children}</div> : null}</div>;
 }
 
 function TextStylePreview({ preset, text }: { preset: TextStylePreset; text: string }) {
@@ -47,13 +48,29 @@ function TextStylePreview({ preset, text }: { preset: TextStylePreset; text: str
   useEffect(() => {
     if (!stage.current) return;
     const target = stage.current;
-    const film = mountTextPage({ version: 1, width: 1080, height: 300, duration: 1,
-      texts: [applyTextStyle({ text, x: 540, y: 150, width: 1000, fontSize: 64 }, preset)] }, target);
-    film.frame(0);
-    return () => target.replaceChildren();
+    let cancelled = false;
+    const line = text.replace(/\s*\n\s*/g, ' ');
+    const render = async () => {
+      const family = preset.style.fontFamily ? JSON.stringify(preset.style.fontFamily) : 'sans-serif';
+      const font = `${preset.style.bold ? 700 : 400} 48px ${family}`;
+      await document.fonts.load(font, line).catch(() => {});
+      if (cancelled) return;
+      const context = document.createElement('canvas').getContext('2d');
+      if (context) context.font = font;
+      const measured = context?.measureText(line).width ?? line.length * 48;
+      const stroke = preset.style.stroke?.width ?? 0;
+      const fontSize = Math.max(1, Math.min(112, (160 - stroke * 2) / 1.25, 48 * (1000 - stroke * 2) / Math.max(1, measured)));
+      const item = applyTextStyle({ text: line, x: 540, y: 90, fontSize }, preset);
+      // Preview sizing is independent of an older preset's optional saved size.
+      const film = mountTextPage({ version: 1, width: 1080, height: 180, duration: 1,
+        texts: [{ ...item, fontSize, width: undefined }] }, target);
+      film.frame(0);
+    };
+    void render();
+    return () => { cancelled = true; target.replaceChildren(); };
   }, [preset, text]);
   return <div ref={root} className="edit-template-live-preview" role="img" aria-label={`文字样式预览：${preset.name}`}>
-    <div ref={stage} style={{ position: 'absolute', width: 1080, height: 300, transformOrigin: 'top left', transform: `scale(${width / 1080})` }} />
+    <div ref={stage} style={{ position: 'absolute', width: 1080, height: 180, transformOrigin: 'top left', transform: `scale(${width / 1080})` }} />
   </div>;
 }
 
@@ -65,7 +82,6 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   const [loading, setLoading] = useState(true);
   const [textStyles, setTextStyles] = useState<TextStylePreset[]>([]);
   const [styleQuery, setStyleQuery] = useState('');
-  const [fontFilter, setFontFilter] = useState('');
   const [previewId, setPreviewId] = useState('');
   const [addingStyle, setAddingStyle] = useState(false);
   const [styleName, setStyleName] = useState('');
@@ -79,7 +95,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     let cancelled = false;
     setLoading(true); setOpen(false); setStep(1); setSaveError(''); setConfig(initialTemplate()); setApplied(initialTemplate());
     void app.editTemplate.load(projectPath).then(value => {
-      if (!cancelled) { const customOnly = { ...value, textStyleIds: value.textStyleIds.filter(id => !BUILTIN_IDS.has(id)) }; setConfig(customOnly); setApplied(customOnly); }
+      if (!cancelled) { const customOnly = { ...value, kind: TYPES.find(type => type.id === value.kind)?.available ? value.kind : 'ad' as const, textStyleIds: value.textStyleIds.filter(id => !BUILTIN_IDS.has(id)) }; setConfig(customOnly); setApplied(customOnly); }
     }).catch(error => { if (!cancelled) setSaveError(`读取失败：${error.message}。可重新配置并保存。`); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -99,7 +115,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     dialog.current?.focus();
   }, [open]);
   const patch = (value: Partial<Config>) => { setConfig(c => ({ ...c, ...value })); setSaveError(''); };
-  const textKeys = ['titleText', 'bodyText', 'locationText', 'coverText', 'source', 'logic', 'notes'] as const;
+  const textKeys = ['titleText', 'bodyText', 'locationText', 'source', 'notes'] as const;
   const composing = useRef(false);
   const textChange = (key: typeof textKeys[number]) => (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     /* Do not replace the DOM value while an IME is composing a candidate. React's controlled
@@ -173,7 +189,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   };
   const text = (key: typeof textKeys[number], label: string, placeholder: string, multiline = false) => multiline
-    ? <textarea aria-label={label} defaultValue={config[key]} onChange={textChange(key)} onCompositionStart={compositionStart} onCompositionEnd={compositionEnd(key)} onPaste={pasteText(key)} placeholder={placeholder} rows={3} />
+    ? <textarea aria-label={label} defaultValue={config[key]} onChange={textChange(key)} onCompositionStart={compositionStart} onCompositionEnd={compositionEnd(key)} onPaste={pasteText(key)} placeholder={placeholder} rows={key === 'bodyText' || key === 'source' ? 7 : 3} />
     : <input aria-label={label} defaultValue={config[key]} onChange={textChange(key)} onCompositionStart={compositionStart} onCompositionEnd={compositionEnd(key)} onPaste={pasteText(key)} placeholder={placeholder} />;
   const subtitleFields = config.subtitleTexts.length ? config.subtitleTexts : [''];
   const addSubtitle = () => patch({ subtitles: true, subtitleTexts: [...config.subtitleTexts, ''] });
@@ -182,9 +198,8 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   const toggleTextStyle = (id: string) => patch({ textStyleIds: selectedTextStyleIds.has(id)
     ? config.textStyleIds.filter(value => value !== id)
     : [...config.textStyleIds, id] });
-  const elements = [config.title && '标题', config.subtitles && '副标题', config.body && '正文', config.body && config.highlight && '关键词高亮', config.location && '地点', config.textStyleIds.length ? `文字样式 ${config.textStyleIds.length} 个` : '自动文字样式'].filter(Boolean);
-  const visibleStyles = textStyles.filter(preset => (!fontFilter || preset.style.fontFamily === fontFilter)
-    && `${preset.name} ${preset.description}`.toLowerCase().includes(styleQuery.toLowerCase()));
+  const elements = config.kind === 'copy' ? ['文案润色'] : [config.body && config.narration && '文案朗读（TTS 暂未接入）', config.title && '标题', config.subtitles && '副标题', config.body && '正文', config.body && config.highlight && '关键词高亮', config.location && '地点', config.textStyleIds.length ? `文字样式 ${config.textStyleIds.length} 个` : '自动文字样式'].filter(Boolean);
+  const visibleStyles = textStyles.filter(preset => `${preset.name} ${preset.description}`.toLowerCase().includes(styleQuery.toLowerCase()));
   const previewPreset = textStyles.find(preset => preset.id === previewId) ?? textStyles.find(preset => selectedTextStyleIds.has(preset.id)) ?? visibleStyles[0];
   const newPreset: TextStylePreset = { id: 'preview-custom', version: 1, name: styleName || '新增样式', description: '自建文字样式', style: styleDraft };
   const createStyle = async () => {
@@ -196,7 +211,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
       if (!response.ok) throw new Error(result.error ?? '新增文字样式失败');
       setTextStyles(result.library.presets.filter((preset: TextStylePreset) => !BUILTIN_IDS.has(preset.id))); setPreviewId(result.preset.id);
       patch({ textStyleIds: [...config.textStyleIds, result.preset.id] });
-      setAddingStyle(false); setStyleName(''); setFontFilter(''); setStyleQuery('');
+      setAddingStyle(false); setStyleName(''); setStyleQuery('');
     } catch (error) { setSaveError((error as Error).message); }
     finally { setCreatingStyle(false); }
   };
@@ -218,7 +233,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
     <button ref={trigger} type="button" className="edit-template-trigger" title={busy ? '剪辑执行中，结束后可调整模板' : '选择并配置本项目的剪辑模板'} disabled={loading || busy} onClick={() => { setConfig(applied); setStep(1); setOpen(true); }}>
       <span className="workspace-step-number" aria-hidden="true">02</span>
       <span className="template-trigger-icon" aria-hidden="true"><Layers size={18} strokeWidth={1.5} /></span>
-      <span className="template-trigger-copy"><strong>剪辑模板</strong><span className="edit-template-tag">{loading ? '加载中…' : `${TYPES.find(t => t.id === applied.kind)!.name}${applied.kind === 'ad' ? ` · ${applied.adMode}` : ''}`}</span></span>
+      <span className="template-trigger-copy"><strong>剪辑模板</strong></span>
       <ChevronRight size={15} aria-hidden="true" />
     </button>
     {open ? <div className="edit-template-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) { setOpen(false); trigger.current?.focus(); } }}>
@@ -233,37 +248,33 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
           >
           <Step title="模板">
             <h3 className="template-native-title">选择剪辑模板</h3>
-          <section><h3><span>01</span>选择剪辑类型</h3><div className="edit-template-types">{TYPES.map(({ id, name, hint, skill, icon: Icon }) => <SpotlightCard key={id} className={`edit-template-type ${config.kind === id ? 'is-selected' : ''}`} spotlightColor="var(--tl-accent)" proximity={0} intensity={0.1}><button type="button" disabled={!skill} aria-pressed={config.kind === id} onClick={() => patch({ kind: id })}><Icon size={21} /><strong>{name}</strong><small>{hint}</small>{config.kind === id ? <Check size={14} className="edit-template-selected" /> : null}</button></SpotlightCard>)}</div></section>
-          <section><h3><span>02</span>{config.kind === 'ad' ? '广告形式' : '模板设置'}</h3>
-            {config.kind === 'ad' ? <><div className="edit-template-chips">{AD_MODES.map(mode => <button type="button" key={mode} aria-pressed={config.adMode === mode} onClick={() => patch({ adMode: mode })}>{mode}</button>)}</div>{config.adMode === '动作分享' ? <div className="edit-template-group"><Toggle label="添加开头" checked={config.opening} onChange={opening => patch({ opening })} /><Toggle label="画中画（使用已有素材）" checked={config.pip} onChange={pip => patch({ pip })} /><p className="edit-template-help">是否带文案，可在下一步“正文 / 文案”中选择。</p></div> : null}</> : null}
-            {config.kind === 'talk' ? <div className="edit-template-group"><Toggle label="设计封面" checked={config.cover} onChange={cover => patch({ cover })}>{text('coverText', '封面文字', '封面标题、人物与视觉风格')}</Toggle><Toggle label="场景剪辑" checked={config.scenes} onChange={scenes => patch({ scenes })} /><p className="edit-template-help">下一步可选择标题、正文与关键词高亮。</p></div> : null}
-            {config.kind === 'copy' ? <div className="edit-template-fields"><label>原始文案{text('source', '原始文案', '粘贴需要二创的文案，本页不提供爬取功能', true)}</label><label>二创方向<select value={config.rewrite} onChange={e => patch({ rewrite: e.target.value })}>{['保留原意，优化表达', '增强开头吸引力', '改成口语化表达', '精简为短视频文案'].map(v => <option key={v}>{v}</option>)}</select></label></div> : null}
-            {config.kind === 'live' ? <div className="edit-template-fields"><div className="edit-template-duration"><Radio size={17} /><span>成品长度</span><strong>01:00</strong></div><label>切片内容逻辑{text('logic', '切片内容逻辑', '描述开头、核心内容与结尾的组织方式', true)}</label></div> : null}
-          </section>
+          <section><div className="edit-template-types">{TYPES.map(({ id, name, hint, available, icon: Icon }) => <SpotlightCard key={id} className={`edit-template-type ${config.kind === id ? 'is-selected' : ''}`} spotlightColor="var(--tl-accent)" proximity={0} intensity={0.1}><button type="button" disabled={!available} aria-pressed={config.kind === id} onClick={() => patch({ kind: id })}><Icon size={21} /><strong>{name}</strong><small>{available ? hint : '暂未开放'}</small>{config.kind === id ? <Check size={14} className="edit-template-selected" /> : null}</button></SpotlightCard>)}</div></section>
+
           </Step>
           <Step title="内容">
-          <section><h3><span>03</span>填写画面内容</h3><div className="edit-template-group">
+          <section><h3><span>02</span>{config.kind === 'copy' ? '填写待润色文案' : '填写画面内容'}</h3><div className="edit-template-group">
+            {config.kind === 'copy' ? <label className="edit-template-copy-source">文案二创{text('source', '文案二创', '粘贴需要二创的文案', true)}</label> : <>
+
+
             <Toggle label="标题" checked={config.title} onChange={title => patch({ title })}>{text('titleText', '标题内容', '输入标题，可稍后补充')}</Toggle>
-            <Toggle label="副标题 · 支持多条" checked={config.subtitles} onChange={subtitles => patch({ subtitles, ...(subtitles && !config.subtitleTexts.length ? { subtitleTexts: [''] } : {}) })}>
+            <Toggle label="副标题 · 支持多条" action={<button type="button" className="edit-template-add-subtitle" onClick={addSubtitle}>＋ 添加副标题</button>} checked={config.subtitles} onChange={subtitles => patch({ subtitles, ...(subtitles && !config.subtitleTexts.length ? { subtitleTexts: [''] } : {}) })}>
               <div className="edit-template-subtitles">{subtitleFields.map((value, index) => <div className="edit-template-subtitle-row" key={index}>
                 <input aria-label={`副标题 ${index + 1}`} defaultValue={value} onChange={subtitleChange(index)} onCompositionStart={compositionStart} onCompositionEnd={subtitleCompositionEnd(index)} onPaste={subtitlePaste(index)} placeholder={`输入第 ${index + 1} 条副标题`} />
                 <button type="button" className="edit-template-remove-subtitle" aria-label={`删除副标题 ${index + 1}`} onClick={() => removeSubtitle(index)} disabled={subtitleFields.length === 1}>删除</button>
               </div>)}</div>
-              <button type="button" className="edit-template-add-subtitle" onClick={addSubtitle}>＋ 添加副标题</button>
-              <p className="edit-template-help">每个输入框只对应一条副标题，生成时逐条保留，不会把多条合并成一条。</p>
             </Toggle>
-            <Toggle label="正文 / 文案" checked={config.body} onChange={body => patch({ body })}>{text('bodyText', '正文内容', '输入正文或文案，可稍后补充', true)}</Toggle>
+            <Toggle label="正文 / 文案" action={config.body ? <button type="button" className="edit-template-add-subtitle edit-template-narration" aria-pressed={config.narration} onClick={() => patch({ narration: !config.narration })}>文案朗读</button> : null} checked={config.body} onChange={body => patch({ body })}>
+              {text('bodyText', '正文内容', '输入正文或文案，可稍后补充', true)}
+            </Toggle>
             <Toggle label="地点" checked={config.location} onChange={location => patch({ location })}>{text('locationText', '地点内容', '门店名称 / 地址 / 拍摄地点')}</Toggle>
+            </>}
           </div></section>
           </Step>
-          <Step title="文字样式">
+          {config.kind !== 'copy' ? <Step title="文字样式">
           <section className="edit-template-style-library"><h3><span>03</span>文字样式</h3>
-            <p className="edit-template-help">这里只展示你创建的样式，可多选。未选择时由智能体决定外观；字号根据画布、文字长度和位置决定，不保存在新建样式中。</p>
-            {config.title ? <p className="edit-template-help">标题字号由智能体根据画布、文字长度和位置决定，优先保持单行。</p> : null}
-            {config.body ? <div className="edit-template-group"><label>正文呈现方式</label><div className="edit-template-chips">{['直出', '跳出'].map(value => <button type="button" key={value} aria-pressed={config.reveal === value} onClick={() => patch({ reveal: value })}>{value}</button>)}</div><Toggle label="关键词高亮" checked={config.highlight} onChange={highlight => patch({ highlight })} /></div> : null}
+            <p className="edit-template-help">仅展示自建样式，可多选，字号由生成时自动适配。</p>
+            {config.body ? <div className="edit-template-group"><Toggle label="关键词高亮" checked={config.highlight} onChange={highlight => patch({ highlight })} /></div> : null}
             <div className="edit-template-style-filters">
-              <input aria-label="搜索文字样式" placeholder="搜索样式" value={styleQuery} onChange={e => setStyleQuery(e.target.value)} />
-              <select aria-label="筛选字体" value={fontFilter} onChange={e => setFontFilter(e.target.value)}><option value="">全部字体</option>{[...new Set(textStyles.map(preset => preset.style.fontFamily).filter(Boolean))].map(font => <option key={font} value={font}>{FONT_CHOICES.find(item => item.family === font)?.name ?? font}</option>)}</select>
               <button type="button" onClick={() => setAddingStyle(value => !value)}>＋ 新增样式</button>
             </div>
             {addingStyle ? <div className="edit-template-new-style">
@@ -272,13 +283,14 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
               <label>文字颜色<input type="color" value={styleDraft.color} onChange={e => setStyleDraft(value => ({ ...value, color: e.target.value }))} /></label>
               <label>描边颜色<input type="color" value={styleDraft.stroke?.color ?? '#000000'} onChange={e => setStyleDraft(value => ({ ...value, stroke: { width: value.stroke?.width ?? 0, color: e.target.value } }))} /></label>
               <label>描边宽度（px）<input type="number" min="0" max="100" value={styleDraft.stroke?.width ?? 0} onChange={e => { const width = Number(e.target.value); if (width >= 0 && width <= 100) setStyleDraft(value => ({ ...value, stroke: { color: value.stroke?.color ?? '#000000', width } })); }} /></label>
-              <Toggle label="加粗" checked={Boolean(styleDraft.bold)} onChange={bold => setStyleDraft(value => ({ ...value, bold }))} />
-              <button type="button" disabled={!styleName.trim() || creatingStyle} onClick={() => void createStyle()}>{creatingStyle ? '正在保存…' : '保存并选用'}</button>
+              <button type="button" className="edit-template-bold" aria-pressed={Boolean(styleDraft.bold)} onClick={() => setStyleDraft(value => ({ ...value, bold: !value.bold }))}>加粗</button>
+              <button type="button" className="edit-template-save-style" disabled={!styleName.trim() || creatingStyle} onClick={() => void createStyle()}>{creatingStyle ? '正在保存…' : '保存并选用'}</button>
             </div> : null}
-            {addingStyle || previewPreset ? <><TextStylePreview preset={addingStyle ? newPreset : previewPreset!} text={config.titleText || config.bodyText || '预览文字：发现生活中的精彩'} /><p className="edit-template-help">{addingStyle ? newPreset.name : previewPreset?.name} · 预览字号仅作示意，生成时自动适配</p></> : null}
+            {addingStyle || previewPreset ? <><TextStylePreview preset={addingStyle ? newPreset : previewPreset!} text={config.titleText || config.bodyText || '预览文字：发现生活中的精彩'} /><p className="edit-template-help">{addingStyle ? newPreset.name : previewPreset?.name}</p></> : null}
+            <input aria-label="搜索文字样式" placeholder="搜索样式" value={styleQuery} onChange={e => setStyleQuery(e.target.value)} />
             <div className="edit-template-style-actions">
               <strong>已选择 {config.textStyleIds.length} 个 · 当前显示 {visibleStyles.length} 个</strong>
-              {config.textStyleIds.length ? <button type="button" onClick={() => patch({ textStyleIds: [] })}>清空选择</button> : null}
+              <button type="button" style={{ visibility: config.textStyleIds.length ? 'visible' : 'hidden' }} disabled={!config.textStyleIds.length} onClick={() => patch({ textStyleIds: [] })}>清空选择</button>
             </div>
             {!visibleStyles.length ? <p className="edit-template-help">{textStyles.length ? '没有匹配的样式。' : '还没有自建样式，点击“新增样式”创建。'}</p> : null}
             <div className="edit-template-style-grid">{visibleStyles.map(preset => {
@@ -292,11 +304,11 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
               </label>;
             })}</div>
           </section>
-          </Step>
+          </Step> : null}
           <Step title="确认">
-          <section><h3><span>04</span>确认模板配置</h3><p className="edit-template-step-intro">检查配置预览，补充要求后保存。也可以点击上方步骤返回调整。</p><label className="edit-template-notes-label">补充要求</label>{text('notes', '补充要求', '例如：节奏轻快、保留动作完整性、文字避开人物…', true)}</section>
+          <section><h3><span>{config.kind === 'copy' ? '03' : '04'}</span>确认模板配置</h3><p className="edit-template-step-intro">检查配置预览，补充要求后保存。也可以点击上方步骤返回调整。</p><label className="edit-template-notes-label">补充要求</label>{text('notes', '补充要求', config.kind === 'copy' ? '例如：表达更自然、更有吸引力、保留原意…' : '例如：节奏轻快、保留动作完整性、文字避开人物…', true)}</section>
             <div className="template-native-summary"><div className="template-native-tags">{elements.map(item => <span key={String(item)}>{item}</span>)}</div><pre>{summary}</pre></div>
-            <p className="template-native-status" role="status">配置保存在当前项目。保存后，在右侧输入生成视频或修改影片的需求。</p>
+            <p className="template-native-status" role="status">{config.kind === 'copy' ? '保存后，在右侧输入润色要求，结果将直接显示在对话中。' : '配置保存在当前项目。保存后，在右侧输入生成视频或修改影片的需求。'}</p>
           </Step>
           </Stepper>
 

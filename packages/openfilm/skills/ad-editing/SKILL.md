@@ -10,22 +10,15 @@ text and narration boundaries independently to serve the message. Reuse OpenFilm
 format and exporter.
 
 For a normal template generation request, keep the execution short: inspect the supplied media, read this skill, read
-the template's exact copy, synthesize the required sentence audio, assemble the timeline, report the result immediately without an automatic preview or check. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
+the template's exact copy, use supplied audio without synthesizing narration, assemble the timeline, report the result immediately without an automatic preview or check. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
 
-### Mode gate
+### Optional narration
 
-- **原声 · 无朗读**: keep the source audio from the selected clips, mute only when the template explicitly requests it,
-  and skip all TTS, offline narration and narration timing. Use the template copy for captions and on-screen text only.
-- **文案朗读 + 音频**: use supplied recordings first; when narration is required and no recording is supplied, create one
-  TTS file for each complete sentence, measure each file, then time the shots.
-- **动作分享、 大字报、正确动作教学**: follow the selected visual brief and add audio only when the template or the
-  current request asks for it.
-
-The mode gate is authoritative for this skill. Do not let a generic narration instruction override 原声 · 无朗读.
+Advertising uses one workflow, without advertising subcategories. The content field narration is an optional read-aloud checkbox, off by default. When off, retain original video audio and do not generate narration. When on, it requests narration but unavailable TTS must be skipped immediately without blocking, asking questions or creating an empty audio track. There is no separate recording input or reuse step. TTS is currently not connected.
 
 ## Reference text layout
 
-When the template uses **原声 · 无朗读**, keep the supplied audio and do not run any TTS or narration synthesis. When it
+Retain original video audio and skip unavailable narration synthesis. When the template
 contains a title, supporting lines and a location, use this compact vertical-ad structure unless the person specifies
 another layout. Arrange these text roles as a compact group using the spacing rule below; choose a seed or explicit
 preset after inspecting the frame:
@@ -68,7 +61,7 @@ you may use vertical typography according to the actual frame. This is optional,
 choose it when available vertical space improves readability and keeps faces, working limbs and equipment clear.
 Vertical typography means characters running from top to bottom in a column, distinct from stacking horizontal titles.
 The group may combine horizontal and vertical titles when the frame supports it. Preserve every title's wording,
-punctuation, spaces, colors and emphasis; do not shorten copy to make a column fit.
+wording, spaces, colors and emphasis; do not shorten copy to make a column fit.
 
 For selected vertical titles, fit the loaded font to the available safe height and measure both column height and width,
 including padding, outline and shadow. Use upright Chinese glyphs (in HTML, `writing-mode: vertical-rl` and
@@ -82,7 +75,7 @@ provisional preview rather than a verified scene-based placement. Explicit user 
 
 Keep each headline, selling point, emphasis line, evidence line and family/closing statement on one horizontal line by default,
 except titles selected for vertical typography under the more-than-four-title rule above.
-Preserve the supplied wording, punctuation and spaces. Location labels and speech subtitles are separate from this rule.
+Preserve the supplied wording and spaces; remove sentence punctuation from displayed copy. Location labels and speech subtitles are separate from this rule.
 Treat the role-specific font-size ranges and the 88–120 px display recommendation as starting points, not hard minimums.
 After the actual font is loaded, measure the complete line using its resolved font family, weight and letter spacing.
 Choose the largest size up to the role's chosen starting size that fits the available safe width after subtracting
@@ -112,11 +105,10 @@ record; `film.html` remains the editable film. Reuse confirmed analysis and choi
 ## Find the shots
 
 Split the copy into complete sentences at sentence punctuation and natural pauses; assign stable sentence IDs. When
-the template already contains wording, that wording is locked: preserve it character for character, with no shortening,
+the template already contains wording, that wording is locked: preserve all wording and order, removing only sentence punctuation for display, with no shortening,
 summary, rewrite, additions or deletions. In 原声 · 无朗读, use those sentences only as caption/text units. In narrated
-modes, make one TTS file for each complete sentence. Never merge two template sentences into one TTS request and never
-truncate a sentence to meet a duration target. Visual shots may span several sentences, but narration and display text
-remain sentence-by-sentence and verbatim.
+modes, retain original video audio only; do not generate speech. Keep complete sentences and never
+truncate a sentence to meet a duration target. Visual shots and text groups may contain multiple sentences simultaneously; preserve every character.
 
 Probe supplied media for duration, dimensions and sound. Use `openfilm look --quick <media-file>` for a fast contact sheet,
 then `look --quick <media-file> <seconds>` or `look --quick <media-file> <from>-<to>` to inspect candidate intervals. Look across each
@@ -133,16 +125,11 @@ or silently fill shortages with unrelated shots. If nothing fits, identify the s
 
 ## Time narration before final cuts
 
-Skip this section in 原声 · 无朗读 mode: preserve the source audio and use source speech timing when captions are needed.
+Preserve source video audio. Use source speech timing only for captions derived from actual speech; skip narration generation while TTS is unavailable.
 
-Use supplied sentence recordings when available. Continuous recordings need real sentence boundaries from a
-transcript or listening; do not divide evenly or estimate timing from character counts.
+Use source video audio and its real speech boundaries for any speech-derived captions; do not divide evenly or estimate speech timing from character counts. Do not request, import or reuse separate narration recordings.
 
-Reuse supplied recordings when available. When the host provides local TTS, synthesize one file per complete sentence and
-measure each real file's duration before choosing shot ranges. If local TTS is unavailable, continue the edit with
-the supplied copy and available source audio or silent timing, and record narration as pending; missing narration
-alone must not block a usable video edit. Cloud TTS is outside this client's current scope unless a provider is
-explicitly configured. Keep simulated or fallback audio distinguishable in the project and delivery report.
+TTS is not connected. Never synthesize narration using local, cloud or system voices. Continue with original video audio and on-screen text; skip audio generation without asking for a narration choice and do not create an empty narration track.
 A requested silent video may use explicitly recorded shot durations and must be labeled accordingly.
 
 Place each line after the previous line's actual end plus any separately specified pause. Do not add pauses already
@@ -225,7 +212,7 @@ Record the seed or preset version, family, font ID, weight and resolved size in 
 ## Build and revise
 
 Use source references and trim ranges in `film.html`, preserving originals. Keep sequential clips together: one main
-video track, one text track, one narration track and optional music. Add tracks only for real overlap. Normally use
+video track, one text track, one narration track and optional music. Keep original audio attached to the original video clip with its trim and volume; do not pair silent previews with detached soundtracks. Split source audio only when the user explicitly requests separation or independent audio editing. Add tracks only for real overlap. Normally use
 the line's display copy once, without duplicating it in both title and subtitle layers. If separate subtitles are
 requested, use OpenFilm's transcript/caption path and check their independent timing.
 
@@ -267,3 +254,22 @@ Report output locations, runtime, major choices, blockers and editability limits
 include uploading, publishing, installing external assets or modifying unrelated projects.
 
 Default workflow: receive the command, execute the command, and report the result immediately. Do not automatically run quick previews, full checks, repeated-frame rendering or audio-mix verification after execution. Run preview or verification commands only on explicit user request, and never claim skipped checks passed.
+
+## Copy and audio execution policy
+
+When TTS is unavailable, skip audio generation immediately, retain original video audio, and create no empty narration track. Do not stop to ask about narration.
+Preserve every character of supplied final titles and body copy. Never ask whether to shorten, use only the title, or retain the full copy. For an authorized source rewrite, use the complete resulting script. Keep the requested duration and arrange all copy across text clips by adapting layout and timing. Missing TTS imposes no spoken-duration constraint. Complete the edit without asking the person to choose between shortened copy, title-only and a longer duration; report any readability limitation afterward.
+
+A frame may show two or more sentences simultaneously, grouped by meaning in multiple lines or text blocks. Do not enforce one sentence per screen or exclusive time intervals per sentence. For a short video with long copy, prefer related sentences together and allocate display time per group, preserving all copy and the requested duration while avoiding the subject. A single-line headline rule does not limit the number of body sentences on screen.
+
+Use distinct text fill colors for the headline, multiple subheadings and body copy. Different text blocks on the same screen should not all have the same color; assign clearly distinguishable colors by role and meaning with sufficient contrast. Prefer differently colored selected presets; if all selected presets have the same color, preserve their font and outline but adjust fill colors to satisfy this requirement without asking. Prefer one horizontal line per text block. Fit all body blocks in the same group to one shared absolute pixel font size based on the longest line, capped by the title size. Keep safe side margins, never clip text or stretch glyphs to fill space. Multiple sentences may appear simultaneously on separate lines; do not force different sentences onto one line. Preserve all copy and readability.
+
+Measure actual glyph width after the resolved font loads, including outline/shadow; JSON box width is not glyph width. Resize fontSize, not just the box. With clear space, target about 90% of canvas width with approximately 5% side margins; enlarge short headlines accordingly. Prefer separate sentence blocks, one sentence per line using a shared body font size, rather than a small paragraph occupying only part of the frame. All text, including titles, subtitles, body and location labels, plus outlines/shadows, must avoid the entire person: head, torso, limbs and action area. Choose positions using subject movement across the selected source interval, not only its first frame; neither top nor bottom is automatically safe. Reuse source analysis and cached frames first. Subject avoidance takes priority over line width: regroup copy, reposition or use another relevant shot when space is limited, rather than covering people or using unreadably small text. These are generation-time layout decisions, not an added final preview pass.
+
+Independent clause layout: split supplied copy at natural clause boundaries such as commas, semicolons, periods, question marks and exclamation marks, preserving wording and original order while removing sentence punctuation from displayed text. Each clause must be an independent entry in structured JSON texts with its own text, x, y, width and fontSize. Never pack several clauses into one text string or stack them with newline characters inside one box. Fit each clause to a single line using one shared font size per body group, based on the longest line. Related clauses may appear simultaneously, vertically distributed in available space outside the people, with independently chosen positions and spacing, rather than one dense horizontal strip or fixed bottom paragraph. Keep glyphs and outlines separate and adjacent clauses distinguishable in color. Subject avoidance takes priority. If space is insufficient, distribute clauses into consecutive simultaneous groups while preserving all copy and the requested total duration without asking to shorten it.
+
+Full-canvas footage rule: the main video must fill the canvas. Never shrink footage into a centered inset, add black borders, or reserve black header/footer areas to make room for titles, location or body text. Preserve aspect ratio with cover sizing; adjust crop position when necessary to protect people and complete actions, and never stretch disproportionately. Overlay text on the full-canvas footage, avoiding people by repositioning, independently fitting font sizes, splitting clauses into independent elements and scheduling successive groups. No text-layout rule authorizes shrinking the main video. If space is limited, show fewer clauses simultaneously while retaining all copy within the requested duration; do not switch to an inset-video poster layout.
+
+Display punctuation policy: preserve raw input and template configuration unchanged. When generating JSON texts[].text for titles, subheadings and body copy, first split at original punctuation, then remove sentence punctuation including commas, periods, enumeration commas, semicolons, colons, question/exclamation marks, quotes, brackets, ellipses and dashes. Preserve all wording and order. Keep clauses as independent elements. Retain semantically necessary symbols in decimal numbers, percentages, signs, dates, URLs, model identifiers and proper names to avoid changing facts. Measure and export the punctuation-free display JSON, not merely a preview-only stripped string. This is the explicit display exception to verbatim-copy rules.
+
+Body typography hierarchy: all clauses in the same body group must use the exact same fontSize, fitted against the longest line and available space; never enlarge a short clause independently. Subheading and body font sizes must not exceed the main title size. Arrange actual rendered glyph bounds including outline and shadow with compact clear gaps of about 8–12% of the shared body font size between adjacent body lines, measured outside outline/shadow bounds; avoid oversized paragraph gaps. Titles, subheadings and body must never overlap. If space is insufficient, schedule fewer clauses per simultaneous group without dropping copy or shrinking footage. Body fills must be clearly different from the title, avoiding the same or adjacent hues: a yellow title must not be paired with yellow, gold or similar orange body copy. Prefer clearly contrasting white, cyan or another distinct hue suited to the background. This takes priority over independently enlarging every line to fill width.

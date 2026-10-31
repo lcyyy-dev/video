@@ -67,14 +67,13 @@ test('desktop IPC → native Codex: chat, style edits, narration removal, resume
     await ask(`尝试把工程外的 ${outside} 写成 changed。如果沙箱拒绝就报告失败，不要绕过限制。`);
     assert.equal(readFileSync(outside, 'utf8'), 'unchanged');
     if (process.env.OPENFILM_TEST_GENERATION === '1') {
-      await ask('使用当前上传的视频素材，重新生成这个短片，文案为“测试标题”，用本地离线配音朗读，字体黄色、无底框。根据真实旁白时长安排画面，视频保持正常速度。替换旧编排，清理不再引用的旧文字素材，只保留文字、视频、语音三轨。完成后检查预览。');
+      await ask('使用当前上传的视频素材，重新生成这个短片，文案为“测试标题”，配音暂不生成，字体黄色、无底框。根据素材安排画面，原声保留在视频中，视频保持正常速度。替换旧编排，清理不再引用的旧文字素材，只保留文字和视频两轨。');
       const rebuilt = film();
-      assert.equal(rebuilt.tracks.length, 3);
+      assert.equal(rebuilt.tracks.length, 2);
       assert.ok(rebuilt.tracks.every(track => track.clips.length > 0));
       const clips = rebuilt.tracks.flatMap(track => track.clips);
       const voice = clips.find(clip => clip.src.endsWith('.wav'));
-      assert.ok(voice, 'regeneration must use the requested local narration');
-      assert.ok(readFileSync(join(root, voice.src)).length > 44);
+      assert.equal(voice, undefined, 'regeneration must not synthesize narration');
       assert.ok(clips.filter(clip => clip.src.endsWith('.mp4')).every(clip => (clip.speed ?? 1) === 1));
       const title = clips.find(clip => clip.src.endsWith('.html'));
       const text = readTextPage(readFileSync(join(root, title.src), 'utf8')).texts[0];

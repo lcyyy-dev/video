@@ -3,7 +3,25 @@
   "kind": "workflow",
   "order": 3,
   "icon": "file-text",
-  "title": { "en": "Copy rewrite", "zh-CN": "文案二创", "ja": "コピーリライト", "ko": "카피 재작성", "es": "Reescritura de guion" },
-  "summary": { "en": "Rewrite supplied copy in the requested direction and turn it into a timed, editable video.", "zh-CN": "按指定方向改写已有文案，制作成有节奏且可编辑的视频。", "ja": "渡されたコピーを指定の方向で書き直し、タイミングを合わせた編集可能な動画にします。", "ko": "받은 카피를 요청한 방향으로 다시 쓰고 타이밍에 맞는 편집 가능한 영상으로 만듭니다.", "es": "Reescribe el texto entregado en la dirección pedida y conviértelo en un vídeo editable y bien medido." },
-  "details": { "en": "Preserves supplied facts and separates the original, final spoken script and display copy. No unsupported claims are added.", "zh-CN": "保留原文事实，分别保存原始文案、最终口播稿和画面文字，不添加未经提供的宣传承诺。", "ja": "渡された事実を守り、原文・最終台本・表示文を分けて保存します。根拠のない主張は追加しません。", "ko": "받은 사실을 지키고 원문·최종 대본·화면 문구를 분리합니다. 근거 없는 주장은 추가하지 않습니다.", "es": "Conserva los hechos entregados y separa el original, el guion hablado y el texto en pantalla sin añadir promesas sin respaldo." }
+  "title": {
+    "en": "Copy rewrite",
+    "zh-CN": "文案二创",
+    "ja": "コピーリライト",
+    "ko": "카피 재작성",
+    "es": "Reescritura de guion"
+  },
+  "summary": {
+    "en": "Polish supplied copy and return the result in chat. No video editing.",
+    "zh-CN": "仅润色提供的文案，在对话中返回结果，不剪辑视频。",
+    "ja": "文章を推敲してチャットで返します。動画編集は行いません。",
+    "ko": "문안을 다듬어 대화로 반환합니다. 영상은 편집하지 않습니다.",
+    "es": "Mejora el texto y devuelve el resultado en el chat, sin editar vídeo."
+  },
+  "details": {
+    "en": "Preserve facts and meaning, improve expression, and leave project files unchanged.",
+    "zh-CN": "保留事实与原意，优化表达，不修改视频工程或生成工程文件。",
+    "ja": "事実と意味を保ち、表現を改善します。プロジェクトは変更しません。",
+    "ko": "사실과 의미를 유지하며 표현을 개선합니다. 프로젝트는 변경하지 않습니다.",
+    "es": "Conserva los hechos y el sentido, mejora la expresión y no modifica el proyecto."
+  }
 }

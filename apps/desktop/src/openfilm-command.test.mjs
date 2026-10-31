@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { commandScript, commandScriptWindows } from './openfilm-command.mjs';
+import { commandScript, commandScriptWindows, installOpenfilmCommand } from './openfilm-command.mjs';
 
 test("the openfilm command alone has the app's ffmpeg first and its browser; the agent's PATH is left as it is", () => {
   const sh = commandScript('/app/node', '/app/openfilm.mjs', { ffmpeg: '/app/ffmpeg', env: { PLAYWRIGHT_BROWSERS_PATH: '/app/pw' } });
@@ -25,4 +25,19 @@ test('a script run through as-node.mjs sees itself as the script, with its argum
     const out = JSON.parse(execFileSync(process.execPath, [asNode, script, '--flag', 'x'], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, encoding: 'utf8' }));
     assert.deepEqual(out, { argv: [script, '--flag', 'x'], runAsNode: null });
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('command installation removes obsolete offline narration launchers on both platforms', () => {
+  for (const platform of ['linux', 'win32']) {
+    const dir = mkdtempSync(join(tmpdir(), 'openfilm-command-'));
+    try {
+      const bin = join(dir, 'bin');
+      mkdirSync(bin);
+      for (const name of ['openfilm-local', 'openfilm-local.cmd']) writeFileSync(join(bin, name), 'old launcher');
+      installOpenfilmCommand(dir, { node: process.execPath, platform });
+      assert.ok(existsSync(join(bin, platform === 'win32' ? 'openfilm.cmd' : 'openfilm')));
+      assert.equal(existsSync(join(bin, 'openfilm-local')), false);
+      assert.equal(existsSync(join(bin, 'openfilm-local.cmd')), false);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }
 });

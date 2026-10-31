@@ -1,41 +1,12 @@
 ---
 name: copy-rewrite
-description: Turn supplied source copy into a short OpenFilm video while preserving its facts and requested meaning. Rewrite only within the selected direction, structure the message for spoken delivery and on-screen text, match supplied footage and audio, and deliver an editable film or requested export.
+description: Polish supplied copy as text only, preserving facts and meaning, and return the rewritten text in chat without editing video or project files.
 ---
 
-# Copy rewrite edit
+# Copy polishing
 
-Use this workflow when the person has source copy and wants a stronger, shorter or more conversational video script.
+Use template source or the original text in the current message. Follow the requested direction; by default improve wording, transitions and fluency while preserving meaning and key information. Do not invent facts, prices, numbers, locations, credentials or claims.
 
-For a template generation request, inspect the supplied footage, read this skill and the exact template copy, produce
-only the requested spoken audio and timeline, report the result immediately. Do not research, add claims or create
-alternate versions.
+Return the complete polished copy directly in chat with normal punctuation and paragraphs. Do not apply video display rules, remove punctuation, choose fonts, or time the copy to footage. Do not add alternate versions or analysis unless requested.
 
-## Lock the source
-
-Read the OpenFilm manual and inspect the project. Save `copy-plan.json` with the original copy, the selected rewrite
-direction, a sentence-by-sentence mapping, source facts that must remain unchanged, footage ranges, audio status and
-the final checks. The original copy is evidence: do not add prices, guarantees, locations, dates, testimonials or
-product claims that were not supplied. If a statement is ambiguous, keep it cautious and report the question.
-
-If the template contains the final wording, treat it as locked source copy: preserve every character and do not
-compress, summarize, rewrite, add or remove words. Split that exact wording into complete sentences and make one TTS
-file per sentence. Selecting the copy-rewrite template with source and rewrite fields explicitly authorizes rewriting that source in the selected direction; final titleText/bodyText fields remain locked. A direct rewrite request also authorizes that rewrite;
-even then, keep the original and the final script as separate records and never merge or truncate sentences.
-
-## Time the video
-
-Inspect all supplied footage with `openfilm look` and match each script unit to a meaningful shot. Use supplied voice
-recordings when available; otherwise use local simulated narration only when explicitly requested, or leave narration
-pending and make a usable silent/text edit. Measure every audio file before setting shot and caption boundaries.
-Keep speech intact, make cuts at natural pauses, and keep captions derived from the final spoken script. Use the local
-text-style library and structured text pages so titles and captions remain editable. When the template's `textStyleIds`
-is non-empty, choose only those IDs; with an empty list, use the element library's automatic combinations.
-
-## Check and deliver
-
-Check facts against the source copy, pronunciation and timing against the actual audio, every shot against the sentence
-it illustrates, and captions against safe margins. Preserve manual edits and locked selections during revisions. Report the result immediately; do not automatically run preview or verification commands. Render MP4 only when requested; otherwise leave the editable film or use the existing
-Jianying/CapCut exporter. Report any missing audio, unsupported style, unresolved fact or requested output that remains.
-
-Default workflow: receive the command, execute the command, and report the result immediately. Do not automatically run quick previews, full checks, repeated-frame rendering or audio-mix verification after execution. Run preview or verification commands only on explicit user request, and never claim skipped checks passed.
+Do not inspect footage, edit video, operate the timeline, create text JSON or plan files, synthesize audio, preview or export. Leave project files unchanged. If neither source nor the message contains original copy, ask only for the text to polish.
