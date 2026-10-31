@@ -83,8 +83,8 @@ test('a page generated with a saved default exports its resolved appearance as e
   const material = info.materials.texts[0], content = JSON.parse(material.content), style = content.styles[0];
   assert.equal(content.text, page.texts[0].text);
   assert.equal(material.text_color, '#ffe21fFF');
-  assert.equal(style.size, 12);
-  assert.equal(style.strokes[0].width, 0.083333);
+  assert.equal(style.size, 14.222222);
+  assert.equal(style.strokes[0].width, 0.208333);
   assert.equal(style.shadows[0].alpha, 1);
   assert.equal(style.font.path, preset.style.fontPath);
   deleteTextStyle(preset.id);
@@ -109,4 +109,16 @@ test('bundled fonts resolve without local mappings or machine-specific installat
     assert.deepEqual(Buffer.from(await font.arrayBuffer()), readFileSync(bundledTextFont(family).path));
     assert.match(textFontCss([family], true), /data:font\/ttf;base64,/);
   } finally { rmSync(isolated, { recursive: true, force: true }); }
+});
+
+test('a user-created style stores no font size and generated pages remain valid', async () => {
+  const made = await request('', 'POST', { name: 'Appearance without size', style: {
+    fontFamily: 'SimHei', color: '#F2DA2D', stroke: { color: '#000000', width: 4 },
+  } });
+  assert.equal(made.status, 201);
+  assert.equal(Object.hasOwn(made.body.preset.style, 'fontSize'), false);
+  const saved = resolveTextStyle(made.body.preset.id);
+  assert.equal(Object.hasOwn(saved.style, 'fontSize'), false);
+  const page = styledTextPage({ text: '自适应字号', width: 1080, height: 1920, duration: 2 }, saved.id);
+  assert.ok(page.texts[0].fontSize > 0, 'a standalone preview has a usable demonstration size');
 });

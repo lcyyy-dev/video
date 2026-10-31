@@ -20,8 +20,8 @@ import overviewStyles from './FilmOverview.module.css';
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalDistributeCenter,
   AlignStartHorizontal, AlignStartVertical, AlignVerticalDistributeCenter, ArrowRightToLine, AudioLines, Captions,
-  Check, ChevronRight, CircleAlert, Clapperboard, Copy, Film, Gauge, Image as ImageIcon, Link2, Maximize2, MousePointerClick,
-  Lock, MoveHorizontal, Music, Replace, RotateCcw, Scissors, Shapes, Sparkles, Square, Type, Unlink2, Video, Volume2, X,
+  ChevronRight, CircleAlert, Clapperboard, Film, Gauge, Image as ImageIcon, Link2, Maximize2, MousePointerClick,
+  Lock, MoveHorizontal, Music, Replace, RotateCcw, Scissors, Shapes, Square, Type, Unlink2, Video, Volume2, X,
 } from 'lucide-react';
 
 import {
@@ -358,42 +358,9 @@ export const FilmInspector = React.memo(function FilmInspector({
 /** Even sizes: H.264 samples chroma in 2×2 blocks and refuses odd dimensions (as film-frame does). */
 
 /**
- * For a film that has clips: the canvas changes here, and laying the film out again for it is the agent's. The words
- * that ask for it, with the canvas as it is now, to copy into the chat.
- */
-function RedesignHint({ t, stage }: { t: T; stage: { w: number; h: number } }) {
-  const [open, setOpen] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
-  const shape = filmFrameOf(stage);
-  const ask = t('inspector.redesignAsk').replace('{ratio}', shape === 'native' ? `${stage.w}:${stage.h}` : shape).replace('{size}', `${stage.w}×${stage.h}`);
-  React.useEffect(() => { setCopied(false); }, [ask]);
-  return (
-    <div className="flex flex-col gap-2">
-      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
-        className="flex h-7 items-center gap-1.5 self-start rounded-md px-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text)]">
-        <Sparkles size={12} />
-        {t('inspector.redesignOpen')}
-      </button>
-      {open ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--fill-tsp)] p-2.5">
-          <p className="text-[10.5px] leading-[15px] text-[var(--text-muted)]">{t('inspector.redesignBody')}</p>
-          <p className="select-text rounded-md bg-[var(--bg)] px-2 py-1.5 text-[11px] leading-[16px] text-[var(--text)]">{ask}</p>
-          <button type="button"
-            onClick={() => { void navigator.clipboard?.writeText(ask).then(() => setCopied(true), () => {}); }}
-            className="flex h-7 items-center justify-center gap-1.5 rounded-md bg-[var(--text)] text-[11px] font-medium text-[var(--bg)] transition hover:opacity-90">
-            {copied ? <Check size={12} /> : <Copy size={12} />}
-            {t(copied ? 'inspector.redesignCopied' : 'inspector.redesignCopy')}
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
  * The film itself: its name, its stage and shape, how long it is, what is in it. The shape changes as the
  * player's ratio button changes it (FramePicker): the canvas itself, at any time, as an image editor's canvas size
- * (what is on it stays as it is, centered); laying the film out again for it is the agent's (RedesignHint).
+ * (what is on it stays as it is, centered).
  */
 function FilmPanel({
   t, stage: kept, draft, film, onCanvas, onCanvasPreview, rate,
@@ -410,7 +377,6 @@ function FilmPanel({
   const canvas = Boolean(onCanvas);
   /* what the picture shows: the size being dragged, else the film's */
   const stage = draft ?? kept;
-  const placed = Boolean(film && !film.empty);
   const preset = CANVAS_RATIOS.find((r) => shaped(stage, filmFrameRatio(r.id, stage)));
   const setSize = (w: number, h: number) => {
     const size = { w, h };
@@ -465,8 +431,6 @@ function FilmPanel({
           <NumField label={t('inspector.height')} prefix="H" value={stage.h} unit="px" step={8} min={CANVAS_SIDE.min} max={CANVAS_SIDE.max} disabled={!canvas}
             onCommit={(h) => setSize(kept.w, canvasSide(h, kept.w))} onPreview={(h) => onCanvasPreview?.({ w: kept.w, h: canvasSide(h, kept.w) })} onRevert={() => onCanvasPreview?.(null)} />
         </Row>
-        {/* with clips: the words that ask the agent to lay the film out again for this canvas */}
-        {placed ? <RedesignHint t={t} stage={stage} /> : null}
       </Section>
       {rate ? (
         <Section id="film-rate" title={t('inspector.frameRate')}>

@@ -16,12 +16,12 @@ test('every built-in text preset exports native editable text with its appearanc
       const material = info.materials.texts[0];
       const content = JSON.parse(material.content);
       assert.equal(content.text, item.text);
-      assert.equal(content.styles[0].size, item.fontSize / 8);
+      assert.equal(content.styles[0].size, Math.round(item.fontSize / 6.75 * 1e6) / 1e6);
       assert.equal(content.styles[0].font.path, item.fontPath);
       assert.equal(content.styles[0].bold, Boolean(item.bold));
       assert.equal(material.text_color, `${item.color}FF`);
       assert.equal(material.has_shadow, Boolean(item.shadow));
-      assert.equal(content.styles[0].strokes[0].width, Math.round(item.stroke.width / item.fontSize * 1e6) / 1e6);
+      assert.equal(content.styles[0].strokes[0].width, Math.round(item.stroke.width / item.fontSize / 0.4 * 1e6) / 1e6);
       assert.equal(info.tracks.filter((track) => track.type === 'text').length, 1);
       assert.equal(info.materials.videos.some((media) => media.path.endsWith('title.mov')), false);
     }
@@ -39,7 +39,7 @@ test('structured titles become native text, with no corresponding video material
   const material = info.materials.texts.find((m) => m.id === native.segments[0].material_id);
   const content = JSON.parse(material.content);
   assert.equal(content.text, '可编辑 😀');
-  assert.equal(content.styles[0].size, 10);
+  assert.equal(content.styles[0].size, 11.851852);
   assert.equal(content.styles[0].font.path, 'C:/Windows/Fonts/msyh.ttc');
   assert.deepEqual(content.styles[0].fill.content.solid.color, [1, 128 / 255, 0]);
   assert.deepEqual(native.segments[0].target_timerange, { start: 0, duration: 2_000_000 });
@@ -67,7 +67,7 @@ test('formatted text keeps spacing, alignment, font metadata, outline and shadow
   assert.equal(material.alignment, 0);
   assert.equal(material.force_apply_line_max_width, true);
   assert.equal(style.underline, true);
-  assert.equal(style.strokes[0].width, 0.025);
+  assert.equal(style.strokes[0].width, 0.0625);
   assert.equal(style.shadows[0].alpha, 0.5);
   assert.equal(info.materials.videos.some((m) => m.path.endsWith('title.mov')), false);
 });
@@ -101,7 +101,7 @@ test('multi-color outlined copy stays one editable text segment with per-range s
   const content = JSON.parse(info.materials.texts[0].content);
   assert.deepEqual(content.styles.map((s) => s.range), [[0, 4], [4, 8], [8, 11]]);
   assert.equal(info.materials.texts[0].is_rich_text, true);
-  assert.deepEqual(content.styles.map((s) => s.size), [10, 8, 8.5]);
+  assert.deepEqual(content.styles.map((s) => s.size), [11.851852, 9.481481, 10.074074]);
   assert.deepEqual(content.styles[2].strokes[0].content.solid.color, [1, 1, 1]);
   assert.equal(content.styles[0].bold, true);
   assert.equal(info.materials.videos.some((m) => m.path.endsWith('title.mov')), false);
@@ -237,4 +237,79 @@ test('portable drafts use media paths relative to the draft folder', () => {
   assert.match(library[0].file_Path, /^\.\/Resources\/local\//);
   assert.equal(meta.draft_fold_path, '');
   assert.equal(meta.draft_root_path, '');
+});
+
+test('portable drafts resolve bundled fonts inside the relocated draft on Windows', () => {
+  for (const folder of ['/home/lvcy/素材/未命名 2', 'C:\\Exports\\未命名']) {
+    const fontPath = `${folder}/Resources/local/fonts/element-simhei.ttf`;
+    const textPages = new Map([['title', { version: 1, width: 1080, height: 1920, duration: 2,
+      texts: [{ text: '济南', x: 540, y: 235, fontSize: 59, fontFamily: 'SimHei', fontPath }] }]]);
+    const options = { name: 'Portable fonts', folder, root: '/drafts', textPages };
+    const { info } = jianyingDraft(plan(), { ...options, portable: true });
+    const material = info.materials.texts[0];
+    assert.equal(material.font_path, '##_draftpath_placeholder_0E685133-18CE-45ED-8CB8-2904A212EC80_##/Resources/local/fonts/element-simhei.ttf');
+    assert.equal(JSON.parse(material.content).styles[0].font.path, material.font_path);
+    const absolute = jianyingDraft(plan(), options).info.materials.texts[0];
+    assert.equal(absolute.font_path, fontPath, 'nonportable paths keep their original meaning');
+    textPages.get('title').texts[0].fontPath = '/external/fonts/custom.ttf';
+    assert.equal(jianyingDraft(plan(), { ...options, portable: true }).info.materials.texts[0].font_path,
+      '/external/fonts/custom.ttf', 'external fonts are not falsely treated as packaged files');
+  }
+});
+
+test('native font size follows canvas resolution and portrait/landscape rather than a fixed px divisor', () => {
+  for (const [width, height, fontSize, nativeSize] of [
+    [1080, 1920, 59, 8.740741], [1920, 1080, 59, 8.740741],
+    [720, 1280, 59 * 2 / 3, 8.740741], [1280, 1920, 48, 6],
+  ]) {
+    const textPages = new Map([['title', { version: 1, width, height, duration: 2,
+      texts: [{ text: '济南', x: width / 2, y: height / 2, fontSize,
+        runs: [{ text: '济', fontSize: fontSize * 2 }, { text: '南' }] }] }]]);
+    const { info } = jianyingDraft(plan(), { name: 'Font size', folder: '/drafts/font', root: '/drafts', textPages });
+    const text = info.materials.texts[0], styles = JSON.parse(text.content).styles;
+    assert.equal(text.font_size, nativeSize);
+    assert.equal(styles[1].size, nativeSize);
+    assert.ok(Math.abs(styles[0].size - nativeSize * 2) < 0.000002, 'rich text keeps the size ratio');
+  }
+});
+
+test('absolute 14px outline exports to the provided Jianying reference strength for a 59px title', () => {
+  const textPages = new Map([['title', { version: 1, width: 1080, height: 1920, duration: 2,
+    texts: [{ text: '济南', x: 540, y: 235, fontSize: 59, stroke: { width: 14, color: '#000000' },
+      runs: [{ text: '济' }, { text: '南', fontSize: 76 }] }] }]]);
+  const { info } = jianyingDraft(plan(), { name: 'Outline', folder: '/drafts/outline', root: '/drafts', textPages });
+  const text = info.materials.texts[0], styles = JSON.parse(text.content).styles;
+  assert.equal(text.border_width, 0.59322);
+  assert.equal(styles[0].strokes[0].width, 0.59322);
+  assert.equal(styles[1].strokes[0].width, 0.460526);
+  assert.equal(textPages.get('title').texts[0].stroke.width, 14, 'export keeps the absolute source width unchanged');
+});
+
+test('bundled FangTang and XinQingNian fonts carry catalog IDs in material and every rich-text range', () => {
+  for (const [family, name, resourceId] of [
+    ['WenYue FangTangTi (Authorization Required) J', '方糖体', '7037017159280628231'],
+    ['WenYue XinQingNianTi (Authorization Required) W8-J', '新青年体', '6740435892441190919'],
+    ['SimHei', 'SimHei', null],
+  ]) {
+    const textPages = new Map([['title', { version: 1, width: 1080, height: 1920, duration: 2,
+      texts: [{ text: '红黄', x: 540, y: 200, fontSize: 76, fontFamily: family,
+        fontPath: '/drafts/font/Resources/local/fonts/font.otf', runs: [{ text: '红', color: '#ff0000' }, { text: '黄', color: '#ffff00' }] }] }]]);
+    for (const app of ['jianying', 'capcut']) {
+      const { info } = jianyingDraft(plan(), { app, name: 'Fonts', folder: '/drafts/font', root: '/drafts', portable: true, textPages });
+      const material = info.materials.texts[0];
+      assert.equal(material.font_name, name);
+      for (const range of JSON.parse(material.content).styles) {
+        assert.equal(range.font.id, resourceId ?? '');
+        assert.equal(range.font.path, material.font_path);
+      }
+      if (resourceId) {
+        assert.equal(material.font_resource_id, resourceId);
+        assert.equal(material.font_source_platform, 1);
+        assert.equal(material.fonts[0].resource_id, resourceId);
+        assert.equal(material.fonts[0].effect_id, resourceId);
+        assert.equal(material.fonts[0].path, material.font_path);
+        assert.equal(material.fonts[0].title, name);
+      } else assert.equal(material.font_resource_id, undefined, 'system font gets no invented online ID');
+    }
+  }
 });

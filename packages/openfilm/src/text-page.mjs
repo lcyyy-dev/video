@@ -8,7 +8,7 @@
  *   fontFamily?: string, fontPath?: string, bold?: boolean, italic?: boolean,
  *   scale?: number, opacity?: number, backgroundColor?: string, backgroundOpacity?: number, borderRadius?: number,
  *   underline?: boolean, align?: 'left' | 'center' | 'right',
- *   width?: number, lineHeight?: number, letterSpacing?: number,
+ *   width?: number, height?: number, lineHeight?: number, letterSpacing?: number,
  *   stroke?: { color: string, width: number }, shadow?: { color: string, opacity: number, blur: number, x: number, y: number },
  *   runs?: TextRun[], keyframes?: Partial<Record<'x' | 'y' | 'scale' | 'opacity', { time: number, value: number }[]>> }} TextItem
  * @typedef {{ version: 1, width: number, height: number, duration: number, texts: TextItem[], fontCss?: string }} TextPage
@@ -22,7 +22,7 @@ export function validateTextPage(input) {
     || page.version !== 1 || !positive(page.width) || !positive(page.height) || !positive(page.duration)
     || !Array.isArray(page.texts) || !page.texts.length || (page.fontCss !== undefined && typeof page.fontCss !== 'string')) throw new Error('Invalid OpenFilm text page');
   const keys = new Set(['text', 'x', 'y', 'fontSize', 'color', 'fontFamily', 'fontPath', 'bold', 'italic', 'scale', 'opacity', 'keyframes',
-    'backgroundColor', 'backgroundOpacity', 'borderRadius', 'underline', 'align', 'width', 'lineHeight', 'letterSpacing', 'stroke', 'shadow', 'runs']);
+    'backgroundColor', 'backgroundOpacity', 'borderRadius', 'underline', 'align', 'width', 'height', 'lineHeight', 'letterSpacing', 'stroke', 'shadow', 'runs']);
   const color = (/** @type {string} */ value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
   const stroke = (/** @type {NonNullable<TextItem['stroke']>} */ value) => value
     && Object.keys(value).every((key) => ['color', 'width'].includes(key))
@@ -38,6 +38,7 @@ export function validateTextPage(input) {
       || (item.underline !== undefined && typeof item.underline !== 'boolean')
       || (item.align !== undefined && !['left', 'center', 'right'].includes(item.align))
       || (item.width !== undefined && !positive(item.width))
+      || (item.height !== undefined && !positive(item.height))
       || (item.lineHeight !== undefined && !positive(item.lineHeight))
       || (item.letterSpacing !== undefined && !Number.isFinite(item.letterSpacing))
       || (item.stroke !== undefined && !stroke(item.stroke))
@@ -112,13 +113,15 @@ export function mountTextPage(page, root = document.body) {
     style.textContent = page.fontCss;
     root.append(style);
   }
-  const nodes = page.texts.map((item) => {
+  const nodes = page.texts.map((item, index) => {
     const node = document.createElement('div');
     node.dataset.openfilmText = '1';
+    node.dataset.openfilmTextIndex = String(index);
     node.textContent = item.text;
     Object.assign(node.style, {
       position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
       width: item.width ? `${item.width}px` : 'max-content', overflowWrap: item.width ? 'break-word' : 'normal',
+      height: item.height ? `${item.height}px` : 'auto',
       lineHeight: String(item.lineHeight ?? 1.25), letterSpacing: `${item.letterSpacing ?? 0}px`,
       fontFamily: !item.fontFamily ? 'sans-serif'
         : /^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily) ? item.fontFamily : JSON.stringify(item.fontFamily),

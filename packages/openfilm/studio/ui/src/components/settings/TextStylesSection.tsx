@@ -133,7 +133,7 @@ export function TextStylesSection() {
                 onChange={(event) => patch({ fontFamily: event.target.value, fontPath: undefined })} />
               <datalist id="text-style-fonts">{(fonts ?? []).map((font) => <option key={font.family} value={font.family} />)}</datalist>
             </label>
-            {number(t('settings.textStyles.size'), draft.style.fontSize, (fontSize) => patch({ fontSize }), 1, 500)}
+            <p className="self-end text-[12px] text-[var(--text-muted)]">字号由生成时根据画布和文案决定。</p>
           </div>
           <label className="flex flex-col gap-1 text-[12px] text-[var(--text-muted)]">{t('settings.textStyles.fontPath')}
             <input aria-label={t('settings.textStyles.fontPath')} className={FIELD} value={draft.style.fontPath ?? ''}

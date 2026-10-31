@@ -13,6 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FILM_FILE, filmHtml, readFilm, readFilmFile } from '../../src/film-doc.mjs';
 import { EditError, applyOps } from './ops.mjs';
+import { saveTextPageEdits } from './text-page-edits.mjs';
 import { writeAtomic } from './atomic.mjs';
 
 export { EditError };
@@ -79,6 +80,10 @@ export async function editProjectFilm(root, base, ops) {
   /* a film.html that does not read is the agent's to fix: Studio never writes over it */
   if (!current.value && current.text.trim()) throw new EditError(current.problems.join('\n'), 'invalid');
   const value = applyOps(/** @type {FilmValue} */ (structuredClone(current.value ?? EMPTY_FILM)), ops);
+  const checked = readFilm(value);
+  if (!checked.doc) throw new EditError(checked.problems.join('\n'), 'invalid');
+  try { await saveTextPageEdits(root, value, ops); }
+  catch (error) { throw new EditError(error instanceof Error ? error.message : String(error), 'invalid'); }
   const { doc, problems } = readFilm(value);
   if (!doc) throw new EditError(problems.join('\n'), 'invalid');
   const written = await writeProjectFilm(root, /** @type {FilmValue} */ (value), current.text);

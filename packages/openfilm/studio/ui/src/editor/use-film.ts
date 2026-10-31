@@ -124,6 +124,14 @@ export function useFilm(projectId: string, initial: FilmState | null, onChange: 
     const written = queue.current.then(async (): Promise<string | null> => {
       try {
         const done = await api.edit(projectId, ref.current?.rev ?? null, ops);
+        // The server stores structured-text gestures as JSON source revisions.
+        // Build history from the saved source rather than the optimistic DOM override.
+        const editedIds = new Set(ops.flatMap(op => op.op === 'props' ? op.edits.filter(edit => edit.prop === 'overrides').map(edit => edit.clip) : []));
+        const sourceOf = (value: Film, id: string) => value.tracks.flatMap(track => track.clips).find(clip => clip.id === id)?.src;
+        if (record === 'do' && [...editedIds].some(id => sourceOf(after, id) !== sourceOf(done.value, id))) {
+          step.undo = inverse(before, done.value, ops);
+          step.redo = inverse(done.value, before, step.undo);
+        }
         ours.current.delete(done.rev);
         ours.current.add(done.rev);
         pending.current -= 1;

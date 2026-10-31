@@ -20,13 +20,12 @@ const identity = FLAVORS.dev;
 const require = createRequire(import.meta.url);
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2).filter((a) => a !== '--no-build');
-/* Keep Electron's browser and renderer on one backend. In this WSLg session
-   DISPLAY is available but no DRM render node exists, so X11 avoids the
-   Wayland/X11 split that makes the window or pointer disappear. */
+/* Use WSLg's native compositor for source runs. Keep explicit backend choices
+   intact (e.g. --ozone-platform=x11), and leave other Linux sessions alone. */
 if (process.platform === 'linux' && process.env.WAYLAND_DISPLAY
     && existsSync('/mnt/wslg/runtime-dir')
     && !args.some((arg) => arg === '--ozone-platform' || arg.startsWith('--ozone-platform='))) {
-  args.push(process.env.DISPLAY ? '--ozone-platform=x11' : '--ozone-platform=wayland');
+  args.push('--ozone-platform=wayland');
 }
 
 
@@ -69,6 +68,12 @@ if (process.platform === 'darwin') {
 
 const { PATH } = await loginShellEnvironment();
 const env = launcherEnvironment(process.env, PATH);
+/* WSLg can fall back to Mesa's llvmpipe. Its default worker count can
+   consume every WSL CPU while the editor and thumbnail browser render.
+   Keep the machine responsive, while preserving an explicit user limit. */
+if (process.platform === 'linux' && existsSync('/mnt/wslg/runtime-dir')) {
+  env.LP_NUM_THREADS = process.env.LP_NUM_THREADS ?? '2';
+}
 /* Optional local browser settings, kept outside source control. Explicit shell settings take precedence. */
 const browserConfig = join(desktop, '.dev', 'runtime', 'browser.json');
 if (existsSync(browserConfig)) {

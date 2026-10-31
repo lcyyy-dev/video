@@ -97,7 +97,7 @@ export function styledTextPage(input, id = 'default', home = studioHome(), seed)
   const preset = id === 'elements' ? sampleTextStyle(seed) : resolveTextStyle(id, home);
   return validateTextPage({ version: 1, width: input.width, height: input.height, duration: input.duration,
     texts: [applyTextStyle({ text: input.text, x: input.width / 2, y: input.height / 2, width: input.width * 0.9,
-      align: 'center', fontSize: preset.style.fontSize }, preset)] });
+      align: 'center', fontSize: preset.style.fontSize ?? 64 }, preset)] });
 }
 
 /** @param {string} id */

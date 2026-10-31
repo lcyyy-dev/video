@@ -119,6 +119,8 @@ let uploadSeq = 0;
 
 export interface MediaPoolProps {
   projectId: string;
+  /** One import destination; show its files together without folder navigation. */
+  flatLibrary?: boolean;
   /** The project's media and pages; null while the first listing loads (the pane stays blank). */
   listing: MediaListing | null;
   sources: MediaSources;
@@ -191,6 +193,7 @@ export interface MediaPoolProps {
 
 export function MediaPool({
   projectId,
+  flatLibrary = false,
   listing: media,
   sources,
   usedSrcs = [],
@@ -220,8 +223,8 @@ export function MediaPool({
   const t = useT();
   const [view, setView] = React.useState<ViewState>(() => loadView(projectId));
   /** The open folder, relative to assets/ ('' is All). */
-  const [at, setAtState] = React.useState(() => OPEN_FOLDER.get(projectId) ?? '');
-  const setAt = React.useCallback((rel: string) => { OPEN_FOLDER.set(projectId, rel); setAtState(rel); }, [projectId]);
+  const [at, setAtState] = React.useState(() => flatLibrary ? '' : OPEN_FOLDER.get(projectId) ?? '');
+  const setAt = React.useCallback((rel: string) => { const next = flatLibrary ? '' : rel; OPEN_FOLDER.set(projectId, next); setAtState(next); }, [projectId, flatLibrary]);
   const [query, setQuery] = React.useState('');
   /** What is picked: files and folders by their project-relative path (lib/media-selection). */
   const [picked, setPicked] = React.useState<string[]>(() => (selectedPath ? [selectedPath] : []));
@@ -239,9 +242,9 @@ export function MediaPool({
   const inSaved = scope === 'saved';
   React.useEffect(() => { setQuery(''); }, [scope]);
   /* the top folder: All of the project's media, or Saved */
-  const topName = inSaved ? t('saved.title') : t('media.filter_all');
+  const topName = inSaved ? t('saved.title') : flatLibrary ? '素材' : t('media.filter_all');
 
-  React.useEffect(() => { setView(loadView(projectId)); setAtState(OPEN_FOLDER.get(projectId) ?? ''); setPicked([]); }, [projectId]);
+  React.useEffect(() => { setView(loadView(projectId)); setAtState(flatLibrary ? '' : OPEN_FOLDER.get(projectId) ?? ''); setPicked([]); }, [projectId, flatLibrary]);
   /* the file the viewer shows is the host's: the one clicked last, when it is a file. One shown from elsewhere (a click
      on the timeline let it go, the chat pointed at one) is then all that is picked */
   const sentPath = React.useRef(selectedPath ?? null);
@@ -287,7 +290,7 @@ export function MediaPool({
       return byName(a.name, b.name);
     };
     /* searching or showing one kind looks through every folder at once */
-    if (q || view.filter !== 'all') {
+    if (flatLibrary || q || view.filter !== 'all') {
       return allFiles
         .filter((f) => (view.filter === 'all' || filterOf(f) === view.filter) && mediaNameMatches(f.name, q))
         .sort(order).map((file) => ({ type: 'file', file }));
@@ -297,7 +300,7 @@ export function MediaPool({
     /* the folders here, what each holds and its cover (lib/media-folders) */
     const sub = folderFaces(allFiles, folders, at, (path) => (inMedia(path) ? assetRel(path) : null)).map((face) => ({ type: 'folder' as const, ...face }));
     return [...sub, ...here.map((file) => ({ type: 'file' as const, file }))];
-  }, [allFiles, folders, at, query, view, assetRel, inMedia]);
+  }, [allFiles, folders, at, query, view, assetRel, inMedia, flatLibrary]);
 
   /* a file asked to be shown: its folder opened (pages are at the top), a search or a filter that hides it let go */
   const gridRef = React.useRef<HTMLDivElement>(null);
@@ -569,7 +572,7 @@ export function MediaPool({
     }] : []),
     /* a page of the project is named in other pages' code (not renamed here); one of Saved is its own folder */
     ...(file.kind === 'mg' && !file.bundle ? [] : [{ id: 'rename', label: t('assets.rename'), icon: <Pencil size={14} />, onSelect: () => setRenaming(file.path) }]),
-    moveEntry([file.path]),
+    ...(flatLibrary ? [] : [moveEntry([file.path])]),
     { id: 'delete', label: t('assets.delete'), icon: <Trash2 size={14} />, danger: true, onSelect: () => setConfirm({ targets: [{ path: file.path, folder: false }], name: file.name }) },
   ];
   const folderMenu = (rel: string, name: string): ContextMenuEntry[] => [
@@ -590,19 +593,19 @@ export function MediaPool({
       id: 'save', label: t('saved.add'), icon: <BookmarkPlus size={14} />,
       onSelect: () => onSave(keys.flatMap((key) => { const item = itemByKey.get(key); return item?.type === 'file' ? [item.file] : []; })),
     }] : []),
-    moveEntry(keys),
+    ...(flatLibrary ? [] : [moveEntry(keys)]),
     { id: 'sep', separator: true },
     { id: 'delete', label: t('media.deleteMany').replace('{n}', String(keys.length)), icon: <Trash2 size={14} />, danger: true, onSelect: () => askDelete(keys) },
   ];
   /* Upload copies files into the project; folders may still be linked to their existing local location. */
   const importMenu: ContextMenuEntry[] = [
     { id: 'import', label: t('media.importFiles'), note: t('media.importFilesNote'), icon: <Upload size={14} />, onSelect: () => { void bringFrom('copy', false); } },
-    ...(!inSaved && onPick && onBring ? [{ id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } }] : []),
+    ...(!flatLibrary && !inSaved && onPick && onBring ? [{ id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } }] : []),
   ];
   const blankMenu: ContextMenuEntry[] = [
-    { id: 'new-folder', label: t('assets.newFolder'), icon: <FolderPlus size={14} />, onSelect: () => setCreating(true) },
+    ...(flatLibrary ? [] : [{ id: 'new-folder', label: t('assets.newFolder'), icon: <FolderPlus size={14} />, onSelect: () => setCreating(true) }]),
     { id: 'import', label: t('media.import'), icon: <Plus size={14} />, onSelect: () => (onPick && onBring ? void bringFrom('copy', false) : inputRef.current?.click()) },
-    ...(!inSaved && onPick && onBring ? [{ id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } }] : []),
+    ...(!flatLibrary && !inSaved && onPick && onBring ? [{ id: 'link-folder', label: t('media.linkFolder'), icon: <FolderSymlink size={14} />, onSelect: () => { void bringFrom('link', true); } }] : []),
   ];
   /** The bar button a menu hangs from: a press on it is not outside the menu, and a click on it closes the menu. */
   const menuFrom = React.useRef<HTMLElement | null>(null);
@@ -739,7 +742,7 @@ export function MediaPool({
   /* results come from every folder: where a name shows more than once, each says which folder it is in */
   const repeated = React.useMemo(() => {
     const seen = new Map<string, number>();
-    if (flat) for (const item of items ?? []) if (item.type === 'file') seen.set(item.file.name, (seen.get(item.file.name) ?? 0) + 1);
+    if (flat || flatLibrary) for (const item of items ?? []) if (item.type === 'file') seen.set(item.file.name, (seen.get(item.file.name) ?? 0) + 1);
     return new Set([...seen].filter(([, n]) => n > 1).map(([name]) => name));
   }, [flat, items]);
 
@@ -869,7 +872,7 @@ export function MediaPool({
         <BarButton label={t('media.sort')} onClick={(e) => barMenu(e, SORTS.map((key) => ({
           id: key, label: t(`media.sort_${key}`), checked: view.sort === key, onSelect: () => setView((v) => ({ ...v, sort: key })),
         })))}><ArrowUpDown size={14} /></BarButton>
-        <BarButton label={t('assets.newFolder')} onClick={() => { setQuery(''); setView((v) => ({ ...v, filter: 'all' })); setCreating(true); }}><FolderPlus size={14} /></BarButton>
+        {flatLibrary ? null : <BarButton label={t('assets.newFolder')} onClick={() => { setQuery(''); setView((v) => ({ ...v, filter: 'all' })); setCreating(true); }}><FolderPlus size={14} /></BarButton>}
         {/* any kind of file: what Studio cannot play is still the project's material */}
         <input ref={inputRef} type="file" multiple className="hidden"
           onChange={(e) => { const list = [...(e.target.files ?? [])]; e.target.value = ''; void importFiles(list); }} />
@@ -938,7 +941,7 @@ export function MediaPool({
             </div>
           )
         ) : (
-          <div className={rows ? '@container flex flex-col gap-px' : 'grid gap-x-2 gap-y-2.5'} style={rows ? undefined : { gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))' }}
+          <div className={rows ? '@container flex flex-col gap-px' : 'grid gap-x-2 gap-y-2.5'} style={rows ? undefined : { gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}
             onContextMenu={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); openMenuAt(e, blankMenu); } }}>
             {rows ? (
               <div className="flex h-6 shrink-0 select-none items-center gap-2 px-1.5 text-[11px] text-[var(--text-faint)]">

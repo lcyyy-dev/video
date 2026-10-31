@@ -38,7 +38,7 @@
   },
   "stroke": {
     "colors": ["#4155C8", "#FFDE00", "#CD1F3C", "#000000", "#E63946", "#E85D75", "#2563EB"],
-    "width": { "value": 35, "unit": "preview-px" }
+    "width": { "value": 14, "unit": "preview-px" }
   },
   "background": {
     "enabled": false,

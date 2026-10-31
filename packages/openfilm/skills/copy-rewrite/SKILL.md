@@ -8,7 +8,7 @@ description: Turn supplied source copy into a short OpenFilm video while preserv
 Use this workflow when the person has source copy and wants a stronger, shorter or more conversational video script.
 
 For a template generation request, inspect the supplied footage, read this skill and the exact template copy, produce
-only the requested spoken audio and timeline, run one final check, and report. Do not research, add claims or create
+only the requested spoken audio and timeline, report the result immediately. Do not research, add claims or create
 alternate versions.
 
 ## Lock the source
@@ -20,7 +20,7 @@ product claims that were not supplied. If a statement is ambiguous, keep it caut
 
 If the template contains the final wording, treat it as locked source copy: preserve every character and do not
 compress, summarize, rewrite, add or remove words. Split that exact wording into complete sentences and make one TTS
-file per sentence. Apply a rewrite direction only when the user explicitly asks for a rewrite in the current request;
+file per sentence. Selecting the copy-rewrite template with source and rewrite fields explicitly authorizes rewriting that source in the selected direction; final titleText/bodyText fields remain locked. A direct rewrite request also authorizes that rewrite;
 even then, keep the original and the final script as separate records and never merge or truncate sentences.
 
 ## Time the video
@@ -35,6 +35,7 @@ is non-empty, choose only those IDs; with an empty list, use the element library
 ## Check and deliver
 
 Check facts against the source copy, pronunciation and timing against the actual audio, every shot against the sentence
-it illustrates, and captions against safe margins. Preserve manual edits and locked selections during revisions. Run
-`openfilm look` after changes. Render MP4 only when requested; otherwise leave the editable film or use the existing
+it illustrates, and captions against safe margins. Preserve manual edits and locked selections during revisions. Report the result immediately; do not automatically run preview or verification commands. Render MP4 only when requested; otherwise leave the editable film or use the existing
 Jianying/CapCut exporter. Report any missing audio, unsupported style, unresolved fact or requested output that remains.
+
+Default workflow: receive the command, execute the command, and report the result immediately. Do not automatically run quick previews, full checks, repeated-frame rendering or audio-mix verification after execution. Run preview or verification commands only on explicit user request, and never claim skipped checks passed.

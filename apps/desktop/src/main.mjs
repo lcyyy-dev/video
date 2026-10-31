@@ -18,7 +18,7 @@ import { FLAVOR, IDENTITY, PRODUCT_NAME } from './flavor.mjs';
 import { folderDialogOptions, programDialogOptions } from './folder-dialog.mjs';
 import { childEnvironment, loginShellEnvironment } from './environment.mjs';
 import { startWindowStudio } from './studio.mjs';
-import { CHAT_MIN, STUDIO_MIN, WINDOW_MIN, placeOnDisplays, readWindowState, writeWindowState } from './window-state.mjs';
+import { CHAT_MIN, STUDIO_MIN, WINDOW_MIN, editorLayout, placeOnDisplays, readWindowState, writeWindowState } from './window-state.mjs';
 import { applicationMenu } from './menu.mjs';
 import { registerLocalAgentIpc } from './local-agents-ipc.mjs';
 import { registerChatIpc } from './chat-ipc.mjs';
@@ -435,7 +435,7 @@ async function start() {
   ipcMain.on('desktop:theme', (event, next) => { if (fromPage(event)) setTheme(next); });
   ipcMain.handle('desktop:hello', (event) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
-    return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()), sub2api: publicSub2ApiConfig(DATA, sub2apiStorage()) };
+    return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, editorLayout: state.editorLayout, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()), sub2api: publicSub2ApiConfig(DATA, sub2apiStorage()) };
   });
   ipcMain.handle('desktop:clipboard-text', (event) => fromPage(event) ? clipboard.readText() : '');
   ipcMain.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA, sub2apiStorage()) : null);
@@ -448,6 +448,11 @@ async function start() {
   });
   ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? '') }, fetch, sub2apiStorage()) : null);
   /* the chat's column as the person left it (the page sizes it; the window keeps it for next time) */
+  ipcMain.on('desktop:editor-layout', (event, next) => {
+    if (!fromPage(event)) return;
+    state = { ...state, editorLayout: { ...state.editorLayout, ...editorLayout(next) } };
+    saveState();
+  });
   ipcMain.on('desktop:layout', (event, next) => {
     if (!fromPage(event) || !next || typeof next !== 'object') return;
     const width = Number(next.chatWidth);

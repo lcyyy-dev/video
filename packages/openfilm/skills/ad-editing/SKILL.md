@@ -10,8 +10,7 @@ text and narration boundaries independently to serve the message. Reuse OpenFilm
 format and exporter.
 
 For a normal template generation request, keep the execution short: inspect the supplied media, read this skill, read
-the template's exact copy, synthesize the required sentence audio, assemble the timeline, use `openfilm look --quick` for progress, and run one final `openfilm look`
-or project check, and report. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
+the template's exact copy, synthesize the required sentence audio, assemble the timeline, report the result immediately without an automatic preview or check. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
 
 ### Mode gate
 
@@ -105,7 +104,7 @@ and disclose that conversion. Do not assume 1080×1920 or 30 FPS. Aim for roughl
 letting natural narration determine final length. An exact length is a constraint to check after narration,
 not permission to cut speech. Normal speed and hard cuts are the default.
 
-The desktop app already opened the project. Use `openfilm look` for progress and inspection. Read
+The desktop app already opened the project. Do not automatically preview the result; inspect source media only when needed to execute the request. Read
 [production-plan.md](references/production-plan.md) and keep `ad-plan.json` in the project: skill version, inputs,
 sentences, measured narration, shot selections, resolved styles and actual output status. This is an execution
 record; `film.html` remains the editable film. Reuse confirmed analysis and choices when continuing a project.
@@ -266,3 +265,5 @@ checks and opening the draft in Jianying as distinct validation statuses.
 
 Report output locations, runtime, major choices, blockers and editability limits concisely. This workflow does not
 include uploading, publishing, installing external assets or modifying unrelated projects.
+
+Default workflow: receive the command, execute the command, and report the result immediately. Do not automatically run quick previews, full checks, repeated-frame rendering or audio-mix verification after execution. Run preview or verification commands only on explicit user request, and never claim skipped checks passed.

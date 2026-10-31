@@ -98,3 +98,13 @@ test('undoing a delete the agent already put back: the clip is not put back twic
   /* the agent writes the film back as it was, then the person presses ⌘Z */
   assert.deepEqual(apply(structuredClone(f), undo), f);
 });
+
+test('server-normalized JSON text edits undo and redo the source revision instead of DOM overrides', () => {
+  const before = film([{ id: 'text', src: 'titles/original.text.json' }]);
+  const requested: Op[] = [{ op: 'props', edits: [{ clip: 'text', prop: 'overrides', value: [{ at: '[data-openfilm-text-index="0"]', t: [10, 20] }] }] }];
+  const saved = film([{ id: 'text', src: 'titles/text-edit-revision.text.json' }]);
+  const undo = inverse(before, saved, requested);
+  assert.deepEqual(apply(saved, undo), before);
+  const redo = inverse(saved, before, undo);
+  assert.deepEqual(apply(before, redo), saved);
+});

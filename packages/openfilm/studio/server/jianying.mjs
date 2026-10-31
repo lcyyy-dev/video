@@ -27,6 +27,7 @@
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { textStyleRuns, textValueAt } from '../../src/text-page.mjs';
+import fontManifest from '../../src/text-fonts.json' with { type: 'json' };
 
 /**
  * @typedef {import('./nle.mjs').NleTimeline} NleTimeline
@@ -100,6 +101,14 @@ export function jianyingDraft(timeline, opts) {
   const mediaName = (/** @type {NleFile} */ file) => file.path.split(/[\\/]/).pop() ?? file.name;
   const mediaPath = (/** @type {NleFile} */ file) => opts.portable ? `${DRAFT_PATH_PLACEHOLDER}/Resources/local/${mediaName(file)}` : file.path;
   const libraryPath = (/** @type {NleFile} */ file) => opts.portable ? `./Resources/local/${mediaName(file)}` : file.path;
+  const fontPath = (/** @type {string | undefined} */ path) => {
+    if (!path || !opts.portable) return path ?? '';
+    const folder = opts.folder.replaceAll('\\', '/').replace(/\/$/, '');
+    const normalized = path.replaceAll('\\', '/');
+    const prefix = `${folder}/Resources/local/fonts/`;
+    return normalized.startsWith(prefix)
+      ? `${DRAFT_PATH_PLACEHOLDER}/Resources/local/fonts/${normalized.slice(prefix.length)}` : path;
+  };
   /** @type {Record<string, any[]>} */
   const materials = Object.fromEntries(MATERIAL_KINDS.map((k) => [k, []]));
   /** @type {Map<string, string>} one material a file, however many clips use it */
@@ -187,21 +196,36 @@ export function jianyingDraft(timeline, opts) {
         const id = hex();
         const rgb = (/** @type {string} */ hex) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16) / 255);
         const solid = (/** @type {string} */ color, alpha = 1) => ({ render_type: 'solid', solid: { alpha, color: rgb(color) } });
-        const fontSize = round6(item.fontSize * 6 / 48);
+        /* Native text size is relative to the canvas's short side (160 units),
+           not a fixed eight-pixel unit. Keep authored pixel sizes in the preview
+           and normalize them here, including portrait and lower resolutions. */
+        const nativeSize = (/** @type {number} */ px) => round6(px * 160 / Math.min(page.width, page.height));
+        const fontSize = nativeSize(item.fontSize);
+        const fontResource = fontManifest.fonts.find((font) => font.family === item.fontFamily)?.draftResource;
+        const exportedFontPath = fontPath(item.fontPath);
+        const exportedFontName = fontResource?.name ?? item.fontFamily ?? '';
+
         const alignment = { left: 0, center: 1, right: 2 }[item.align ?? 'center'];
+        // Source widths are absolute CSS pixels; native outlines use 0.4 em per unit.
         const styles = textStyleRuns(item).map((run) => ({
           fill: { alpha: 1, content: solid(run.color ?? '#ffffff') },
-          range: run.range, size: round6(run.fontSize * 6 / 48),
+          range: run.range, size: nativeSize(run.fontSize),
           bold: run.bold ?? false, italic: run.italic ?? false, underline: run.underline ?? false,
-          strokes: run.stroke ? [{ content: solid(run.stroke.color), width: round6(run.stroke.width / run.fontSize) }] : [],
+          strokes: run.stroke ? [{ content: solid(run.stroke.color), width: round6(run.stroke.width / run.fontSize / 0.4) }] : [],
           ...(item.shadow ? { shadows: [{ content: solid(item.shadow.color, item.shadow.opacity), alpha: item.shadow.opacity,
             diffuse: round6(item.shadow.blur / item.fontSize / 6), distance: Math.hypot(item.shadow.x, item.shadow.y),
             angle: Math.atan2(item.shadow.y, item.shadow.x) * 180 / Math.PI }] } : {}),
-          ...(item.fontFamily ? { font: { id: '', path: item.fontPath ?? '', name: item.fontFamily } } : {}),
+          ...(item.fontFamily ? { font: { id: fontResource?.id ?? '', path: exportedFontPath, name: exportedFontName } } : {}),
         }));
         materials.texts.push({
           id, type: 'text', typesetting: 0, alignment, text_alignment: alignment, is_rich_text: styles.length > 1,
-          font_name: item.fontFamily ?? '', font_path: item.fontPath ?? '', font_size: fontSize,
+          font_name: exportedFontName, font_path: exportedFontPath, font_size: fontSize,
+          ...(fontResource ? {
+            font_id: '', font_resource_id: fontResource.id, font_source_platform: fontResource.sourcePlatform,
+            fonts: [{ id: hex(), resource_id: fontResource.id, effect_id: fontResource.id,
+              title: fontResource.name, path: exportedFontPath, source_platform: fontResource.sourcePlatform,
+              category_id: '', category_name: '', request_id: '', team_id: '', third_resource_id: '', file_uri: '' }],
+          } : {}),
           text_color: `${item.color ?? '#ffffff'}FF`,
           letter_spacing: round6((item.letterSpacing ?? 0) / item.fontSize),
           line_spacing: round6(item.lineHeight === undefined ? 0.02 : item.lineHeight - 1), line_feed: 1,
@@ -209,7 +233,7 @@ export function jianyingDraft(timeline, opts) {
           check_flag: 7 | (styles.some((s) => s.strokes.length) ? 8 : 0) | (item.shadow ? 32 : 0), global_alpha: item.opacity ?? 1,
           has_shadow: Boolean(item.shadow), ...(item.shadow ? { shadow_color: `${item.shadow.color}FF`, shadow_alpha: item.shadow.opacity,
             shadow_distance: Math.hypot(item.shadow.x, item.shadow.y), shadow_angle: Math.atan2(item.shadow.y, item.shadow.x) * 180 / Math.PI } : {}),
-          ...(item.stroke ? { border_color: `${item.stroke.color}FF`, border_width: round6(item.stroke.width / item.fontSize) } : {}),
+          ...(item.stroke ? { border_color: `${item.stroke.color}FF`, border_width: round6(item.stroke.width / item.fontSize / 0.4) } : {}),
           content: JSON.stringify({ text: item.text, styles }),
         });
         const x = (/** @type {number} */ v) => round6((v / page.width - 0.5) * 2);

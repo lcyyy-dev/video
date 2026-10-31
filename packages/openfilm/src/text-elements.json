@@ -29,13 +29,13 @@
       "#F8AF72"
     ],
     "strokes": [
-      { "color": "#4155C8", "width": 35 },
-      { "color": "#FFDE00", "width": 35 },
-      { "color": "#CD1F3C", "width": 35 },
-      { "color": "#000000", "width": 35 },
-      { "color": "#E63946", "width": 35 },
-      { "color": "#E85D75", "width": 35 },
-      { "color": "#2563EB", "width": 35 }
+      { "color": "#4155C8", "width": 14 },
+      { "color": "#FFDE00", "width": 14 },
+      { "color": "#CD1F3C", "width": 14 },
+      { "color": "#000000", "width": 14 },
+      { "color": "#E63946", "width": 14 },
+      { "color": "#E85D75", "width": 14 },
+      { "color": "#2563EB", "width": 14 }
     ],
     "shadows": [],
     "types": []

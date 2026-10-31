@@ -6,7 +6,7 @@
  * (lib/local-agent-run's saved turns).
  */
 import React from 'react';
-import { ArrowDown, Coins, CornerDownLeft, KeyRound, LibraryBig, Loader2, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
+import { ArrowDown, Coins, CornerDownLeft, KeyRound, Loader2, ShieldQuestion, Square, SquareSlash, X } from 'lucide-react';
 import { buildPromptDisplay, type Turn } from '@openfilm/shared';
 import { useT, useUiLocale } from '@/i18n';
 import { ConversationSessionBar } from '@/components/ConversationSessionBar';
@@ -94,11 +94,8 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
   const [browser, setBrowser] = React.useState<{ state: string; message?: string } | null>(null);
   const [studioFailed, setStudioFailed] = React.useState<string | null>(null);
   const [selection, setSelection] = React.useState<StudioSelection | null>(initialSelection);
-  /* the project's assets open over this column (Studio draws them; the chat keeps only its composer, below them) */
-  const [assetsOpen, setAssetsOpen] = React.useState<boolean>(() => app.assetsOpen?.() ?? false);
   React.useEffect(() => {
     const stops = [
-      app.onAssets(setAssetsOpen),
       app.onProject(setProject),
       app.onSelection(setSelection),
       app.onFfmpeg(setFfmpeg),
@@ -128,7 +125,7 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
       <Divider />
       <div className="mb-[6px] ml-[6px] mr-[6px] flex min-h-0 flex-1 flex-col">
         {project && chatReady
-          ? <ChatPane key={`${project.id}:${project.path}`} project={project} banners={banners} selection={selection && selection.projectId === project.id ? selection : null} assetsOpen={assetsOpen} />
+          ? <ChatPane key={`${project.id}:${project.path}`} project={project} banners={banners} selection={selection && selection.projectId === project.id ? selection : null} />
           : <aside className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-[7px] bg-[var(--dock-pane)]">{banners}<Loader2 size={16} className="animate-spin text-[var(--text-faint)]" /></aside>}
       </div>
     </div>
@@ -139,7 +136,7 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
  * One project's conversation column: the session bar, the conversation and the composer, and the turns run with
  * the person's agent (start a turn, put back a turn a reload interrupted, settle and keep it).
  */
-function ChatPane({ project, banners, selection, assetsOpen }: { project: Project; banners: React.ReactNode; selection: StudioSelection | null; assetsOpen: boolean }) {
+function ChatPane({ project, banners, selection }: { project: Project; banners: React.ReactNode; selection: StudioSelection | null }) {
   const t = useT();
   const projectKey = project.path;
   const [sub2apiOpen, setSub2apiOpen] = React.useState(false);
@@ -776,11 +773,6 @@ function ChatPane({ project, banners, selection, assetsOpen }: { project: Projec
       <div className="flex items-center gap-0.5 px-0.5">
         <ModelDisplay />
         <div className="min-w-0 flex-1" />
-        <Tooltip label={t('project.assets')}>
-          <button type="button" onClick={() => app.setAssetsOpen(!assetsOpen)} aria-pressed={assetsOpen} className="openfilm-composer-tool" aria-label={t('project.assets')}>
-            <LibraryBig size={16} strokeWidth={1.75} />
-          </button>
-        </Tooltip>
         <Tooltip label="Sub2API 连接设置">
           <button type="button" onClick={() => setSub2apiOpen(open => !open)} className="openfilm-composer-tool" aria-label="Sub2API 连接设置"><KeyRound size={16} strokeWidth={1.75} /></button>
         </Tooltip>

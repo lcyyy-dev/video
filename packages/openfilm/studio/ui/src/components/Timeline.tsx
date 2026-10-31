@@ -3647,7 +3647,9 @@ export const Timeline = React.memo(function Timeline({
           ) : null}
         </div>
 
-        {/* the switches (lib/timeline-prefs), in CapCut's order: the main-track magnet, snapping, linkage */}
+        {/* Keep these controls and their preferences available to the editor;
+            this toolbar no longer displays their buttons. */}
+        <div hidden>
         {onEditOps ? <>
           <span data-timeline-magnet={prefs.magnet ? '1' : '0'}>
             <ToolButton onClick={() => togglePref('magnet')} active={prefs.magnet} label={t('timeline.magnet')}
@@ -3668,6 +3670,7 @@ export const Timeline = React.memo(function Timeline({
             </ToolButton>
           </span>
         </> : null}
+        </div>
 
         <ToolButton
           onClick={() => zoomBy(1 / ZOOM_STEP)}
@@ -3700,6 +3703,7 @@ export const Timeline = React.memo(function Timeline({
           <ZoomIn size={15} />
         </ToolButton>
         {/* back to the opening zoom (80%, a little room after the end); a horizontal arrow: zoom is horizontal only */}
+        <div hidden>
         <ToolButton
           onClick={() => zoomTo(ZOOM_DEFAULT)}
           disabled={!playable || Math.abs(viewZoom - ZOOM_DEFAULT) < 0.01}
@@ -3710,6 +3714,7 @@ export const Timeline = React.memo(function Timeline({
 
         {/* subtitles: toggles the overlay on the picture (not the film itself) */}
         {subtitles ? <SubtitlePicker subtitles={subtitles} /> : null}
+        </div>
       </div>
 
       {/* ── Body: two columns. The head column is not inside the scroller (no scrollbar under it, no rubber-band,

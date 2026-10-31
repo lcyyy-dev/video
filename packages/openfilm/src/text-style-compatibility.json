@@ -10,9 +10,9 @@
   },
   "appearance": {
     "fontSize": {
-      "type": "number", "requiredInPreset": true, "exclusiveMinimum": 0,
+      "type": "number", "requiredInPreset": false, "exclusiveMinimum": 0,
       "unit": "preview-px", "draftPaths": ["content.styles[].size", "font_size"],
-      "conversion": "value * 6 / 48"
+      "conversion": "value * 160 / min(page.width, page.height)"
     },
     "fontFamily": {
       "type": "string", "draftPaths": ["content.styles[].font.name", "font_name"],
@@ -38,7 +38,7 @@
         "width": { "type": "number", "minimum": 0, "unit": "preview-px" }
       },
       "draftPaths": ["content.styles[].strokes", "border_color", "border_width"],
-      "conversion": "width / range.fontSize", "visualParity": "requires-client-check"
+      "conversion": "width / range.fontSize / 0.4", "visualParity": "requires-client-check"
     },
     "shadow": {
       "type": "object", "required": ["color", "opacity", "blur", "x", "y"], "additionalProperties": false,

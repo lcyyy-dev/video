@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatClipDuration, mediaListingOf, mediaNameMatches, renameChangesKind, renamedPath, safeName } from './workspace-resources.ts';
+import { formatClipDuration, importedMediaListing, mediaListingOf, mediaNameMatches, renameChangesKind, renamedPath, safeName } from './workspace-resources.ts';
 
 test('names keep spaces and every script; only what file systems refuse goes (the server’s rule, files.mjs)', () => {
   assert.equal(safeName('镜头 01.mp4'), '镜头 01.mp4');
@@ -64,4 +64,23 @@ test('links to media kept elsewhere ride on their files and folders', () => {
   });
   assert.deepEqual(listing.linkedDirs, { nas: { to: '/Volumes/NAS/shoot' } });
   assert.deepEqual(listing.files.map((f) => f.link ?? null), [null, { to: '/Volumes/NAS/off.png', missing: true }]);
+});
+
+
+test('the import library uses one destination and omits generated folders without moving source paths', () => {
+  const full = mediaListingOf({ files: [
+    { path: 'assets/upload/take.mp4', kind: 'video', size: 1, mtime: 1 },
+    { path: 'assets/old.mov', kind: 'video', size: 1, mtime: 1 },
+    { path: 'assets/upload/photo.png', kind: 'image', size: 1, mtime: 1 },
+    { path: 'assets/upload/voice.wav', kind: 'audio', size: 1, mtime: 1 },
+    { path: 'assets/preview/frame.jpg', kind: 'image', size: 1, mtime: 1 },
+    { path: 'assets/audio/derived.wav', kind: 'audio', size: 1, mtime: 1 },
+  ], folders: ['assets/upload', 'assets/preview', 'assets/audio'], pages: [] });
+  const library = importedMediaListing(full);
+  assert.equal(library.dir, 'assets/upload');
+  assert.deepEqual(library.files.map(file => file.path), [
+    'assets/upload/take.mp4', 'assets/old.mov', 'assets/upload/photo.png', 'assets/upload/voice.wav',
+  ]);
+  assert.deepEqual(library.dirs, []);
+  assert.equal(full.files.length, 6, 'the complete project listing remains intact for editing');
 });

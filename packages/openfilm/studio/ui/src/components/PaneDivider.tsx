@@ -22,6 +22,7 @@
  * one-off action; having to drag it again for every film would defeat the point.
  */
 import React from 'react';
+import { keepLayout } from '@/lib/layout-storage';
 import { useFrameLatest } from '@/lib/use-frame-latest';
 
 /** Gap between panes (px); the workspace's outer margin uses the same value so the seams line up. */
@@ -103,7 +104,7 @@ export function usePaneSize(storageKey: string, fallback = 420, min = 0) {
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null;
     if (pending.current === null) return;
-    try { localStorage.setItem(storageKey, String(pending.current)); } catch { /* storage may be unavailable */ }
+    keepLayout(storageKey, String(pending.current));
     pending.current = null;
   }, [storageKey]);
   React.useEffect(() => {

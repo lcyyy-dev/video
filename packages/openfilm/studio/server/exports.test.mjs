@@ -12,6 +12,7 @@ import { filmSubtitleSrt, parseFilmSubtitleStyle } from './film-subtitle.mjs';
 import { zipFiles } from './zip.mjs';
 import { launch } from '../../src/host.mjs';
 import { filmHtml } from '../../src/film-doc.mjs';
+import { editProjectFilm } from './film.mjs';
 import { textPageJson } from '../../src/text-page.mjs';
 
 const hasFfmpeg = (() => { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
@@ -118,11 +119,12 @@ test('structured text exports directly to native draft JSON, respecting trim and
   mkdirSync(path);
   writeFileSync(join(path, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 3,
     texts: [{ text: 'Native title', x: 160, y: 90, fontSize: 32, color: '#ff0000',
+      fontFamily: 'WenYue FangTangTi (Authorization Required) J', fontPath: 'openfilm-font:element-fangtang-j',
       runs: [{ text: '', color: '#ffff00' }, { text: 'Native ', color: '#ffff00' },
         { text: 'title', color: '#ffffff', stroke: { color: '#000000', width: 2 } }, { text: '' }],
       keyframes: { x: [{ time: 0, value: 0 }, { time: 2, value: 320 }] } }] }));
   writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
-    { clips: [{ id: 'title', src: 'title.text.json', at: 1, time: [1, 2] }] },
+    { clips: [{ id: 'title', src: 'title.text.json', at: 1, time: [1, 2], size: { w: 320, h: 180 }, box: { x: 0, y: 0, w: 320, h: 180 } }] },
     { hidden: true, clips: [{ id: 'hidden', src: 'title.text.json', time: [0, 1] }] },
   ] }));
   for (const format of ['jianying', 'capcut']) {
@@ -135,6 +137,9 @@ test('structured text exports directly to native draft JSON, respecting trim and
     assert.equal(draft.platform.app_source, format === 'jianying' ? 'lv' : 'cc');
     const content = JSON.parse(draft.materials.texts[0].content);
     assert.equal(draft.materials.texts[0].is_rich_text, true);
+    assert.equal(draft.materials.texts[0].font_resource_id, '7037017159280628231');
+    assert.equal(content.styles[0].font.id, '7037017159280628231');
+    assert.ok(existsSync(join(folder, 'Resources', 'local', 'fonts', 'element-fangtang-j.otf')), 'the portable draft includes its font file');
     assert.deepEqual(content.styles.map((s) => s.range), [[0, 7], [7, 12]]);
     assert.equal(content.styles[1].strokes.length, 1);
     assert.equal(draft.materials.videos.length, 0);
@@ -886,4 +891,31 @@ test('chosen draft folders override installed editor defaults for single and bat
   const automatic = await ended(exports, exports.start(project('AutomaticDraft', source), ask));
   assert.equal(automatic.status, 'done', automatic.error);
   assert.equal(automatic.out, join(installed, 'AutomaticDraft', 'draft_info.json'));
+});
+
+
+test('manually moved and resized JSON text stays native in a draft export', { timeout: 120_000 }, async () => {
+  const path = join(scratch, 'TextGesture');
+  mkdirSync(path);
+  writeFileSync(join(path, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 1,
+    texts: [{ text: 'Moved title', x: 160, y: 90, width: 200, fontSize: 32, color: '#ffffff' }] }));
+  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [
+    { id: 'title', src: 'title.text.json', at: 5, box: { x: 0, y: 0, w: 320, h: 180 } },
+  ] }] }));
+  const result = await editProjectFilm(path, null, [{ op: 'props', edits: [{ clip: 'title', prop: 'overrides', value: [{
+    at: '[data-openfilm-text-index="0"][data-openfilm-text-base-width="200"][data-openfilm-text-base-height="40"]',
+    t: [10,20], s: [1.2,2],
+  }] }] }]);
+  assert.equal(result.doc.tracks[0].clips[0].overrides, undefined);
+  const exports = createExports({ drafts: () => null, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
+  const job = await ended(exports, exports.start(project('TextGesture', path), { kind: 'nle', format: 'jianying' }));
+  assert.equal(job.status, 'done', job.error);
+  const folder = join(process.env.OPENFILM_EXPORTS, 'TextGesture');
+  const draft = JSON.parse(readFileSync(join(folder, 'draft_content.json'), 'utf8'));
+  assert.equal(draft.materials.texts.length, 1);
+  assert.equal(draft.materials.videos.length, 0, 'no rendered MOV replaces the editable text');
+  const transform = draft.tracks[0].segments[0].clip.transform;
+  assert.ok(Math.abs(transform.x - .0625) < .00001);
+  assert.ok(Math.abs(transform.y) < .00001, 'box resize retains the visual text center');
+  assert.equal(JSON.parse(readFileSync(join(folder, 'native-text-report.json')))[0].mode, 'native');
 });

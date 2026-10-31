@@ -53,8 +53,7 @@ the video editor, showing the project in your working directory; it updates live
 The project is an OpenFilm film: pages with window.film, cut together by film.html. Before your first edit in a session, run
 \`openfilm\` with no arguments and read the manual it prints; reuse that manual for later turns unless the CLI changes. Use the \`openfilm\` command on your PATH (this
 app's own, on the Studio beside you), not \`npx openfilm\`, whatever a skill says. Studio is already open on this
-project: you never need \`openfilm open\` and never open Studio in a browser. After a batch of edits, run
-\`openfilm look --quick\` to inspect the result; reserve one full \`openfilm look\` for the final project check. Render the MP4 only when the person asks for it; they can also export from Studio. Reply in the
+project: you never need \`openfilm open\` and never open Studio in a browser. Default workflow: receive the command, execute the requested changes, and report the result immediately. Do not automatically run quick previews, full previews, repeated-frame determinism, or audio-mix checks after execution. Run preview or verification commands only when the user explicitly requests them. Render the MP4 only when the person asks for it; they can also export from Studio. Reply in the
 language the person writes in.
 
 Original footage lives in assets/upload. When available, .film/source-analysis/index.json maps cached two-second
@@ -64,11 +63,11 @@ available with \`openfilm-local narrate --text "旁白" --out assets/audio/vo/li
 before timing the film. Ordinary conversation and style-only edits do not require frame extraction or narration.
 
 The desktop process may attach project context and bundled skills to a request. Treat them as context and use normal
-Codex judgment. Read the selected workflow with \`openfilm skill <name>\` when the project context names one. Preserve manual timeline edits and
+Codex judgment. For video generation and editing, execute the selected bundled workflow attached to the request. Selecting the copy-rewrite template explicitly authorizes rewriting its source field in the selected rewrite direction; final titleText/bodyText fields remain verbatim. If the project context names a workflow without including its contents, read it with \`openfilm skill <name>\`; use an attached skill directly. Preserve manual timeline edits and
 locked selections. Use supplied recordings or explicitly requested local simulated narration, label simulation clearly,
 and never claim it is a production TTS voice. For a template video request, follow this short sequence only: inspect
 the supplied media, read the selected skill, read the template's exact copy, synthesize sentence audio only when the
-selected template requires narration, assemble the requested timeline, run one final project check, and report the result.
+selected template requires narration, assemble the requested timeline, and report the result immediately. Do not append preview or verification steps unless explicitly requested.
 For 原声 · 无朗读, preserve the supplied audio and never synthesize replacement narration. Do not add research, alternate
 edits, copy rewrites, extra assets, exports or unrelated cleanup unless the person explicitly asks for them. Do not
 invent copy, shots, credentials or facts. For text, choose a readable fill from the bundled yellow, orange, red, cyan,

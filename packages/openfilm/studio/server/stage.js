@@ -364,6 +364,7 @@
   };
   const selectorOf = (el) => {
     const doc = el.ownerDocument;
+    if (el.dataset?.openfilmTextIndex != null) return `[data-openfilm-text-index="${el.dataset.openfilmTextIndex}"][data-openfilm-text-base-width="${el.dataset.openfilmTextBaseWidth}"][data-openfilm-text-base-height="${el.dataset.openfilmTextBaseHeight}"]`;
     if (el.id && doc.querySelectorAll(`#${CSS.escape(el.id)}`).length === 1) return `#${CSS.escape(el.id)}`;
     const parentEl = el.parentElement;
     if (!parentEl || el === doc.body) return el.localName;
@@ -377,6 +378,7 @@
   /** Its selector, and which match it is when the selector finds several. */
   const locOf = (el) => {
     const at = selectorOf(el);
+    if (el.dataset?.openfilmTextIndex != null) return { at, loc: at };
     const all = matches(el.ownerDocument, { at });
     if (all.length <= 1) return { at, loc: at };
     const n = all.indexOf(el) + 1;

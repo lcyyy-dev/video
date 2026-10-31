@@ -109,6 +109,7 @@ contextBridge.exposeInMainWorld('openfilmNative', {
   /* a file on the disk brought into the project (the page has no way to read it) */
   importFile: (request) => ipcRenderer.invoke('desktop:import-file', request),
   /* the chat's column as the person left it, kept for the next launch */
+  saveEditorLayout: (layout) => ipcRenderer.send('desktop:editor-layout', layout),
   saveLayout: (layout) => ipcRenderer.send('desktop:layout', { chatOpen: layout?.chatOpen === true, chatWidth: Number(layout?.chatWidth) }),
   /* the page's theme, for the window behind it and the system's menus and dialogs */
   setTheme: (theme) => ipcRenderer.send('desktop:theme', theme === 'dark' ? 'dark' : 'light'),

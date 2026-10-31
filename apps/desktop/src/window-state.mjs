@@ -13,6 +13,22 @@ export const WINDOW_MIN = { width: CHAT_MIN + STUDIO_MIN, height: 600 };
 
 const finite = (value) => typeof value === 'number' && Number.isFinite(value);
 
+/** Only the editor's panel preferences belong in the desktop layout file. */
+export function editorLayout(input) {
+  const result = {};
+  if (!input || typeof input !== 'object') return result;
+  for (const key of ['assets', 'inspector', 'timeline']) {
+    const name = `openfilm.project.${key}`;
+    if (input[name] === '0' || input[name] === '1') result[name] = input[name];
+  }
+  for (const key of ['assetsW', 'inspectorW', 'timelineH']) {
+    const name = `openfilm.project.${key}`;
+    const value = Number(input[name]);
+    if (typeof input[name] === 'string' && Number.isFinite(value) && value > 0 && value <= 20000) result[name] = String(Math.round(value));
+  }
+  return result;
+}
+
 /** The saved state, made sensible: anything missing or odd is the default. */
 export function readWindowState(dir) {
   let raw = {};
@@ -23,6 +39,7 @@ export function readWindowState(dir) {
     : null;
   return {
     bounds,
+    editorLayout: editorLayout(raw.editorLayout),
     maximized: raw.maximized === true,
     chatWidth: finite(raw.chatWidth) ? Math.max(CHAT_MIN, Math.round(raw.chatWidth)) : CHAT_DEFAULT,
     chatOpen: raw.chatOpen !== false,

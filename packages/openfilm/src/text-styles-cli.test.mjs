@@ -62,7 +62,7 @@ test('the element command exposes pools and seeded samples', () => {
   const first = JSON.parse(run('sample', '--seed', 'one').stdout);
   const second = JSON.parse(run('sample', '--seed', 'one').stdout);
   assert.deepEqual(first, second);
-  assert.equal(first.style.stroke.width, 35);
+  assert.equal(first.style.stroke.width, 14);
 });
 
 test('agents can read scene-adaptive ranges without confusing them with renderable presets', () => {
@@ -76,7 +76,7 @@ test('agents can read scene-adaptive ranges without confusing them with renderab
   assert.equal(policy.selection.presetIdRequired, false);
   assert.equal(policy.selection.allowAdHocAppearance, false);
   assert.equal(policy.selection.randomizePerCaption, true);
-  assert.equal(policy.stroke.width.value, 35);
+  assert.equal(policy.stroke.width.value, 14);
   assert.equal(policy.stroke.width.unit, 'preview-px');
   assert.deepEqual(policy.fill.palette.slice(0, 3), ['#FFFFFF', '#000000', '#FFFAFA']);
   assert.equal(policy.background.enabled, false);

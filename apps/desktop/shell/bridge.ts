@@ -1,3 +1,4 @@
+import { keepLayout } from 'openfilm/studio-ui/lib/layout-storage.ts';
 /**
  * The window is one page: Studio's editor, and the chat in the column Studio leaves for it. This is what each gets
  * from the other and from the app, in the page:
@@ -19,7 +20,7 @@ type Project = { id: string; name: string; path: string };
 
 interface Native {
   platform: string;
-  hello(): Promise<{ flavor: string; version: string; ffmpeg: unknown; update: unknown; chatOpen: boolean; chatWidth: number; chatMin: number; studioMin: number; fullScreen: boolean }>;
+  hello(): Promise<{ flavor: string; version: string; ffmpeg: unknown; update: unknown; chatOpen: boolean; chatWidth: number; chatMin: number; studioMin: number; fullScreen: boolean; editorLayout: Record<string, string> }>;
   clipboardText(): Promise<string>;
   pathForFile(file: File): string;
   revealPath(path: string): Promise<void>;
@@ -36,6 +37,7 @@ interface Native {
   skills: Record<string, (...args: never[]) => Promise<unknown>>;
   prefs: { get(): Promise<AppPrefs>; set(next: Partial<AppPrefs>): Promise<unknown>; onChange(listener: Listener<AppPrefs>): Stop };
   sub2api: { get(): Promise<{ baseUrl: string; model: string; configured: boolean }>; set(input: { baseUrl: string; apiKey: string; model?: string }): Promise<{ baseUrl: string; model: string; configured: boolean }>; test(input: { baseUrl: string; apiKey: string; model: string }): Promise<{ ok: true; baseUrl: string; model: string }> };
+  saveEditorLayout(layout: Record<string, string>): void;
   saveLayout(layout: { chatOpen: boolean; chatWidth: number }): void;
   setTheme(theme: Theme): void;
   onFullScreen(listener: Listener<boolean>): Stop;
@@ -66,10 +68,12 @@ const events = <T,>() => signal<T>(undefined as T);
 const TOP_BAR = 32;
 const column = document.getElementById('of-chat')!;
 const layout = { open: true, width: 420, min: 340, studioMin: 640 };
-/* The material library is the starting point of an editing project, so keep it
-   visible when a project opens. The person can still collapse it from the
-   library toggle without changing the editor's material data. */
-const assets = { open: true, bottom: 120 };
+/* Share Studio's kept visibility preference so reopening a tab or the app
+   restores the material pane as the person left it. */
+const assets = { open: (() => {
+  try { return localStorage.getItem('openfilm.project.assets') !== '0'; }
+  catch { return true; }
+})(), bottom: 120 };
 const assetsSignal = signal(assets.open);
 const chatOpenSignal = signal(true);
 
@@ -106,6 +110,7 @@ function setChatWidth(width: number, done = false) {
 }
 function setAssetsOpen(open: boolean) {
   assets.open = open;
+  keepLayout('openfilm.project.assets', open ? '1' : '0');
   /* Studio's left pane and the library button update together. */
   flushSync(() => {
     assetsSignal.set(assets.open);
@@ -282,7 +287,23 @@ const host: StudioHost = {
 (window as unknown as { openfilmHost: StudioHost }).openfilmHost = host;
 
 /* the layout the app kept: the panel starts as it was, before Studio first reads it */
+const LAYOUT_KEYS = ['assets', 'inspector', 'timeline', 'assetsW', 'inspectorW', 'timelineH'].map(key => `openfilm.project.${key}`);
 const ready = hello.then((h) => {
+  for (const key of LAYOUT_KEYS) {
+    try {
+      const saved = h.editorLayout?.[key];
+      if (saved != null) localStorage.setItem(key, saved);
+      else {
+        const local = localStorage.getItem(key);
+        if (local != null) native.saveEditorLayout({ [key]: local });
+      }
+    } catch { /* local storage unavailable */ }
+  }
+  try { assets.open = localStorage.getItem('openfilm.project.assets') !== '0'; } catch { /* keep default */ }
+  assetsSignal.set(assets.open);
+  window.addEventListener('openfilm:keep-layout', ((event: CustomEvent<{ key: string; value: string }>) => {
+    if (LAYOUT_KEYS.includes(event.detail.key)) native.saveEditorLayout({ [event.detail.key]: event.detail.value });
+  }) as EventListener);
   layout.open = h.chatOpen;
   layout.width = h.chatWidth;
   layout.min = h.chatMin;
@@ -397,3 +418,5 @@ const uploadName = (name: string) => name.split(/[\\/]/).pop()!.replace(/[\u0000
 };
 
 export type { HostAgent };
+
+export const layoutReady = ready;

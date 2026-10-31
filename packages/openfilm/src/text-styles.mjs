@@ -13,7 +13,7 @@ export function getTextStyleGenerationRules() {
 }
 
 /** @typedef {import('./text-page.mjs').TextItem} TextItem */
-/** @typedef {Pick<TextItem, 'fontSize' | 'fontFamily' | 'fontPath' | 'color' | 'bold' | 'italic' | 'underline' | 'stroke' | 'shadow'>} TextStyle */
+/** @typedef {Pick<TextItem, 'fontFamily' | 'fontPath' | 'color' | 'bold' | 'italic' | 'underline' | 'stroke' | 'shadow'> & { fontSize?: number }} TextStyle */
 /** @typedef {{ id: string, version: number, name: string, description: string, style: TextStyle }} TextStylePreset */
 /** @typedef {{ version: 1, presets: TextStylePreset[] }} TextStyleLibrary */
 /** @typedef {{ id: string, name: string, family: string, fontPath: string }} ElementFont */
@@ -133,7 +133,7 @@ export function applyTextStyle(item, selection, overrides = {}) {
   validateStyle(overrides, true);
   const result = /** @type {TextItem} */ (Object.fromEntries(
     Object.entries(structuredClone(item)).filter(([key]) => !STYLE_KEYS.has(key))));
-  Object.assign(result, preset.style, structuredClone(overrides));
+  Object.assign(result, { fontSize: item.fontSize }, preset.style, structuredClone(overrides));
   if (result.runs) result.runs = result.runs.map(({ text }) => ({ text }));
   return result;
 }

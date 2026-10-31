@@ -8,7 +8,7 @@ description: Edit a presenter or talking-head recording into a clear OpenFilm vi
 Turn supplied presenter footage into a clean, understandable video without changing what the speaker said.
 
 For a direct template request, use the shortest path: inspect the recording, read this skill and the supplied transcript,
-make the requested cuts and captions, run one final project check, and report. Do not create alternate edits or export
+make the requested cuts and captions, report the result immediately. Do not create alternate edits or export
 unless requested.
 
 ## Understand the recording
@@ -40,8 +40,10 @@ role or credentials. Local simulated narration is allowed only when explicitly r
 
 ## Check and deliver
 
-Run `openfilm look` after each change. Check the beginning, every cut, caption timing, the last spoken word and the
+Report the result immediately after changes. The following checks are performed only on explicit request: Check the beginning, every cut, caption timing, the last spoken word and the
 audio mix. Confirm all source ranges are in bounds and that no caption covers the speaker's face. Keep manual edits
 and locked selections during revisions. Render MP4 only when requested; otherwise leave the editable OpenFilm film
 and use the existing Jianying/CapCut exporter for an editable draft. Report removed sections, unresolved words,
 audio limitations and output paths instead of claiming a finished video when any remain.
+
+Default workflow: receive the command, execute the command, and report the result immediately. Do not automatically run quick previews, full checks, repeated-frame rendering or audio-mix verification after execution. Run preview or verification commands only on explicit user request, and never claim skipped checks passed.

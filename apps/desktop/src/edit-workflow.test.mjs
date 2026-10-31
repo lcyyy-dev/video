@@ -36,6 +36,9 @@ test('each enabled template routes to its own bundled workflow', () => {
     const prepared = prepareEditPrompt(root, '继续');
     assert.equal(prepared.workflow.skill, skill);
     assert.match(prepared.text, new RegExp(`openfilm skill ${skill}`));
+    assert.match(prepared.text, new RegExp(`<selected-workflow name="${skill}">`));
+    assert.match(prepared.text, new RegExp(`name: ${skill}`));
+    assert.match(prepared.text, /生成或剪辑时必须执行以下 skill/);
   }
 });
 
@@ -46,4 +49,25 @@ test('selected text styles become a strict generation constraint in the agent co
   assert.match(prepared.text, /yellow-headline、red-emphasis/);
   assert.match(prepared.text, /只能从这些样式 ID 中选择/);
   assert.match(prepared.text, /"textStyleIds":\["yellow-headline","red-emphasis"\]/);
+});
+
+test('copy template authorizes its source rewrite while final wording remains locked', () => {
+  const prepared = prepareEditPrompt(project(), '生成视频', { config: {
+    ...initialTemplate(), kind: 'copy', source: '原始事实', rewrite: '增强开头吸引力', titleText: '固定标题', bodyText: '固定正文',
+  } });
+  assert.equal(prepared.workflow.skill, 'copy-rewrite');
+  assert.match(prepared.text, /source 是待改写原文，按 rewrite 执行/);
+  assert.match(prepared.text, /titleText、bodyText 等明确填写的成品文案仍逐字保留/);
+  assert.match(prepared.text, /二创方向：增强开头吸引力/);
+  assert.match(prepared.text, /固定正文/);
+});
+
+test('every selected workflow executes and reports without automatic preview or verification', () => {
+  for (const kind of ['ad', 'talk', 'copy', 'live']) {
+    const prepared = prepareEditPrompt(project(), '修改标题', { config: { ...initialTemplate(), kind } });
+    assert.match(prepared.text, /不自动运行快速预览、完整检查/);
+    assert.match(prepared.text, /默认执行链路：接收命令 → 执行命令 → 汇报结果/);
+    assert.doesNotMatch(prepared.text, /修改后默认只运行|快速预览后直接汇报/);
+    assert.doesNotMatch(prepared.text, /最后只做一次完整/);
+  }
 });

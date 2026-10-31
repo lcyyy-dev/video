@@ -184,6 +184,18 @@ export function mediaListingOf(
   };
 }
 
+/** Imported originals have one destination. Keep legacy loose assets visible without moving timeline sources. */
+export function importedMediaListing(listing: MediaListing): MediaListing {
+  const root = 'assets/upload';
+  const files = listing.files.filter(file => {
+    const path = file.path;
+    const imported = path.startsWith(`${root}/`);
+    const legacy = path.startsWith('assets/') && !path.slice('assets/'.length).includes('/');
+    return (imported || legacy) && file.kind !== 'mg';
+  });
+  return { ...listing, dir: root, files, dirs: [], made: [], linkedDirs: {}, pages: [] };
+}
+
 /**
  * A file or folder name as the person typed it, less only what file systems refuse: `/ \ : * ? " < > |` and control
  * characters (a run of them, with the spaces around it, becomes one space). Spaces, `&` and every script stay; trimmed,

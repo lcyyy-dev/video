@@ -8,7 +8,7 @@ description: Cut a supplied livestream or long recording into a focused OpenFilm
 Make a publishable clip from a long livestream, webinar, class or recording without taking words out of context.
 
 For a direct template request, keep the path short: inspect the supplied recording, read this skill, select the requested
-complete moment, assemble the timeline, run one final project check, and report. Do not create alternate cuts or export
+complete moment, assemble the timeline, report the result immediately. Do not create alternate cuts or export
 unless requested.
 
 ## Find a complete moment
@@ -37,6 +37,8 @@ the spoken point. Music must remain below speech and is optional.
 
 Check the opening, every removed range, every caption boundary, the final sentence and the audio mix. Confirm the
 clip does not imply a claim that the longer recording qualifies or contradicts. Preserve manual edits and locked
-selections on revisions. Run `openfilm look` after each change. Render MP4 only when requested; otherwise leave the
+selections on revisions. Report the result immediately after changes. The following checks are performed only on explicit request: Render MP4 only when requested; otherwise leave the
 editable film or use the existing Jianying/CapCut exporter. Report source range, duration, captions, audio limits and
 any context that could not fit.
+
+Default workflow: receive the command, execute the command, and report the result immediately. Do not automatically run quick previews, full checks, repeated-frame rendering or audio-mix verification after execution. Run preview or verification commands only on explicit user request, and never claim skipped checks passed.

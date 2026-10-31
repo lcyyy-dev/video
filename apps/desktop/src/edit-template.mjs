@@ -61,7 +61,7 @@ export function templateSummary(config) {
       : ['副标题：需要，内容待补充'])
     : ['副标题：不需要'];
   const title = config.title
-    ? [`标题：${config.titleText || '需要，内容待补充'}`, `标题排版：${config.titleText ? `${titleFontSize(config.titleText)}px，单行，不换行` : '根据实际文案计算，单行，不换行'}`]
+    ? [`标题：${config.titleText || '需要，内容待补充'}`, '标题排版：根据画布尺寸、文字长度和位置选择绝对像素字号，优先单行，不换行']
     : ['标题：不需要'];
   if (config.kind === 'talk') return [
     `剪辑模板：${route.name}`,

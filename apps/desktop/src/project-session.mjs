@@ -25,7 +25,7 @@ export class ProjectSession extends AgentSession {
       'check_for_update_on_startup = false',
       'model_provider = "openfilm"',
       `model = ${JSON.stringify(hosted.model)}`,
-      'model_reasoning_effort = "medium"',
+      'model_reasoning_effort = "low"',
       'approval_policy = "never"',
       'sandbox_mode = "workspace-write"',
       `developer_instructions = ${JSON.stringify(instructions)}`,

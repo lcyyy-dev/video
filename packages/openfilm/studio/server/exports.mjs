@@ -1096,14 +1096,42 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
     try {
       await mkdir(scratch, { recursive: true });
       await filmElsewhere(root, scratch, { stage: doc.stage, tracks: doc.tracks.map((t) => ({ clips: t.clips })) });
+      /** @type {Map<string, import('../../src/text-page.mjs').TextPage>} */
+      const sourceTextPages = new Map();
+      if (app) for (const track of doc.tracks) for (const row of track.clips) {
+        if (kindOf(row) !== 'page') continue;
+        const source = await readFile(clipPath(root, row.src), 'utf8');
+        const page = isTextPage(row.src) ? readTextPageJson(source) : readLegacyTextPage(source);
+        if (page) sourceTextPages.set(row.id, page);
+      }
       const probe = await open(scratch, { root });
-      /** @type {{ id: string, at: number, end: number, from: number, to: number, speed: number, native: number | null, w: number | null, h: number | null }[]} */
+      /** @type {{ id: string, at: number, end: number, from: number, to: number, speed: number, native: number | null, w: number | null, h: number | null, textHeights: number[] }[]} */
       let loaded;
       try {
-        loaded = await probe.film.page.evaluate(() => /** @type {any} */ (window).__filmEditor.stage.clips().map((/** @type {any} */ c) => ({
+        loaded = await probe.film.page.evaluate(async (pages) => {
+          /* Future timeline clips are not mounted yet. Measure their JSON with the
+             same renderer, independently of the playhead, without drawing video frames. */
+          const { mountTextPage } = await import(new URL('__film/text-page.mjs', location.href).href);
+          const heights = new Map();
+          for (const [id, page] of pages) {
+            if (!page.texts.some((item) => item.height != null)) continue;
+            const root = document.createElement('div');
+            Object.assign(root.style, { position: 'absolute', visibility: 'hidden', width: `${page.width}px`, height: `${page.height}px` });
+            document.body.append(root);
+            try {
+              const film = mountTextPage({ ...page, texts: page.texts.map((item) => ({ ...item, height: undefined })) }, root);
+              await film.ready;
+              heights.set(id, [...root.querySelectorAll('[data-openfilm-text]')].map((node) => /** @type {HTMLElement} */ (node).offsetHeight));
+            } finally {
+              root.remove();
+            }
+          }
+          return /** @type {any} */ (window).__filmEditor.stage.clips().map((/** @type {any} */ c) => ({
           id: c.id, at: c.at, end: c.end, from: c.span.from, to: c.span.to, speed: c.span.speed,
           native: Number.isFinite(c.native) ? c.native : null, w: c.nw ?? null, h: c.nh ?? null,
-        })));
+          textHeights: heights.get(c.id) ?? [],
+        }));
+        }, [...sourceTextPages]);
       } finally {
         await probe.close();
       }
@@ -1138,21 +1166,29 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
           if (!track.hidden) duration = Math.max(duration, c.end);
           if (kind !== 'sound') {
             if (app && kind === 'page') {
-              const source = await readFile(path, 'utf8');
-              const page = isTextPage(row.src) ? readTextPageJson(source) : readLegacyTextPage(source);
+              const page = sourceTextPages.get(row.id);
               if (page) {
+                /* An explicit full-canvas box is the page's identity placement,
+                   commonly emitted by the editor/agent. It needs no rasterization. */
+                const boxChangesPage = row.box && (
+                  Object.keys(row.box).some((key) => !['x', 'y', 'w', 'h'].includes(key))
+                  || row.box.x !== 0 || row.box.y !== 0
+                  || row.box.w !== doc.stage.w || row.box.h !== doc.stage.h
+                );
                 const reason = nativeTextFallbackReason(page, {
                   canvas: { width: doc.stage.w, height: doc.stage.h },
                   hasElementOverrides: row.overrides?.some((entry) => entry.at !== undefined),
-                  hasClipOverrides: Boolean(row.box || row.class || row.style || fade || c.speed !== 1),
+                  hasClipOverrides: Boolean(boxChangesPage || row.class || row.style || fade || c.speed !== 1
+                    || page.texts.some((item, index) => item.height != null && !(c.textHeights[index] > 0))),
                 });
                 textReport.push({ clip: row.id, mode: reason ? 'rendered' : 'native', ...(reason ? { reason } : {}) });
                 if (!reason) {
                   // Page source time can be trimmed independently of its position on the timeline.
-                  const texts = page.texts.map((item) => ({ ...item, keyframes: Object.fromEntries(
+                  const texts = page.texts.map((item, index) => ({ ...item,
+                    y: item.y - (item.height != null ? (item.height - c.textHeights[index]) / 2 : 0), keyframes: Object.fromEntries(
                     Object.entries(item.keyframes ?? {}).map(([key, points]) => [key,
                       [...new Set([0, ...points.map((p) => p.time - c.from).filter((t) => t > 0 && t < c.end - c.at), c.end - c.at])]
-                        .map((time) => ({ time, value: textValueAt(points, time + c.from) }))]),
+                        .map((time) => ({ time, value: textValueAt(points, time + c.from) - (key === 'y' && item.height != null ? (item.height - c.textHeights[index]) / 2 : 0) }))]),
                   ) }));
                   textPages.set(row.id, { ...page, texts });
                 }

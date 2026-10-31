@@ -1,3 +1,4 @@
+import { keepLayout } from '@/lib/layout-storage';
 /**
  * A project in Studio: the top bar, then the assets, the picture and the inspector side by side, and the timeline
  * across the bottom. Every pane floats on the darker board; the seams between them are the board showing through and
@@ -8,7 +9,7 @@
  */
 import * as React from 'react';
 import { useFrameLatest } from '@/lib/use-frame-latest';
-import { BookmarkPlus, ClipboardCopy, ClipboardPaste, GalleryVerticalEnd, Layers, LibraryBig, MessageSquarePlus, Settings2, TriangleAlert } from 'lucide-react';
+import { BookmarkPlus, ClipboardCopy, ClipboardPaste, GalleryVerticalEnd, LibraryBig, MessageSquarePlus, Settings2, TriangleAlert } from 'lucide-react';
 import { applyOps } from '../../../server/ops.mjs';
 import { api, ApiError, PREFS_EVENT, projectEvents, type Clip, type Film, type Listing, type Op, type ProjectFilm, type ProjectSettings } from '@/api';
 import { useT } from '@/i18n';
@@ -46,7 +47,7 @@ import { useLoadedThumbs } from '@/lib/use-loaded-thumbs';
 import { droppedOverrides, overrideTarget, undoneFields, type DroppedEdits, type PersonEdit } from '@/lib/dropped-overrides';
 import { filmFrameBox, type FilmFrameId } from '@/lib/film-frame';
 import { canvasFor, fitToCanvas } from '@/lib/canvas-fit';
-import { factsOfProbe, mediaListingOf, resourceKindOf, srcHitsAsset, warmProjectMedia, type MediaListing, type MediaProxy, type MediaResult, type MediaSources, type WorkspaceResource } from '@/lib/workspace-resources';
+import { factsOfProbe, importedMediaListing, mediaListingOf, resourceKindOf, srcHitsAsset, warmProjectMedia, type MediaListing, type MediaProxy, type MediaResult, type MediaSources, type WorkspaceResource } from '@/lib/workspace-resources';
 import { BrandLoadingScreen } from './BrandLoadingScreen';
 import { BrandLogo } from './BrandLogo';
 import { SettingsModal, type SettingsSection } from './settings/SettingsModal';
@@ -69,8 +70,6 @@ import { ThemeToggle } from './ThemeToggle';
 import { UpdateButton, WebUpdateButton } from './UpdateButton';
 import { MediaPool, type ImportProgress } from './MediaPool';
 import type { SubtitleRowSpec } from './SubtitleRow';
-import { LayersPanel } from './LayersPanel';
-import type { LayerRow } from '@/lib/layers-tree';
 import { SourcePreview } from './SourcePreview';
 import { ResourceInspector } from './ResourceInspector';
 import { FilmInspector } from './FilmInspector';
@@ -96,7 +95,7 @@ import { ExportTray, type ExportTrayHandle } from './export/ExportTray';
 import { FilmStageSelect, type FilmStageControl, type LayerGeometry, type StageClipEdit, type StagePick } from './FilmStageSelect';
 import { openSection } from './inspector-fields';
 import { FontScopeContext, type FontScope } from '@/lib/use-fonts';
-import { stageMenu, stageRecoveryMenu, type StageArrangeResult, type StageMenuContext } from './stage-menu';
+import { stageMenu, stageRecoveryMenu, type StageMenuContext } from './stage-menu';
 import type { StageEditFailure, StageTextEdit } from './FilmInspector';
 import { layerTarget, pageClipOf, recoverLayer } from '@/lib/stage-layers';
 import type { TemplateControls } from '@/lib/template-controls';
@@ -129,7 +128,7 @@ function useKeptFlag(key: string, initial = true): [boolean, (open: boolean) => 
   });
   const keep = React.useCallback((next: boolean) => {
     setOpen(next);
-    try { localStorage.setItem(key, next ? '1' : '0'); } catch { /* not kept */ }
+    keepLayout(key, next ? '1' : '0');
   }, [key]);
   return [open, keep, setOpen];
 }
@@ -346,6 +345,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     () => (rawListing ? mediaListingOf(rawListing, (path) => ({ ...facts.get(path), ...(proxies[path] ? { proxy: proxies[path] } : {}) }), (rawListing as { made?: string[] }).made) : null),
     [rawListing, facts, proxies],
   );
+  const importedListing = React.useMemo(() => listing ? importedMediaListing(listing) : null, [listing]);
   React.useEffect(() => { if (listing) warmProjectMedia(projectId, listing, mediaSources); }, [projectId, listing, mediaSources]);
   /* a file of the media pane as a reference: shown by its poster (a video, a page) or itself (a still, on Studio's
      origin: see stillUrl) */
@@ -618,14 +618,10 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   const [localAssetsPaneOpen, setLocalAssetsPaneOpen] = useKeptFlag('openfilm.project.assets');
   const assetsPaneOpen = leftAssets?.open ?? localAssetsPaneOpen;
   const setAssetsPaneOpen = leftAssets?.setOpen ?? setLocalAssetsPaneOpen;
-  const [assetsWidth, setAssetsWidth] = React.useState(280);
-  /* the Layers panel (components/LayersPanel), left of the picture, after the assets */
-  const [layersPaneOpen, setLayersPaneOpen] = useKeptFlag('openfilm.project.layers', false);
-  const [layersWidth, setLayersWidth] = React.useState(240);
-  const layersPaneRef = React.useRef<HTMLDivElement | null>(null);
+  const { width: storedAssetsWidth, commit: setAssetsWidth } = usePaneSize('openfilm.project.assetsW', 280, 200);
+  const assetsWidth = storedAssetsWidth ?? 280;
   const [timelineOpen, setTimelineOpen] = useKeptFlag('openfilm.project.timeline');
-  /* open whenever the project opens (a reload too); closed, it stays closed until then or until a selection opens it */
-  const [inspectorOpen, setInspectorOpen] = React.useState(true);
+  const [inspectorOpen, setInspectorOpen] = useKeptFlag('openfilm.project.inspector');
   const closeInspector = React.useCallback(() => setInspectorOpen(false), [setInspectorOpen]);
   const [rowWidth, setRowWidth] = React.useState(0);
   const [colHeight, setColHeight] = React.useState(0);
@@ -1186,11 +1182,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   /* an app that hosts Studio can keep the media in a drawer of its own panel (window.openfilmHost panel.assets): no
      left pane then, the viewer first on the left */
   const hostAssets = hostPanel?.assets?.placement === 'left' ? null : hostPanel?.assets ?? null;
-  const assetsShown = !hostAssets && assetsPaneOpen && assetsFit;
-  const layersRoom = rowWidth - (inspectorShown ? inspectorShownWidth : 0) - (assetsShown ? assetsShownWidth : 0) - MIN_VIEWER - 16;
-  const layersShownWidth = rowWidth ? Math.min(layersWidth, layersRoom) : layersWidth;
-  const layersFit = !rowWidth || layersShownWidth >= 180;
-  const layersShown = layersPaneOpen && layersFit;
   /* the media pane shows the project's media, or Saved (lib/saved): the same pane, the button beside Upload switches */
   const [mediaScope, setMediaScope] = React.useState<'project' | 'saved'>(() => MEDIA_SCOPE.current);
   const switchMedia = React.useCallback((next: 'project' | 'saved') => { MEDIA_SCOPE.current = next; setMediaScope(next); }, []);
@@ -1224,7 +1215,8 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     <MediaPool
       key="project"
       projectId={projectId}
-      listing={listing}
+      listing={importedListing}
+      flatLibrary
       sources={mediaSources}
       usedSrcs={usedSrcs}
       selectedPath={pickedSaved ? null : pickedMedia?.path ?? null}
@@ -1566,31 +1558,9 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   const selectStageClip = React.useCallback((clipLoc: string) => { setStageElement(null); setSelectedLocs([clipLoc]); }, [setSelectedLocs]);
   /* a marquee on the picture around several clips: the timeline selects them */
   const selectStageClips = React.useCallback((locs: readonly string[]) => { setStageElement(null); setSelectedLocs([...locs]); }, [setSelectedLocs]);
-  /* ── the Layers panel: its rows select on the picture, outline there, hide, lock and restack (overrides) ── */
-  const [pointedLayer, setPointedLayer] = React.useState<{ clipId: string; loc: string } | null>(null);
   const askStage = React.useCallback(<T,>(op: string, args: object = {}): Promise<T | null> => (
     preview.current?.stage?.<T>(op, args) ?? Promise.resolve(null)
   ), []);
-  const layerClipOf = React.useCallback((clipId: string) => {
-    const b = blocksRef.current.find((x) => x.clipId === clipId);
-    return b ? { label: b.title, kind: b.kind, ...(b.loc ? { loc: b.loc } : {}) } : null;
-  }, []);
-  const selectLayerRow = React.useCallback((clipId: string, loc: string) => {
-    const clipLoc = blocksRef.current.find((b) => b.clipId === clipId)?.loc;
-    if (clipLoc) selectStageParent(loc, clipLoc);
-  }, [selectStageParent]);
-  const layerElement = (clipId: string, at: string, n: number | undefined, label: string): StageElement => (
-    { kind: 'box', loc: n ? `${at}#${n}` : at, label, clipId, ...(n ? { instance: n } : {}) }
-  );
-  const toggleLayerRow = React.useCallback((clipId: string, row: LayerRow, what: 'hidden' | 'locked') => {
-    const at = row.instance ? row.loc.slice(0, -`#${row.instance}`.length) : row.loc;
-    const patch = what === 'hidden' ? { style: { visibility: row.hidden ? null : 'hidden' } } : { lock: !row.locked };
-    void editStageOverrides([{ element: layerElement(clipId, at, row.instance, row.label), patch: patch as OverrideGeometry }]).then((f) => { if (f) toast.show(f); });
-  }, [editStageOverrides, toast]); // eslint-disable-line react-hooks/exhaustive-deps
-  const restackLayers = React.useCallback((clipId: string, edits: StageArrangeResult['edits']) => {
-    void editStageOverrides(edits.map(({ target, style }) => ({ element: layerElement(clipId, target.at, target.n, target.at), patch: { style } as OverrideGeometry })))
-      .then((f) => { if (f) toast.show(f); });
-  }, [editStageOverrides, toast]); // eslint-disable-line react-hooks/exhaustive-deps
   const previewClip = React.useCallback((clipLoc: string, patch: Partial<MgTransform> | null) => clipPreviewRef.current?.(clipLoc, patch), []);
   const previewLook = React.useCallback((clipLoc: string, css: string | null) => lookPreviewRef.current?.(clipLoc, css), []);
   /* the inspector's Crop: crop mode on the picture, for the video or still in hand there */
@@ -2568,7 +2538,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
               <ProjectLayoutMenu className={TOP_BTN}
                 /* an app that keeps the media in its own panel opens it there, from its own button: not a pane of Studio's */
                 assets={hostAssets ? null : assetsPaneOpen} onAssets={setAssetsPaneOpen}
-                layers={layersPaneOpen} onLayers={setLayersPaneOpen}
                 timeline={timelineOpen} inspector={inspectorOpen}
                 onTimeline={setTimelineOpen} onInspector={setInspectorOpen}
                 hostPanel={hostPanel ? { label: hostPanel.label, open: hostPanel.open, onChange: hostPanel.setOpen } : null} />
@@ -2596,36 +2565,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                   <PaneDivider width={assetsShownWidth} onResize={setAssetsWidth} containerRef={viewerRowRef} label={t('layout.assets')} min={200} minRest={MIN_VIEWER} />
                 </>
               ) : null}
-              {layersShown ? (
-                <>
-                  <div ref={layersPaneRef} className={`${PANE} shrink-0 bg-[var(--dock-pane)]`} style={{ width: layersShownWidth }}>
-                    <LayersPanel
-                      ask={askStage}
-                      timeMs={timeMs}
-                      playing={playing}
-                      filmKey={value}
-                      clipOf={layerClipOf}
-                      selected={stageElement && stageElement.kind !== 'clip' ? { ...(stageElement.clipId ? { clipId: stageElement.clipId } : {}), loc: stageElement.loc } : null}
-                      selectedClipLocs={selectedLocs}
-                      onSelectLayer={selectLayerRow}
-                      onSelectClip={selectStageClip}
-                      onPoint={setPointedLayer}
-                      onToggle={toggleLayerRow}
-                      onRestack={restackLayers}
-                      onNotify={toast.show}
-                      width={layersShownWidth}
-                      onClose={() => { setPointedLayer(null); setLayersPaneOpen(false); }}
-                    />
-                  </div>
-                  {/* the divider measures from the row's left edge: the assets left of this pane are taken off */}
-                  <PaneDivider width={layersShownWidth} containerRef={viewerRowRef} label={t('layers.resize')} min={180} minRest={MIN_VIEWER}
-                    onResize={(w) => {
-                      const left = (layersPaneRef.current?.getBoundingClientRect().left ?? 0) - (viewerRowRef.current?.getBoundingClientRect().left ?? 0);
-                      setLayersWidth(Math.max(180, w - left));
-                    }} />
-                </>
-              ) : null}
-
               <div className={`${PANE} min-w-0 flex-1 bg-[var(--dock-pane)]`} data-viewer-pane="">
                 <div className={PANE_BAR}>
                   {hostAssets ? null : (
@@ -2643,19 +2582,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                     </button>
                   </Tooltip>
                   )}
-                  <Tooltip label={t(layersShown ? 'layers.hidePane' : 'layers.showPane')} side="bottom">
-                    <button type="button"
-                      onClick={() => {
-                        if (layersShown) { setPointedLayer(null); setLayersPaneOpen(false); return; }
-                        setLayersPaneOpen(true);
-                        /* asked for in a window too narrow for it: the inspector makes room */
-                        if (!layersFit) setInspectorOpen(false);
-                      }}
-                      aria-label={t(layersShown ? 'layers.hidePane' : 'layers.showPane')}
-                      className={`${PANE_TOGGLE} ${layersShown ? PANE_BTN_ON : ''}`}>
-                      <Layers size={PANE_TOGGLE_ICON} />
-                    </button>
-                  </Tooltip>
                   <span className="workspace-viewer-heading"><GalleryVerticalEnd size={13} aria-hidden="true" />{t('inspector.film')}</span>
                   <span className="min-w-0 flex-1" />
                   <Tooltip label={t(inspectorOpen ? 'inspector.hide' : 'inspector.show')} side="bottom">
@@ -2742,7 +2668,6 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                                 selectionBar={barAt === 'stage'}
                                 {...(studioHost?.refer ? { onRefer: referFromStage } : {})}
                                 onStartMask={openMaskSection}
-                                pointLayer={layersShown ? pointedLayer : null}
                                 arrowsMove={viewerFocus}
                               />
                             ) : null}

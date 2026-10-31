@@ -1,22 +1,20 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Layers, MessageSquare, PanelBottom, PanelLeft, PanelRight, PanelsRightBottom } from 'lucide-react';
+import { MessageSquare, PanelBottom, PanelLeft, PanelRight, PanelsRightBottom } from 'lucide-react';
 import { useT } from '@/i18n';
 import { Tooltip } from './Tooltip';
 
-/** The top bar's Layout button: a small panel of switches that show or hide the Assets, Layers, Timeline and Inspector
+/** The top bar's Layout button: a small panel of switches that show or hide the Assets, Timeline and Inspector
     panes (and the host app's own panel, when there is one). */
-export function ProjectLayoutMenu({ className, assets, layers, timeline, inspector, onAssets, onLayers, onTimeline, onInspector, hostPanel }: {
+export function ProjectLayoutMenu({ className, assets, timeline, inspector, onAssets, onTimeline, onInspector, hostPanel }: {
   className?: string;
   /** the app's own panel around Studio (lib/host.ts `panel`), switched here like Studio's own */
   hostPanel?: { label: string; open: boolean; onChange: (open: boolean) => void } | null;
   /** null: the media is not a pane of Studio's here (the host app keeps it in its own panel) */
   assets: boolean | null;
-  layers: boolean;
   timeline: boolean;
   inspector: boolean;
   onAssets: (open: boolean) => void;
-  onLayers: (open: boolean) => void;
   onTimeline: (open: boolean) => void;
   onInspector: (open: boolean) => void;
 }) {
@@ -64,7 +62,6 @@ export function ProjectLayoutMenu({ className, assets, layers, timeline, inspect
         /* the app's own panel first: in an app with a chat, the chat is the pane people switch most */
         ...(hostPanel ? [['panel', hostPanel.label, hostPanel.open, hostPanel.onChange, MessageSquare] as const] : []),
         ...(assets == null ? [] : [['assets', t('layout.assets'), assets, onAssets, PanelLeft] as const]),
-        ['layers', t('layout.layers'), layers, onLayers, Layers] as const,
         ['timeline', t('layout.timeline'), timeline, onTimeline, PanelBottom] as const,
         ['inspector', t('layout.inspector'), inspector, onInspector, PanelRight] as const,
       ].map(([key, label, checked, change, Icon]) => <button key={key} type="button" role="switch"

@@ -20,8 +20,8 @@ test('agents can inspect an isolated compatibility snapshot that describes every
     const value = field === 'fontPath' ? 'fonts/example.ttf' : preset[field];
     assert.doesNotThrow(() => applyTextStyle(item, 'white-outline', { [field]: value }));
   }
-  rules.appearance.fontSize.requiredInPreset = false;
-  assert.equal(getTextStyleCompatibility().appearance.fontSize.requiredInPreset, true);
+  rules.appearance.fontSize.requiredInPreset = true;
+  assert.equal(getTextStyleCompatibility().appearance.fontSize.requiredInPreset, false);
 });
 
 test('native draft fallback decisions and report reasons follow the machine-readable rules', () => {
@@ -45,7 +45,7 @@ test('built-in JSON presets are discoverable, independent snapshots', () => {
   assert.ok(presets.some((preset) => preset.id === 'white-outline'), 'legacy IDs remain addressable');
   assert.equal(new Set(presets.map((preset) => preset.id)).size, presets.length);
   presets[0].style.stroke.width = 999;
-  assert.equal(getTextStyle(presets[1].id).style.stroke.width, 35);
+  assert.equal(getTextStyle(presets[1].id).style.stroke.width, 14);
   assert.equal(getTextStyle('white-outline').style.stroke.width, 4);
   assert.throws(() => getTextStyle('missing'), /Unknown text style/);
 });
@@ -64,7 +64,7 @@ test('element pools generate reproducible independent combinations', () => {
   assert.equal(a.style.bold, true);
   assert.equal(a.style.italic, false);
   assert.equal(a.style.underline, false);
-  assert.equal(a.style.stroke.width, 35);
+  assert.equal(a.style.stroke.width, 14);
   assert.equal(a.style.shadow, undefined);
 });
 
@@ -115,8 +115,19 @@ test('invalid library versions, duplicate ids and unsupported preset properties 
     { version: 1, presets: [preset, preset] },
     { version: 1, presets: [{ ...preset, version: 0 }] },
     { version: 1, presets: [{ ...preset, id: '../external' }] },
-    { version: 1, presets: [{ ...preset, style: { color: '#ffffff' } }] },
+    { version: 1, presets: [{ ...preset, style: { color: 'invalid-color' } }] },
     { version: 1, presets: [{ ...preset, style: { ...preset.style, keyframes: {} } }] }]) {
     assert.throws(() => validateTextStyleLibrary(invalid));
   }
+});
+
+test('custom appearance can omit font size and inherits the generated text layout size', () => {
+  const preset = { id: 'custom-no-size', version: 1, name: 'Yellow outline', description: 'Appearance only',
+    style: { fontFamily: 'SimHei', color: '#F2DA2D', stroke: { color: '#000000', width: 4 } } };
+  const styled = applyTextStyle({ text: '标题', x: 540, y: 200, fontSize: 76 }, preset);
+  assert.equal(styled.fontSize, 76);
+  assert.equal(styled.color, '#F2DA2D');
+  assert.equal('fontSize' in preset.style, false, 'the reusable style does not store the preview size');
+  const resized = applyTextStyle({ ...styled, fontSize: 59 }, preset);
+  assert.equal(resized.fontSize, 59);
 });
