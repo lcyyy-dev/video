@@ -29,7 +29,8 @@ Inspect all supplied footage with `openfilm look` and match each script unit to 
 recordings when available; otherwise use local simulated narration only when explicitly requested, or leave narration
 pending and make a usable silent/text edit. Measure every audio file before setting shot and caption boundaries.
 Keep speech intact, make cuts at natural pauses, and keep captions derived from the final spoken script. Use the local
-text-style library and structured text pages so titles and captions remain editable.
+text-style library and structured text pages so titles and captions remain editable. When the template's `textStyleIds`
+is non-empty, choose only those IDs; with an empty list, use the element library's automatic combinations.
 
 ## Check and deliver
 

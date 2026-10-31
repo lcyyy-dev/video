@@ -28,21 +28,21 @@ The mode gate is authoritative for this skill. Do not let a generic narration in
 
 When the template uses **原声 · 无朗读**, keep the supplied audio and do not run any TTS or narration synthesis. When it
 contains a title, supporting lines and a location, use this compact vertical-ad structure unless the person specifies
-another layout. Arrange these text roles as a compact group using the spacing rule below; choose a concrete preset ID
-from the local style library after inspecting the frame:
+another layout. Arrange these text roles as a compact group using the spacing rule below; choose a seed or explicit
+preset after inspecting the frame:
 
 1. **Top headline**: one single line near the upper area; fit its font size to the available width. Use a strong
-   library preset with a colored fill and dark outline/shadow. Candidate canvas font size: 78–112 px.
-2. **Core selling point**: one line using a bold, high-contrast library preset. Do not add a background label to a
+   element combination with a colored fill and outline. Candidate canvas font size: 78–112 px.
+2. **Core selling point**: one line using a bold, high-contrast element combination. Do not add a background label to a
    native text page. Candidate canvas font size: 68–100 px.
-3. **Emphasis line**: one benefit or action line using a yellow, orange or red library preset with a dark outline.
+3. **Emphasis line**: one benefit or action line using a yellow, orange or red element combination with an outline.
    Candidate canvas font size: 58–88 px.
-4. **Evidence line**: one short supporting line using a white, yellow or red library preset with a dark outline/shadow.
+4. **Evidence line**: one short supporting line using a white, yellow or red element combination with an outline.
    Candidate canvas font size: 48–78 px.
-5. **Family/closing line**: an optional red or white statement with a dark outline, used for a supplied quote or result.
+5. **Family/closing line**: an optional red or white element combination, used for a supplied quote or result.
    Candidate canvas font size: 48–76 px.
 6. **Location**: place the supplied location separately near a lower corner safe area, normally split into two short lines
-   such as “山东” and “济南”. Use a blue/cyan or white fill with a dark outline and 52–82 px; do not invent a location
+   such as “山东” and “济南”. Sample a blue/cyan or white fill with an outline and 52–82 px; do not invent a location
    or merge it into the title.
 
 These are layout roles, not permission to rewrite or compress the template. Keep each filled field verbatim. In 原声 · 无朗读
@@ -153,39 +153,38 @@ If footage is too short, prefer another relevant interval. Multiple shots, holds
 must fit the brief and be recorded. If an exact total length cannot be met naturally, report the mismatch and
 obtain any needed copy or speech-rate change instead of truncating voice.
 
-## Apply the local text library
+## Generate text from the local element library
 
 Before creating text, read:
 
 ```sh
-openfilm text-styles list --compact
-openfilm text-styles show default
+openfilm text-styles elements
+openfilm text-styles generation-rules
 ```
 
-After choosing a preset, read only that preset with `openfilm text-styles show <presetId>`. Read `rules` or
-`generation-rules` only when a requested effect is not clearly covered by the selected preset or its native export
-status needs checking; do not print both full rule documents for every edit.
+The element library is the source of generated appearance. Each generated style independently samples a bundled font,
+fill color and outline color/width, then combines only fields supported by native Jianying/CapCut text export. Use a
+stable `--seed` when a style must be reproduced. Read `rules` when checking native export limits; do not add fields that
+are absent from the element library or compatibility contract.
 
-Every generated text item must start from a preset returned by `openfilm text-styles list`. An explicit user preset wins;
-otherwise use the saved default for the primary text role and choose any secondary role from the same library by its
-preset ID. Do not invent a new appearance object, sample random colors, or independently tune font, stroke or shadow
-numbers. Variation comes from selecting a different listed preset for a different role, not from random generation.
-Inspect the footage behind the intended text area to choose among the listed presets, keep one coherent visual direction,
-and record the selected preset ID, version and reason. Do not add background boxes, rounded labels or other unsupported
-appearance fields to a native text page.
+Every generated text item must use `openfilm text-styles page` with a preset selected from the current desktop template's
+`textStyleIds` when that list is non-empty; never use an ID outside that list. If the list is empty, omit `--preset` so
+the element library is sampled. Use a different seed for a distinct role, then keep that resolved combination
+consistent within the role. Do not invent a new appearance object or independently tune unsupported values. Inspect the
+footage behind the intended text area before choosing the seed or an explicit preset, and record the seed, selected
+elements, resolved appearance and reason. Do not add background boxes, rounded labels or other unsupported appearance
+fields to a native text page.
 
-Read SPEC.md's “Text style validation status” for unsupported or uncalibrated settings. Panel values are not preview
-pixels: do not apply outline thickness 30–45 directly as pixels or invent draft mappings. Structured text pages must
-use the appearance fields from the selected preset. Do not add `backgroundColor`, `backgroundOpacity`, `borderRadius`
-or arbitrary CSS to a page intended for native export; those properties trigger rendered fallback. Treat explicit user
-style requests as executable text-track edits only when a matching library preset exists; otherwise record the missing
-preset instead of silently generating a one-off style. The generation rules guide preset selection; they are not a
-second appearance source or an automatic vision engine.
+Read SPEC.md's “Text style validation status” for unsupported or uncalibrated settings. Use the outline width from the
+element pool as preview pixels; do not invent panel conversions or draft mappings. Structured text pages must use the
+appearance fields from the selected element combination. Do not add `backgroundColor`, `backgroundOpacity`,
+`borderRadius`, shadow or arbitrary CSS to a page intended for native export; those properties trigger rendered
+fallback. The generation rules guide element selection; they are not an automatic vision engine.
 
 Use structured text pages matching the film canvas for native editable export. For example:
 
 ```sh
-openfilm text-styles page titles/s01.text.json --text 'Your line' --duration 3.2 --size 1080x1920 --preset xinqingnian-yellow
+openfilm text-styles page titles/s01.text.json --text 'Your line' --duration 3.2 --size 1080x1920 --seed hook-01
 ```
 
 Use unique output names: this command refuses overwrites. Update pages with `openfilm/text-page` when changing
@@ -197,13 +196,12 @@ conceal an unsupported property.
 
 ### Font selection
 
-For generated on-screen text, the preset determines the font. Select a preset ID from the local library rather than
-choosing a font family first, and keep the selected preset's font, weight, outline and shadow together. An explicit
-user font choice takes priority only when it can be represented by an existing or saved library preset. Resolve the
-preset against the packaged font registry; do not invent an ID or silently substitute an unrelated family. If a
-selected preset's font is unavailable, choose another listed preset and record the substitution. Measure single-line
-sizing only after the resolved font has loaded. Record the actual preset ID/version, family, font ID, weight and
-resolved size in the execution plan.
+For generated on-screen text, the sampled element combination determines the font. Select a seed or explicit preset
+after inspecting the frame, and keep the selected font, weight and outline together. An explicit user font choice takes
+priority only when it can be represented by a registered font. Resolve the font through the packaged registry; do not
+invent a resource ID or silently substitute an unrelated family. If a selected font is unavailable, choose another
+element combination and record the substitution. Measure single-line sizing only after the resolved font has loaded.
+Record the seed or preset version, family, font ID, weight and resolved size in the execution plan.
 
 ### Composition and readability
 
@@ -248,10 +246,10 @@ never delete a file still in use. Remove empty tracks. A normal narrated ad has 
 with additional tracks only when their content is needed. Deleting narration means removing its clips or track,
 not synthesizing a replacement. A style-only change edits the existing text pages and preserves video and audio.
 
-User instructions override template defaults and style suggestions. Without an explicit style, choose suitable
-values from the text library's suggested ranges after inspecting the footage; a regenerated version can use a
-different coherent style. Explicit colors, font sizes and requests for no background must survive generation and
-revision exactly. Check the actual saved text pages and representative rendered frames before reporting success.
+User instructions override template defaults and style suggestions. Without an explicit style, choose a seed whose
+element combination remains readable after inspecting the footage; a regenerated version can use a different coherent
+combination. Explicit colors, font sizes and requests for no background must survive generation and revision exactly.
+Check the actual saved text pages and representative rendered frames before reporting success.
 
 ## Check and deliver
 

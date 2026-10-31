@@ -38,3 +38,12 @@ test('each enabled template routes to its own bundled workflow', () => {
     assert.match(prepared.text, new RegExp(`openfilm skill ${skill}`));
   }
 });
+
+test('selected text styles become a strict generation constraint in the agent context', () => {
+  const root = project();
+  const config = { ...initialTemplate(), textStyleIds: ['yellow-headline', 'red-emphasis'] };
+  const prepared = prepareEditPrompt(root, '生成标题', { config });
+  assert.match(prepared.text, /yellow-headline、red-emphasis/);
+  assert.match(prepared.text, /只能从这些样式 ID 中选择/);
+  assert.match(prepared.text, /"textStyleIds":\["yellow-headline","red-emphasis"\]/);
+});

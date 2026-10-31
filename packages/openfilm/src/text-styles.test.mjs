@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyTextStyle, getTextStyle, getTextStyleCompatibility, listTextStyles, validateTextStyleLibrary } from './text-styles.mjs';
+import { applyTextStyle, getTextElementLibrary, getTextStyle, getTextStyleCompatibility, listTextStyles, sampleTextStyle, validateTextStyleLibrary } from './text-styles.mjs';
 import { nativeTextFallbackReason } from './text-compatibility.mjs';
 import { readTextPageJson, textPageJson } from './text-page.mjs';
 
@@ -40,13 +40,32 @@ test('native draft fallback decisions and report reasons follow the machine-read
 
 test('built-in JSON presets are discoverable, independent snapshots', () => {
   const presets = listTextStyles();
-  assert.equal(presets.length, 30);
-  assert.deepEqual(presets.slice(0, 9).map((preset) => preset.id), ['white-outline', 'yellow-headline', 'red-emphasis',
-    'xinqingnian-yellow', 'houxiandai-cyan', 'zhongyuan-red', 'simsun-white', 'simhei-yellow', 'kaiti-white']);
-  assert.equal(new Set(presets.map((preset) => preset.id)).size, 30);
+  assert.equal(presets.length, 282);
+  assert.match(presets[0].id, /^element-/);
+  assert.ok(presets.some((preset) => preset.id === 'white-outline'), 'legacy IDs remain addressable');
+  assert.equal(new Set(presets.map((preset) => preset.id)).size, presets.length);
   presets[0].style.stroke.width = 999;
+  assert.equal(getTextStyle(presets[1].id).style.stroke.width, 35);
   assert.equal(getTextStyle('white-outline').style.stroke.width, 4);
   assert.throws(() => getTextStyle('missing'), /Unknown text style/);
+});
+
+test('element pools generate reproducible independent combinations', () => {
+  const library = getTextElementLibrary();
+  assert.deepEqual(library.elements.fonts.map((font) => font.name), ['黑体', '方糖体', '新青年体']);
+  assert.equal(library.elements.colors.length, 12);
+  assert.equal(library.elements.strokes.length, 7);
+  const a = sampleTextStyle('same-seed');
+  const b = sampleTextStyle('same-seed');
+  const c = sampleTextStyle('different-seed');
+  assert.deepEqual(a, b);
+  assert.notDeepEqual(a.style, c.style);
+  assert.equal(a.style.fontSize, 88);
+  assert.equal(a.style.bold, true);
+  assert.equal(a.style.italic, false);
+  assert.equal(a.style.underline, false);
+  assert.equal(a.style.stroke.width, 35);
+  assert.equal(a.style.shadow, undefined);
 });
 
 test('applying and switching appearance preserves content, placement and keys without stale styles', () => {

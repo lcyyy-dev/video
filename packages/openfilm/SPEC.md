@@ -195,50 +195,42 @@ Unsupported opacity animation, element overrides and placement fall back to rend
 separate lanes. XML export continues to render pages. `fontSize` maps 48 preview pixels to draft text size 6;
 browser/editor font metrics, wrapping, spacing, outlines and shadows may differ and need a visual check.
 
-### Local text style presets
+### Local text element library
 
-`openfilm/text-styles` provides `listTextStyles()`, `getTextStyle(id)` and
-`applyTextStyle(item, idOrPreset, overrides?)`. The built-in JSON library (`src/text-styles.json`) now contains 30
-native-exportable presets. These are OpenFilm appearance presets, not imported proprietary text effects. They work
-offline and contain no font files or machine-specific paths.
+`openfilm/text-styles` provides `getTextElementLibrary()`, `sampleTextStyle(seed?)`, `listTextStyles()`,
+`getTextStyle(id)` and `applyTextStyle(item, idOrPreset, overrides?)`. The source JSON library
+(`src/text-elements.json`) contains independent pools for fonts, fill colors and outline colors/widths. Every seed
+produces one combination from those pools; the current source yields 252 native-compatible combinations. The old
+fixed IDs remain addressable for existing projects, but new generation uses the element pools by default.
 
-The reference-inspired presets `xinqingnian-yellow`, `houxiandai-cyan` and `zhongyuan-red` use bundled
-WenYue XinQingNianTi W8, WenYue HouXianDaiTi W4-75 and HYZhongYuanJ respectively. Their colors and effects are
-approximations of the supplied references, not calibrated Jianying panel conversions. Structured text currently
-supports one outline per text run. The `block-outline-*` presets use a deliberately thick outline and shadow to
-create the block-like visual weight seen in short-video titles while remaining native text; they do not use an HTML
-background box. Actual background boxes and rounded labels still force rendered fallback. The font files live in
-`fonts/`, registered in `src/text-fonts.json` with their origins and authorization
-status; adding them does not establish commercial or redistribution rights. The library resolves font paths
-using portable `openfilm-font:<id>` references, without replacing explicitly selected files. Settings loads the font
-files through authenticated Studio endpoints. `text-styles page` embeds the selected font in its HTML so the page renders
-without system font installation; native draft export copies matching bundled fonts into `media/fonts/`.
+These are OpenFilm appearance elements, not imported proprietary text effects. They work offline and use portable
+`openfilm-font:<id>` references. The supplied element fonts are registered in `src/text-fonts.json` and bundled under
+`fonts/`; their presence does not establish commercial or redistribution rights. Structured text currently supports
+one outline per text run. Background boxes, rounded labels, arbitrary CSS and unprovided shadows force rendered
+fallback rather than being synthesized into a native text page. Settings loads the registered font files through
+authenticated Studio endpoints, and native draft export copies matching fonts into `media/fonts/`.
 For programmatic generation, use `textFontCss(families, true)` from `openfilm/text-fonts` as the `fontCss` option
 to `textPageJson(page, { fontCss })`. Draft JSON uses destination paths, which must be rebased when moving a
 draft to a different directory, just like other referenced media.
 
-The other three font candidates are also packaged: SimSun (`simsun.ttc`), SimHei (`simhei.ttf`) and KaiTi
-(`simkai.ttf`), with presets `simsun-white`, `simhei-yellow` and `kaiti-white`. All six candidates resolve through
-the same registry, font embedding and draft copying path; none requires a system installation or Jianying cache.
+The element library currently packages SimHei, 方糖体 and 新青年体. All candidates resolve through the same registry,
+font embedding and draft copying path; none requires a system installation or Jianying cache.
 
-`getTextStyleGenerationRules()` (CLI: `text-styles generation-rules`) exposes the separate built-in policy in
-`src/text-style-generation-rules.json`. It records scene-informed font candidates, contrasting outline colors,
-numeric ranges and two background alternatives. Agents select concrete values after inspecting the footage,
-keeping a consistent primary style, then save the resolved appearance in the project. Explicit user styles take
-priority. This policy does not extend the supported text schema or automatically analyze frames: its implementation
-section records unsupported background/stroke-opacity fields and unverified authoring-unit conversions. Such
-settings must be reported rather than silently discarded or passed directly as preview pixels.
+`getTextStyleGenerationRules()` (CLI: `text-styles generation-rules`) exposes the element-selection policy in
+`src/text-style-generation-rules.json`. Agents inspect the footage, choose a seed, keep a consistent combination for
+each text role, and save the resolved appearance in the project. Explicit user styles take priority. The policy does
+not automatically analyze frames and does not permit unsupported backgrounds or shadows.
 
 ```js
 import { applyTextStyle, getTextStyle } from 'openfilm/text-styles';
-const preset = getTextStyle('yellow-headline');
+const preset = getTextStyle('element-simhei-ffffff-000000');
 const title = applyTextStyle({ text: 'Start today', x: 540, y: 300, fontSize: 64 }, preset,
   { fontFamily: 'Your installed font', fontSize: 76 });
 // Save title in the text page; optionally record preset.id and preset.version in the production plan.
 ```
 
-Presets hold appearance only: font family/path/size, color, bold, italic, underline, stroke and shadow. Sizes are
-preview pixels, initially chosen for a 1080-pixel-wide canvas; other sizes can use explicit overrides. Position,
+Generated styles hold appearance only: font family/path/size, color, bold, italic, underline and stroke. Sizes are
+preview pixels, chosen for a 1080-pixel-wide canvas; other sizes can use explicit overrides. Position,
 text width, alignment, line height, spacing, opacity, scale and animation stay on the text item. The helper replaces
 the previous appearance, including clearing a previous font path or shadow absent from the new style. It resets
 rich-text run formatting to inherit the chosen style, preserving run text and boundaries. Reapply intentional
@@ -271,36 +263,29 @@ from `{ name, style }`; `PUT /api/text-styles/:id` updates a custom preset with 
 `DELETE /api/text-styles/:id` removes a custom preset; `PUT /api/text-styles/default` selects `{ id }`.
 All writes use the normal Studio authentication and origin checks.
 
-`openfilm text-styles list` includes custom presets from the same Studio home. `show default` and `default` resolve
-the selected preset; `default <id>` changes it. `text-styles page title.text.json --text "Start today" --duration 4
---size 1080x1920` creates a new structured page with the selected default (`--preset <id>` overrides it). It centers
-the text in a box 90% of the canvas width; placement can be edited independently afterwards. It never overwrites an
-existing file. Generated pages hold resolved appearance, not live references: changing a library preset never
-changes a project already generated. The library editor changes presets, not existing project clips.
+`openfilm text-styles list` includes generated combinations and custom presets from the same Studio home. `elements`
+prints the source pools and `sample --seed <value>` prints one reproducible combination. `text-styles page
+title.text.json --text "Start today" --duration 4 --size 1080x1920` samples the element library; `--seed` makes the
+choice reproducible and `--preset <id>` overrides it. It centers the text in a box 90% of the canvas width; placement
+can be edited independently afterwards. It never overwrites an existing file. Generated pages hold resolved
+appearance, not live references: changing the element library never changes a project already generated.
 
 ### Text style validation status
 
-The six font files and all suggested ranges are packaged locally. This is separate from effect implementation
+The three element font files and all element values are packaged locally. This is separate from effect implementation
 and end-to-end validation. The current status, recorded on 2026-10-20, is:
 
 | Setting | Implementation and validation status | Remaining acceptance check |
 |---|---|---|
 | Scene-adaptive fill color | Policy readable; complete automatic selection not verified | Inspect text-region footage, record selected color and check legibility across the clip |
-| Dark text with white outline, light text with black outline | Explicit colors work; automatic selection not verified | Verify scene-informed selection, not just a manually assigned outline |
-| Outline opacity 60–100% | Independent outline opacity not implemented | Add structured field, preview and native draft mapping; compare in Jianying |
-| Outline thickness 30–45 | Concrete preview widths work; panel conversion uncalibrated | Match Jianying panel values to preview and draft widths |
-| Yellow background #FFEA00, opacity 100% | Structured background and native mapping not implemented | Verify fill and independent background opacity |
-| White background #FFFFFF, opacity 40% | Structured background and native mapping not implemented | Verify transparency over footage |
-| Background corners 20–50% or 0% | Not implemented; panel reference scale uncalibrated | Verify rectangle/corner geometry and exported native values |
-| Shadow blur 15–25% | Pixel blur works; panel percentage uncalibrated | Compare panel values, browser blur and native draft diffuse |
-| Shadow distance 5–10 and angle −150° to −30° | Offset-based shadows work; panel units and direction uncalibrated | Compare distance, direction and quadrant in Jianying |
-| Additional SimSun, SimHei and KaiTi fonts | Packaged; embedded browser font loading passed | Additional draft-export check stopped at the person's request; no claim of completed export acceptance |
+| Element colors and outline colors | Values are read from `text-elements.json`; automatic scene readability selection is not verified | Inspect the text region and choose a readable seed |
+| Outline width 35 preview px | Implemented and mapped through the native compatibility contract | Verify visual parity in Jianying |
+| Background and rounded labels | Not present in the element library and not native in structured text | Keep them as an explicit rendered fallback request |
+| Shadows | No shadow element is supplied; generator omits the property | Add and validate a shadow element before using it |
+| Element fonts | SimHei, 方糖体 and 新青年体 are packaged and embedded | Verify target-client font rendering and licensing |
 
-The reference fonts, explicit size/fill/outline/shadow presets and native text export have already been checked.
-Shadow opacity is supported, but this does not prove automatic selection in the suggested 70–90% range.
-Do not silently drop unimplemented effects or mark policy-only settings as validated. Preserve this distinction
-until the effect is implemented and checked with actual preview and draft outputs. Do not resume the cancelled
-additional font-export check without a new request.
+The element combinations and native text export have been checked structurally. This does not certify visual parity in
+the target client. Do not silently drop unimplemented effects or mark policy-only settings as validated.
 
 ## 3. The one rule: a frame is a function of t
 

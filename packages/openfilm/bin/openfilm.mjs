@@ -9,7 +9,7 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
   openfilm get     [what] [--options]  voice-over, music, sound effects, transcripts, images, video, from a connected service
   openfilm capture <url> <file.png>    a picture of a live web page, to show a product or a site as it is
   openfilm skills                      the skills this film can be made with; \`openfilm skill <name>\` prints one
-  openfilm text-styles [list [--compact] | rules | generation-rules | show <id>]   text presets and generation rules
+  openfilm text-styles [list [--compact] | elements | sample | rules | generation-rules | show <id>]   text elements and generation rules
   openfilm update                      the newest OpenFilm; Studio starts again on it
 
   Run with no arguments for the manual; \`openfilm <command> --help\` for one command's options; --version for the version.
@@ -18,18 +18,20 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
 
 /* one command's help: what it does, what it takes, where its output goes */
 const COMMAND_HELP = {
-  'text-styles': `openfilm text-styles [list | rules | generation-rules | show <id> | default [id]]
-openfilm text-styles page <file.html> --text <copy> --duration <seconds> [--size 1080x1920] [--preset <id>]
+  'text-styles': `openfilm text-styles [list | elements | sample | rules | generation-rules | show <id> | default [id]]
+openfilm text-styles page <file.text.json> --text <copy> --duration <seconds> [--size 1080x1920] [--preset <id>] [--seed <value>]
 
-  list        local text style presets as JSON (default); --compact prints ids and names without appearance data
+  list        generated element combinations and saved presets as JSON; --compact prints ids and names only
+  elements    the source element pools used for generation
+  sample      one independently sampled native-compatible style; --seed makes it reproducible
   rules       machine-readable properties, units, native draft mappings, dependencies and fallback rules
   generation-rules  scene-informed font candidates, appearance ranges and implementation limits as JSON
   show <id>   one preset as JSON; 'default' resolves the saved default
   default     read the default preset; with an id, change it
-  page        generate a structured text page using the default (or --preset), preserving editable draft export
+  page        generate a structured text page from the element pools (or --preset), preserving editable draft export
 
-  Works without a project, browser or connected service. Use the rules and an existing preset when generating
-  structured text. Built-ins and custom presets are read from the same Studio home as the desktop app.
+  Works without a project, browser or connected service. Use the element pools and native rules when generating
+  structured text. Generated combinations and custom presets are read from the same Studio home as the desktop app.
   A page stores the complete style, not a live reference to the preset. Existing files are never overwritten.`,
   open: `openfilm open [folder | url]
 
@@ -152,7 +154,7 @@ try {
       fps: { type: 'string' }, workers: { type: 'string' }, help: { type: 'boolean', short: 'h' },
       size: { type: 'string' }, full: { type: 'boolean' }, wait: { type: 'string' }, dark: { type: 'boolean' },
       click: { type: 'string', multiple: true }, hide: { type: 'string', multiple: true }, selector: { type: 'string' },
-      text: { type: 'string' }, duration: { type: 'string' }, preset: { type: 'string' },
+      text: { type: 'string' }, duration: { type: 'string' }, preset: { type: 'string' }, seed: { type: 'string' },
     },
   });
 } catch (e) {
@@ -184,6 +186,8 @@ const commands = {
       const presets = saved.textStyleLibrary().presets;
       data = o.compact ? presets.map(({ id, version, name, description }) => ({ id, version, name, description })) : presets;
     }
+    else if (args.length === 1 && args[0] === 'elements') data = styles.getTextElementLibrary();
+    else if (args.length === 1 && args[0] === 'sample') data = styles.sampleTextStyle(o.seed);
     else if (args.length === 1 && args[0] === 'rules') data = styles.getTextStyleCompatibility();
     else if (args.length === 1 && args[0] === 'generation-rules') data = styles.getTextStyleGenerationRules();
     else if (args.length === 2 && args[0] === 'show') {
@@ -204,12 +208,14 @@ const commands = {
       }
       const out = resolve(args[1]);
       if (existsSync(out)) return { ok: false, usage: true, lines: ['The output file already exists; choose another path.'] };
-      const page = saved.styledTextPage({ text: o.text, width: Number(size[1]), height: Number(size[2]), duration }, o.preset);
+      const source = o.preset ?? 'elements';
+      const seed = source === 'elements' ? (o.seed ?? `${Date.now()}-${Math.random()}`) : undefined;
+      const page = saved.styledTextPage({ text: o.text, width: Number(size[1]), height: Number(size[2]), duration }, source, undefined, seed);
       const fontCss = textFontCss(page.texts.map((item) => item.fontFamily ?? ''), true);
       const output = textPageJson(page, { fontCss });
       mkdirSync(dirname(out), { recursive: true });
       writeFileSync(out, output, { flag: 'wx' });
-      data = { path: out, preset: saved.resolveTextStyle(o.preset).id, texts: page.texts.length };
+      data = { path: out, source, seed: seed ?? null, preset: source === 'elements' ? styles.sampleTextStyle(seed).id : saved.resolveTextStyle(source).id, texts: page.texts.length };
     } else return { ok: false, usage: true, lines: [named(COMMAND_HELP['text-styles'])] };
     return { ok: true, lines: [JSON.stringify(data, null, 2)] };
   },

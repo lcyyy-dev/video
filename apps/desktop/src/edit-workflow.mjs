@@ -32,10 +32,14 @@ export function prepareEditPrompt(project, text, { config } = {}) {
   config = normalizeTemplate(config);
   const route = templateRoute(config.kind);
   const workflow = { skill: route.skill, source: 'bundled', config };
+  const styleInstruction = config.textStyleIds.length
+    ? `模板已勾选文字样式 ${config.textStyleIds.join('、')}。生成所有结构化文字时，只能从这些样式 ID 中选择；不要使用未勾选的样式，也不要临时创建样式。多个样式可按文字角色或画面可读性分配，但每个文字角色内部保持一致。`
+    : '模板未勾选固定文字样式。生成结构化文字时，从元素库自动组合原生兼容样式，并在同一文字角色内保持组合一致。';
   return { workflow, text: [
     '<openfilm-project-context>',
     '这是当前 OpenFilm 项目的工作流背景；用户本次自然语言指令优先。模板文案仍按原文处理，具体约束见会话指令。',
     templateSummary(config),
+    styleInstruction,
     '当前模板配置（可被用户本次指令调整）：', JSON.stringify(config),
     warning,
     `当前工作流可通过 openfilm skill ${route.skill} 读取内置 skill；普通问答或简单修改无需重复加载。`,

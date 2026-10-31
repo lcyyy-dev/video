@@ -81,32 +81,19 @@ for the data and export limits. Unsupported effects keep their rendered appearan
 
 Run them in the film's folder. Each one's `--help` lists its options:
 - `npx openfilm open <folder>`: first. A new film gets a folder of its own, named after it (`open launch-video`); an existing one opens, and a GitHub address of one (a repository, or `…/tree/main/<folder>`) is copied into the projects library and opened. It prints Studio's address: open it in your built-in browser before you write anything and keep it open, so the person watches every change land and edits too. Without a built-in browser, Studio opens in the person's default browser by itself. `open` alone shows the film you are in, else the last one: run it when the person only asks to open OpenFilm.
-- Local text presets: `openfilm/text-styles` lists and applies JSON appearance presets to structured text; see SPEC.md,
-  “Local text style presets”. Apply them before generating the JSON page; the resulting text remains native on supported draft exports.
-- `npx openfilm text-styles list` lists presets; `text-styles rules` prints machine-readable supported properties,
-  units, draft mappings, dependencies and fallback conditions. Read these before choosing a style for native text.
-- Before generating text, `text-styles show default` reads the person's default from this Studio's local library.
-  Also read `text-styles generation-rules` for the built-in scene-adaptive font candidates, colors, outline,
-  background and shadow suggestions. Values refer to Jianying panel controls, not preview pixels. Enable
-  backgrounds and shadows only when the footage needs them. Prefer the suggested ranges, recording a reason
-  for deviations needed for readability. Use footage at the text location to choose concrete values,
-  keeping the film's style consistent; explicit user choices take priority. The JSON's implementation section
-  identifies unsupported settings and unverified unit conversions: report these rather than silently dropping
-  effects or treating authoring control values as pixels. This policy guides the agent; the page command itself
-  applies a resolved preset and does not analyze footage or select values automatically.
-  `text-styles page title.text.json --text "Start today" --duration 4 --size 1080x1920` creates a structured JSON page with that
-  style (`--preset <id>` overrides it). Reference it as a page clip; it stores a full snapshot and exports as native
-  text where supported. Never replace the person's explicit style choice with the default.
-  The reference presets `xinqingnian-yellow`, `houxiandai-cyan` and `zhongyuan-red` include their font files in
-  the package. The page command embeds the selected font; for programmatic generation pass
-  `textFontCss(page.texts.map(item => item.fontFamily), true)` from `openfilm/text-fonts` to
-  `textPageJson(page, { fontCss })`. Native draft export carries these fonts into `media/fonts/`.
-  SimSun (`simsun-white`), SimHei (`simhei-yellow`) and KaiTi (`kaiti-white`) are packaged too. All six policy
-  candidates have explicit registry mappings; do not substitute a generic system font for a packaged candidate.
-  Read SPEC.md, “Text style validation status”, before claiming a setting is usable. A policy range is not proof
-  of effect support or Jianying panel parity. Backgrounds, corners and independent outline opacity are not yet
-  implemented; panel-unit conversions and scene-adaptive selection remain unverified. The additional SimSun,
-  SimHei and KaiTi draft-export check was stopped at the person's request; do not restart it without a new request.
+- Local text elements: `openfilm/text-styles` exposes the JSON element pools and samples native-compatible
+  combinations; see SPEC.md, “Local text element library”. Each generated page stores a resolved snapshot, so later
+  element changes do not alter an existing project.
+- `npx openfilm text-styles elements` prints the source pools; `sample --seed <value>` prints one reproducible
+  combination; `text-styles rules` prints supported native properties, draft mappings and fallback conditions.
+- `text-styles generation-rules` describes how to inspect footage, choose a seed and keep one combination consistent
+  within a text role. `text-styles page title.text.json --text "Start today" --duration 4 --size 1080x1920` samples
+  the element library; `--seed <value>` makes it reproducible and `--preset <id>` honors an explicit style.
+  Reference the page as a clip; it remains editable and exports as native text where supported.
+  The element fonts are bundled and embedded through `textFontCss(page.texts.map(item => item.fontFamily), true)` from
+  `openfilm/text-fonts` and `textPageJson(page, { fontCss })`; native draft export copies them into `media/fonts/`.
+  Do not add backgrounds, rounded corners, shadows or arbitrary CSS that are not present in the element library and
+  native compatibility contract.
 - `npx openfilm look`: a contact sheet of the whole film with its sound, and a check that the same t draws the same picture. `look 4.5` is one frame at full size, `look 3-6` a stretch, `look assets/a.mp4` a media file. Use `look --quick` while generating to draw a few frames without duplicate-frame, cut and audio diagnostics; keep the full `look` for the final check.
 - `npx openfilm render`: the MP4, beside film.html (30 fps unless `--fps`). Only when the person asks for the file: you check with `look`, and the person exports from Studio.
 - `npx openfilm get`: voice-over, music, sound effects, transcripts, images, image search, video and web search. Each kind works only once the person has connected a service that makes it, with their own key, in Studio (Settings → Providers); Studio's subtitle translation too. Run it alone to see what works now and which services make the rest. When a kind is not connected, tell the person which services make it and where they connect one. A video clip costs a lot: the person confirms it in Studio first.

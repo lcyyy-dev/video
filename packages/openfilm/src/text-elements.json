@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "openfilm-text-elements-v1",
+  "source": "provided-text-elements",
+  "defaults": {
+    "fontSize": 88,
+    "bold": true,
+    "italic": false,
+    "underline": false
+  },
+  "elements": {
+    "fonts": [
+      { "id": "simhei", "name": "黑体", "family": "SimHei", "fontPath": "openfilm-font:simhei" },
+      { "id": "element-fangtang-j", "name": "方糖体", "family": "WenYue FangTangTi (Authorization Required) J", "fontPath": "openfilm-font:element-fangtang-j" },
+      { "id": "element-xinqingnian-w8-j", "name": "新青年体", "family": "WenYue XinQingNianTi (Authorization Required) W8-J", "fontPath": "openfilm-font:element-xinqingnian-w8-j" }
+    ],
+    "colors": [
+      "#FFFFFF",
+      "#000000",
+      "#FFFAFA",
+      "#F2DA2D",
+      "#FFBD29",
+      "#FF6B8A",
+      "#3B82F6",
+      "#4CAF50",
+      "#007AFF",
+      "#EE7FFB",
+      "#F55757",
+      "#F8AF72"
+    ],
+    "strokes": [
+      { "color": "#4155C8", "width": 35 },
+      { "color": "#FFDE00", "width": 35 },
+      { "color": "#CD1F3C", "width": 35 },
+      { "color": "#000000", "width": 35 },
+      { "color": "#E63946", "width": 35 },
+      { "color": "#E85D75", "width": 35 },
+      { "color": "#2563EB", "width": 35 }
+    ],
+    "shadows": [],
+    "types": []
+  },
+  "selection": {
+    "independentPools": ["fonts", "colors", "strokes", "shadows"],
+    "emptyPools": "omit-the-property",
+    "unsupportedProperties": "never-synthesize"
+  }
+}

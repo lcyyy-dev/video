@@ -1904,6 +1904,17 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .edit-template-fields { display: flex; flex-direction: column; gap: 14px; }
 .edit-template-fields label { display: flex; flex-direction: column; gap: 7px; font-size: 12px; color: var(--text-muted); }
 .edit-template-help { padding: 10px 14px; font-size: 10.5px; line-height: 1.8; color: var(--text-muted); }
+.edit-template-style-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; color: var(--text-muted); font-size: 11px; }
+.edit-template-style-actions button { border: 1px solid var(--border); border-radius: 7px; padding: 5px 8px; color: var(--text-muted); background: var(--surface); }
+.edit-template-style-actions button:hover { color: var(--text); background: var(--bg-hover); }
+.edit-template-style-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 390px; overflow-y: auto; padding: 2px; }
+.edit-template-style-option { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.edit-template-style-option:hover, .edit-template-style-option.is-selected { border-color: color-mix(in srgb, var(--tl-accent) 65%, var(--border)); background: color-mix(in srgb, var(--tl-accent) 8%, var(--surface)); }
+.edit-template-style-option input { flex: 0 0 auto; width: 15px; height: 15px; accent-color: var(--tl-accent); }
+.edit-template-style-swatch { display: grid; flex: 0 0 28px; place-items: center; width: 28px; height: 28px; border-radius: 6px; background: #17202a; font-size: 15px; font-weight: 800; -webkit-text-stroke: 1px #000; }
+.edit-template-style-copy { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.edit-template-style-copy strong { overflow: hidden; color: var(--text); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.edit-template-style-copy small { overflow: hidden; color: var(--text-muted); font-size: 9px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .edit-template-duration { display: flex; align-items: center; gap: 9px; border: 1px solid var(--border); padding: 13px; border-radius: 10px; color: var(--tl-accent); font-size: 12px; }
 .edit-template-duration strong { margin-left: auto; font-size: 22px; font-variant-numeric: tabular-nums; }
 .edit-template-preview { background: var(--surface); border-left: 1px solid var(--border); padding: 26px 22px; min-width: 0; }

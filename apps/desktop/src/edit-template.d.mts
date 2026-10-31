@@ -5,6 +5,7 @@ export interface EditTemplateConfig {
   reveal: string; highlight: boolean; location: boolean; locationText: string;
   opening: boolean; pip: boolean; cover: boolean; coverText: string; scenes: boolean;
   source: string; rewrite: string; logic: string; notes: string;
+  textStyleIds: string[];
 }
 export const TEMPLATE_TYPES: ReadonlyArray<{ id: TemplateKind; name: string; hint: string; skill: string | null }>;
 export const AD_MODES: string[];

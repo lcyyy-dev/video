@@ -50,11 +50,11 @@ Populate values as work proceeds:
   timeline; an explicitly requested longer shot takes precedence.
 - `timeline`: `start`/`end` in seconds, from real voice durations and explicit pauses. Round boundaries consistently
   to project FPS when writing the film; do not accumulate rounding per duration.
-- `textPage`: relative file, a preset ID/version returned by `openfilm text-styles list`, the resolved appearance copied
-  from that preset and the placement rationale, including inspected times across all shots behind it and how copy avoids
-  the subject/action. Individual text clips may choose related but distinct library presets. Do not record an ad-hoc
-  appearance as a style choice; if a requested look has no preset, record the missing preset in `issues`. Re-read page
-  data instead of maintaining a conflicting text representation.
+- `textPage`: relative file, the element seed (or explicit preset ID/version), the independently selected element values,
+  resolved appearance and placement rationale, including inspected times across all shots behind it and how copy avoids
+  the subject/action. Individual text clips may choose related but distinct seeds. Do not record an ad-hoc appearance;
+  if a requested look has no compatible element combination, record the missing element in `issues`. Re-read page data
+  instead of maintaining a conflicting text representation.
 - `status`: `pending`, `ready` or `blocked`; `issues` explains missing audio, insufficient footage or unsupported
   effects. A blocked sentence stays in the final report. Preserve confirmed `locked` selections.
 - `outputs`: actual paths, kind, completed/failed state and checks performed. Distinguish native-text file checks,

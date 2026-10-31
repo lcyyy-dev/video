@@ -4,77 +4,60 @@
   "kind": "generation-policy",
   "rangePolicy": {
     "strength": "advisory",
-    "reference": "jianying-panel",
-    "selection": "Prefer the suggested ranges; readability and explicit user choices take priority. Record a reason when choosing outside a suggested range.",
-    "units": "Numbers refer to Jianying panel controls, not preview pixels. Calibrate panel-to-draft and panel-to-preview conversions using real drafts before applying unresolved controls."
+    "reference": "native-text-elements",
+    "selection": "Use the supplied element values; readability and explicit user choices take priority. Record the seed and reason when choosing a combination.",
+    "units": "Element dimensions are preview pixels and are converted by the native draft exporter."
   },
   "selection": {
-    "mode": "library-only",
-    "source": "src/text-styles.json",
-    "presetIdRequired": true,
+    "source": "src/text-elements.json",
+    "mode": "independent-element-combination",
+    "presetIdRequired": false,
     "allowAdHocAppearance": false,
     "rangeBounds": "inclusive",
-    "randomizePerCaption": false,
-    "consistency": "Choose a main preset for the film; choose secondary roles only from the same library when the footage requires it.",
+    "randomizePerCaption": true,
+    "consistency": "Choose a seed for each generated text role; reuse the selected combination within a role and choose another combination only when the footage requires a distinct role.",
     "explicitUserStyleTakesPriority": true,
-    "output": "Save presetId, preset version, selection reason and concrete resolved appearance values in each project text item; never emit an unlisted appearance."
+    "output": "Save the element seed, selected element values and concrete resolved appearance values in each project text item; never emit an unsupported appearance."
   },
   "font": {
-    "candidates": ["宋体", "新青年体", "后现代体", "黑体", "圆体", "楷体"],
-    "source": "All six candidates have packaged font files registered in text-fonts.json; no system installation, Jianying cache or online font library is required at runtime.",
+    "candidates": ["黑体", "方糖体", "新青年体"],
+    "source": "The three candidates in text-elements.json have packaged font files registered in text-fonts.json; no system installation, Jianying cache or online font library is required at runtime.",
     "resolvedCandidates": [
-      { "label": "新青年体", "fontId": "xinqingnian-w8", "presetId": "xinqingnian-yellow" },
-      { "label": "后现代体", "fontId": "houxiandai-w4-75", "presetId": "houxiandai-cyan" },
-      { "label": "圆体", "fontId": "hy-zhongyuan", "presetId": "zhongyuan-red" },
-      { "label": "宋体", "fontId": "simsun", "presetId": "simsun-white" },
-      { "label": "黑体", "fontId": "simhei", "presetId": "simhei-yellow" },
-      { "label": "楷体", "fontId": "kaiti", "presetId": "kaiti-white" }
+      { "label": "黑体", "fontId": "simhei", "presetId": "element-simhei-*" },
+      { "label": "方糖体", "fontId": "element-fangtang-j", "presetId": "element-element-fangtang-j-*" },
+      { "label": "新青年体", "fontId": "element-xinqingnian-w8-j", "presetId": "element-element-xinqingnian-w8-j-*" }
     ],
-    "selection": "Choose an available candidate appropriate to the footage and copy; keep the primary font consistent.",
+    "selection": "Choose an available candidate appropriate to the footage and copy; keep the primary font consistent within a role.",
     "availability": "Resolve each candidate through its fontId in the packaged registry. Use embedded font CSS for rendering and portable font references for native draft export; do not invent Jianying resource IDs.",
     "missingCandidates": "Report missing fonts; ask for a font file or an approved alternative if no candidate is available."
   },
   "fill": {
     "mode": "scene-adaptive",
-    "palette": [
-      { "id": "yellow", "color": "#FFEA00" },
-      { "id": "orange", "color": "#FF7A1A" },
-      { "id": "red", "color": "#FF344D" },
-      { "id": "cyan", "color": "#00D5ED" },
-      { "id": "green", "color": "#2F9F64" },
-      { "id": "purple", "color": "#7C5CFF" },
-      { "id": "black", "color": "#111111" }
-    ],
-    "selection": "Inspect the footage behind the intended text placement across its visible interval. Choose the most readable color from the palette, then inspect the composed result. Do not choose white as a fill unless the person explicitly requests white."
+    "palette": ["#FFFFFF", "#000000", "#FFFAFA", "#F2DA2D", "#FFBD29", "#FF6B8A", "#3B82F6", "#4CAF50", "#007AFF", "#EE7FFB", "#F55757", "#F8AF72"],
+    "selection": "Sample a color from the element pool, inspect the footage behind the intended text placement across its visible interval, and replace the seed if the composed result is not readable."
   },
   "stroke": {
-    "color": { "darkText": "#FFFFFF", "lightText": "#000000" },
-    "opacity": { "min": 60, "max": 100, "unit": "percent" },
-    "thickness": { "min": 30, "max": 45, "unit": "jianying-panel-value", "conversion": "unverified" }
+    "colors": ["#4155C8", "#FFDE00", "#CD1F3C", "#000000", "#E63946", "#E85D75", "#2563EB"],
+    "width": { "value": 35, "unit": "preview-px" }
   },
   "background": {
-    "enabled": "when-needed-for-scene-readability",
-    "selection": "When enabled, choose one of these two alternatives according to footage and readability; do not combine them. Percentages follow Jianying panel controls; do not assume a CSS radius reference.",
-    "variants": [
-      { "id": "yellow-solid", "color": "#FFEA00", "opacity": { "min": 100, "max": 100, "unit": "percent" }, "cornerRadius": { "min": 20, "max": 50, "unit": "percent" } },
-      { "id": "white-translucent", "color": "#FFFFFF", "opacity": { "min": 40, "max": 40, "unit": "percent" }, "cornerRadius": { "min": 0, "max": 0, "unit": "percent" } }
-    ]
+    "enabled": false,
+    "source": "text-elements.json has no background pool",
+    "selection": "Do not synthesize a background; native structured text has no compatible background element."
   },
   "shadow": {
-    "enabled": "when-needed-for-scene-readability",
-    "opacity": { "min": 70, "max": 90, "unit": "percent" },
-    "blur": { "min": 15, "max": 25, "unit": "percent", "conversion": "unverified-reference-scale" },
-    "distance": { "min": 5, "max": 10, "unit": "jianying-panel-value", "conversion": "unverified" },
-    "angle": { "min": -150, "max": -30, "unit": "degrees", "conversion": "verify-target-angle-convention" }
+    "enabled": false,
+    "source": "text-elements.json shadows is empty",
+    "selection": "Omit shadow because no shadow element was supplied."
   },
   "implementation": {
     "executor": "AI agent reading this policy; no automatic pixel-analysis engine is implied.",
-    "presetResolution": "Resolve every appearance through text-styles.json and applyTextStyle; layout and timing remain separate.",
+    "presetResolution": "Resolve every appearance through text-elements.json, sampleTextStyle and applyTextStyle; layout and timing remain separate.",
     "unlistedPreset": "Reject and report; do not synthesize a replacement style.",
     "readAlongside": "text-style-compatibility.json",
-    "supportedAppearance": ["fontFamily", "fontPath", "color", "stroke.color", "shadow.opacity"],
-    "requiresConversion": ["stroke.thickness", "shadow.blur", "shadow.distance", "shadow.angle"],
-    "notYetSupportedInStructuredText": ["stroke.opacity", "background"],
+    "supportedAppearance": ["fontFamily", "fontPath", "fontSize", "color", "bold", "italic", "underline", "stroke.color", "stroke.width"],
+    "requiresConversion": [],
+    "notYetSupportedInStructuredText": ["background", "shadow"],
     "onUnresolvedSetting": "Do not pass policy values directly as preview pixels, invent draft fields, silently omit settings or claim native support. Report the unresolved setting; if rendering is needed, disclose it and retain editable text where possible."
   }
 }

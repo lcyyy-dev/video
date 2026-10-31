@@ -1,6 +1,7 @@
 // @ts-check
 /** Local appearance presets; placement and timing remain properties of the text page and its clip. */
-import builtin from './text-styles.json' with { type: 'json' };
+import legacy from './text-styles.json' with { type: 'json' };
+import elements from './text-elements.json' with { type: 'json' };
 import compatibility from './text-style-compatibility.json' with { type: 'json' };
 import generationRules from './text-style-generation-rules.json' with { type: 'json' };
 import { validateTextPage } from './text-page.mjs';
@@ -15,9 +16,63 @@ export function getTextStyleGenerationRules() {
 /** @typedef {Pick<TextItem, 'fontSize' | 'fontFamily' | 'fontPath' | 'color' | 'bold' | 'italic' | 'underline' | 'stroke' | 'shadow'>} TextStyle */
 /** @typedef {{ id: string, version: number, name: string, description: string, style: TextStyle }} TextStylePreset */
 /** @typedef {{ version: 1, presets: TextStylePreset[] }} TextStyleLibrary */
+/** @typedef {{ id: string, name: string, family: string, fontPath: string }} ElementFont */
+/** @typedef {{ color: string, width: number }} ElementStroke */
 
 const STYLE_KEYS = new Set(Object.keys(compatibility.appearance));
 const object = (/** @type {any} */ value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+/** A copy of the user-provided element pools used to build native-compatible styles. */
+export function getTextElementLibrary() {
+  return structuredClone(elements);
+}
+
+/** @param {ElementFont} font @param {string} color @param {ElementStroke} stroke */
+const elementPreset = (font, color, stroke) => ({
+  id: `element-${font.id}-${color.slice(1).toLowerCase()}-${stroke.color.slice(1).toLowerCase()}`,
+  version: 1,
+  name: `元素组合 · ${font.name} · ${color} · 描边 ${stroke.color}`,
+  description: '从元素库独立抽取字体、文字颜色和描边组合；只使用剪映原生文字字段。',
+  style: {
+    fontFamily: font.family,
+    fontPath: font.fontPath,
+    fontSize: elements.defaults.fontSize,
+    color,
+    bold: elements.defaults.bold,
+    italic: elements.defaults.italic,
+    underline: elements.defaults.underline,
+    stroke: { color: stroke.color, width: stroke.width },
+  },
+});
+
+/** Every independent element combination is a valid native text preset. */
+const generated = elements.elements.fonts.flatMap((font) => elements.elements.colors.flatMap((color) =>
+  elements.elements.strokes.map((stroke) => elementPreset(font, color, stroke))));
+
+/** The generated library is first; legacy IDs remain addressable for existing projects and scripts. */
+const BUILTIN = validateTextStyleLibrary({ version: 1, presets: [...generated, ...legacy.presets] });
+
+const hash = (/** @type {unknown} */ value) => {
+  let h = 2166136261;
+  for (const char of String(value)) { h ^= char.codePointAt(0) ?? 0; h = Math.imul(h, 16777619); }
+  return h >>> 0;
+};
+/** @template T @param {T[]} list @param {unknown} seed @param {string} key @returns {T} */
+const pick = (list, seed, key) => {
+  if (!list.length) throw new Error(`No text elements available for ${key}`);
+  return list[hash(`${seed}:${key}`) % list.length] ?? list[0];
+};
+
+/**
+ * Choose one value independently from every element pool and return a complete preset.
+ * A seed makes generation reproducible; omitting it creates a fresh combination each time.
+ */
+export function sampleTextStyle(seed = `${Date.now()}-${Math.random()}`) {
+  const font = pick(elements.elements.fonts, seed, 'font');
+  const color = pick(elements.elements.colors, seed, 'color');
+  const stroke = pick(elements.elements.strokes, seed, 'stroke');
+  return elementPreset(font, color, stroke);
+}
 
 /** Reject layout, content and unsupported effects rather than silently discarding them. @param {unknown} input */
 function validateStyle(input, partial = false) {
@@ -50,8 +105,6 @@ export function validateTextStyleLibrary(input) {
   }
   return structuredClone(library);
 }
-
-const BUILTIN = validateTextStyleLibrary(builtin);
 
 /** A fresh copy on every call: changing one project's preset cannot change another's. */
 export function listTextStyles() {

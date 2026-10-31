@@ -19,3 +19,10 @@ test('subtitle arrays remain independent and are bounded at the native boundary'
   assert.deepEqual(config.subtitleTexts, ['第一条', '第二条', '第三条']);
   assert.throws(() => normalizeTemplate({ ...initialTemplate(), subtitleTexts: ['x'.repeat(2001)] }), /副标题格式/);
 });
+
+test('selected text styles are deduplicated, bounded and included in the template summary', () => {
+  const config = normalizeTemplate({ ...initialTemplate(), textStyleIds: ['yellow-headline', 'yellow-headline', 'element-simhei-ffffff-000000'] });
+  assert.deepEqual(config.textStyleIds, ['yellow-headline', 'element-simhei-ffffff-000000']);
+  assert.match(templateSummary(config), /仅使用已勾选样式（yellow-headline、element-simhei-ffffff-000000）/);
+  assert.throws(() => normalizeTemplate({ ...initialTemplate(), textStyleIds: ['not valid'] }), /文字样式格式/);
+});

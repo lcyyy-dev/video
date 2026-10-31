@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { applyTextStyle, listTextStyles, validateTextStyleLibrary } from '../../src/text-styles.mjs';
+import { applyTextStyle, listTextStyles, sampleTextStyle, validateTextStyleLibrary } from '../../src/text-styles.mjs';
 import { validateTextPage } from '../../src/text-page.mjs';
 import { studioHome } from './projects.mjs';
 import { bundledTextFont } from './text-fonts.mjs';
@@ -92,9 +92,9 @@ export function setDefaultTextStyle(id, home = studioHome()) {
 }
 
 /** Generate a fully resolved snapshot; later library edits never change this page. */
-/** @param {{ text: string, width: number, height: number, duration: number }} input @param {string} [id] */
-export function styledTextPage(input, id = 'default', home = studioHome()) {
-  const preset = resolveTextStyle(id, home);
+/** @param {{ text: string, width: number, height: number, duration: number }} input @param {string} [id] @param {string} [home] @param {string} [seed] */
+export function styledTextPage(input, id = 'default', home = studioHome(), seed) {
+  const preset = id === 'elements' ? sampleTextStyle(seed) : resolveTextStyle(id, home);
   return validateTextPage({ version: 1, width: input.width, height: input.height, duration: input.duration,
     texts: [applyTextStyle({ text: input.text, x: input.width / 2, y: input.height / 2, width: input.width * 0.9,
       align: 'center', fontSize: preset.style.fontSize }, preset)] });

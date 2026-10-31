@@ -24,7 +24,7 @@ const cards = styles.map((preset, index) => {
   return `<article class="card"><div class="meta"><strong>${index + 1}. ${esc(preset.name)}</strong><code>${esc(preset.id)}</code></div><pre>${esc(json)}</pre><p>${esc(preset.description)}</p></article>`;
 }).join('\n');
 
-const html = `<!doctype html><meta charset="utf-8"><title>OpenFilm 30 native text styles</title><style>
+const html = `<!doctype html><meta charset="utf-8"><title>OpenFilm ${styles.length} native text combinations</title><style>
 :root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#080d16;color:#e9eef7}
 body{margin:0;padding:28px;background:radial-gradient(circle at 50% -10%,#20314a 0,#080d16 48%);min-height:100vh}
 h1{margin:0 0 8px;font-size:28px} .intro{color:#aab7ca;margin:0 0 22px;line-height:1.6}
@@ -33,7 +33,7 @@ h1{margin:0 0 8px;font-size:28px} .intro{color:#aab7ca;margin:0 0 22px;line-heig
 .meta{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin:2px 2px 8px}.meta strong{font-size:15px}.meta code{color:#7f91ac;font-size:11px}
 iframe{display:block;width:100%;height:220px;border:0;border-radius:9px;background:#111827}
 .card p{color:#aab7ca;font-size:12px;line-height:1.5;margin:9px 2px 2px;min-height:36px}
-</style><body><main><h1>OpenFilm · 30 种剪映原生文字样式</h1><p class="intro">每张卡片内部都是 <code>openfilm-text</code> 结构化页面，只使用字体、颜色、描边和阴影等原生字段。没有背景框、圆角标签或其他会触发渲染回退的属性。</p><section class="grid">${cards}</section></main></body>`;
+</style><body><main><h1>OpenFilm · ${styles.length} 种剪映原生文字组合</h1><p class="intro">每张卡片展示由元素库组合出的 <code>.text.json</code> 页面，只使用字体、颜色和描边等原生字段。没有背景框、圆角标签或阴影。</p><section class="grid">${cards}</section></main></body>`;
 
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, html, { flag: 'w' });

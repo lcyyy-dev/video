@@ -28,7 +28,9 @@ what the clip is about rather than a misleading claim.
 Prefer a complete highlight around the requested length; if no natural boundary meets it, report the actual duration.
 Use hard cuts and natural speed by default. Keep the main recording's voice and relevant screen or camera image;
 crop or reframe only when the speaker and important content remain visible. Add captions from the actual speech,
-split at natural phrases, and keep them inside safe margins. Use supplied B-roll or screenshots only when they clarify
+split at natural phrases, and keep them inside safe margins. Text generation follows the template's `textStyleIds`:
+when it has selections, use only those style IDs; when it is empty, use automatic combinations from the element library.
+Use supplied B-roll or screenshots only when they clarify
 the spoken point. Music must remain below speech and is optional.
 
 ## Check and deliver

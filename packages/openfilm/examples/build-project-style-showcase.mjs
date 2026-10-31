@@ -62,7 +62,7 @@ for (let repeat = 0; repeat < repeats; repeat++) {
   }
 }
 const film = `<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=1080, height=1920"><title>OpenFilm 样式库 30 种剪映兼容性测试</title></head><body>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=1080, height=1920"><title>OpenFilm 元素组合剪映兼容性测试</title></head><body>
 <section id="text-style-showcase">
 ${filmText}
 </section>
@@ -81,10 +81,10 @@ const plan = {
   version: 1,
   workflow: { id: 'ad-editing', version: '0.1.0' },
   brief: {
-    copy: 'OpenFilm 样式库 30 种剪映兼容性测试', width: 1080, height: 1920, fps: null,
+    copy: 'OpenFilm 元素组合剪映兼容性测试', width: 1080, height: 1920, fps: null,
     formatReason: '保留未命名项目的 1080×1920 竖屏画布；本次为样式库展示测试片，不是原广告成片。',
     targetSeconds: total, exactDuration: true, deliverables: ['project'], preferredExportFps: 60,
-    title: 'OpenFilm 样式库 30 种剪映兼容性测试', mode: '原声 · 无朗读',
+    title: 'OpenFilm 元素组合剪映兼容性测试', mode: '原声 · 无朗读',
   },
   media: sourceShots.map((shot, index) => ({ id: `v0${index + 1}`, src: shot.audio, candidates: [{ from: shot.from, to: shot.to, action: shot.reason }] })),
   shots: Array.from({ length: repeats }, (_, repeat) => sourceShots.map((shot, index) => ({
@@ -103,12 +103,12 @@ const plan = {
     nativeText: '待导出剪映草稿后检查', presets: styles.length, renderedFallbacksExpected: 0,
   } }],
   limitations: [
-    '这是 30 种文字样式的兼容性测试展示片，已保留原项目文件为 film.html.original、ad-plan.json.original 和 titles/compact-style.html.original。',
-    '样式库只使用剪映原生文字字段；没有加入 HTML 背景框、圆角标签或其他渲染回退效果。',
+    `这是 ${styles.length} 种元素组合的兼容性测试展示片，已保留原项目文件为 film.html.original、ad-plan.json.original 和 titles/compact-style.html.original。`,
+    '元素库只使用剪映原生文字字段；没有加入 HTML 背景框、圆角标签、阴影或其他渲染回退效果。',
   ],
-  styleChecks: { source: 'packages/openfilm/src/text-styles.json', presets: styles.length, nativeExportCandidates: styles.length,
-    selection: '每个片段都由 text-styles.json 的 presetId 生成，未随机拼接外观参数。' },
+  styleChecks: { source: 'packages/openfilm/src/text-elements.json', presets: styles.length, nativeExportCandidates: styles.length,
+    selection: '每个片段都由元素库独立抽取字体、颜色和描边后组合生成。' },
 };
 writeFileSync(join(project, 'ad-plan.json'), `${JSON.stringify(plan, null, 2)}\n`);
-writeFileSync(join(project, 'STYLE-LIBRARY-TEST.zh-CN.md'), `# 样式库 30 种剪映兼容性测试\n\n当前 film.html 已替换为 30 个连续文字片段，每个片段对应一个样式库预设，单片段 ${styleSeconds} 秒，总时长 ${total} 秒。视频和原声音轨重复三轮，仅用于在 Studio 中查看和导出剪映草稿。\n\n原始工程已备份：\n\n- film.html.original\n- ad-plan.json.original\n- titles/compact-style.html.original\n\n导出剪映草稿后，检查 native-text-report.json，预期 30 个文字页面均为 native，且没有文字视频素材。\n`);
+writeFileSync(join(project, 'STYLE-LIBRARY-TEST.zh-CN.md'), `# 元素组合剪映兼容性测试\n\n当前 film.html 已替换为 ${styles.length} 个连续文字片段，每个片段对应一个元素组合，单片段 ${styleSeconds} 秒，总时长 ${total} 秒。视频和原声音轨重复三轮，仅用于在 Studio 中查看和导出剪映草稿。\n\n原始工程已备份：\n\n- film.html.original\n- ad-plan.json.original\n- titles/compact-style.html.original\n\n导出剪映草稿后，检查 native-text-report.json，预期文字页面均为 native，且没有文字视频素材。\n`);
 console.log(JSON.stringify({ project, presets: styles.length, styleSeconds, duration: total, backup: true }, null, 2));

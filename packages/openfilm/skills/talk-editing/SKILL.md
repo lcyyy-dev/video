@@ -34,7 +34,8 @@ intelligible over music.
 
 Captions must come from the actual speech. Split them at natural phrases, keep lines short enough to read, and check
 their position against faces, hands and platform-safe margins. Use `openfilm text-styles` and structured text pages
-for editable captions. A cover is optional and uses only supplied or project material; do not invent a person's name,
+for editable captions. When the template's `textStyleIds` is non-empty, choose only those IDs; with an empty list,
+use the element library's automatic combinations. A cover is optional and uses only supplied or project material; do not invent a person's name,
 role or credentials. Local simulated narration is allowed only when explicitly requested and must be labeled.
 
 ## Check and deliver
