@@ -2238,7 +2238,12 @@ function FilmStageSelectImpl({
       const token = ++pressSeq.current;
       void ask<StageLayer>('hit', { x: p.x / vs, y: p.y / vs, from: drag.layer.handle, detail: true }).then((layer) => {
         if (token !== pressSeq.current) return;
-        commitHit(layer ? hitOf(layer) : null);
+        if (!layer) { commitHit(null); return; }
+        const hit = hitOf(layer);
+        commitHit(hit);
+        /* A click on a text layer enters the JSON editor immediately. The text box
+           remains content-editable, so Backspace/Delete work without another gesture. */
+        if (layer.text && onEditTextInline) startTextEditRef.current();
       });
       return;
     }
@@ -2333,7 +2338,9 @@ function FilmStageSelectImpl({
       }
       if (layer) {
         setHover(null);
-        commitHit(hitOf(layer));
+        const hit = hitOf(layer);
+        commitHit(hit);
+        if (layer.text && onEditTextInline) startTextEditRef.current();
         return;
       }
       /* no layer there: the clip under the pointer is taken in hand, as on the timeline (a page by its empty part: a
@@ -2674,7 +2681,10 @@ function FilmStageSelectImpl({
         const frame0 = scaleFrame(heldLayer0.frame, vs);
         const aabb0 = scaleBox(heldLayer0.rect, vs);
         const inside = insideBox(scaleBox(held.rect, vs), p.x, p.y);
-        const kind = layerKind === 'scale' ? 'scale'
+        /* JSON text resizes its layout box from every handle. Keep the glyphs at
+           their authored font size; corner pulls are free in both axes too. */
+        const textLayer = held.element.kind === 'text';
+        const kind = layerKind === 'scale' ? (textLayer ? 'stretch' : 'scale')
           : layerKind === 'stretch' ? 'stretch'
             : layerKind === 'rotate' ? 'rotate'
               : (layerKind === 'move' || inside) && !e.altKey ? 'move' : null;

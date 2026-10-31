@@ -1,15 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readTextPage, textPageHtml, textStyleRuns, textValueAt, validateTextPage } from './text-page.mjs';
+import { readLegacyTextPage, readTextPageJson, textPageJson, textStyleRuns, textValueAt, validateTextPage } from './text-page.mjs';
 
 const page = { version: 1, width: 1080, height: 1920, duration: 4,
   texts: [{ text: '文字 </script> 😀', x: 540, y: 300, fontSize: 80, color: '#d5ff60' }] };
 
-test('structured text round trips as data, including HTML and Unicode', () => {
-  const html = textPageHtml(page);
-  assert.deepEqual(readTextPage(html), page);
-  assert.ok(!html.includes('文字 </script>'));
-  assert.equal(readTextPage('<h1>Arbitrary HTML</h1>'), null);
+test('structured text pages can be written and read as standalone JSON', () => {
+  const page = { version: 1, width: 1080, height: 1920, duration: 2, texts: [{ text: '文字 </script> 😀', x: 540, y: 960, fontSize: 72 }] };
+  assert.deepEqual(readTextPageJson(textPageJson(page)), page);
+});
+
+test('legacy self-contained text HTML is readable for in-memory migration', () => {
+  const embedded = `<script id="openfilm-text" type="application/json">${JSON.stringify(page)}</script>`;
+  assert.deepEqual(readLegacyTextPage(embedded), page);
+  assert.equal(readLegacyTextPage('<h1>ordinary page</h1>'), null);
 });
 
 test('invalid styles and keyframes fail explicitly instead of losing information', () => {
@@ -28,7 +32,7 @@ test('rich text runs inherit defaults and cover the complete text, including new
     runs: [{ text: '黄标题\n', color: '#ffe21f' }, { text: '白说明\n', color: '#ffffff', fontSize: 64 },
       { text: '红重点', color: '#ff344d', stroke: { color: '#ffffff', width: 6 } }] };
   const input = { ...page, texts: [item] };
-  assert.deepEqual(readTextPage(textPageHtml(input)), input);
+  assert.deepEqual(readTextPageJson(textPageJson(input)), input);
   assert.deepEqual(textStyleRuns(item).map((run) => run.range), [[0, 4], [4, 8], [8, 11]]);
   assert.ok(textStyleRuns(item).every((run) => run.bold));
   assert.throws(() => validateTextPage({ ...input, texts: [{ ...item, runs: [{ text: '漏掉内容' }] }] }), /cover exactly/);
@@ -40,7 +44,7 @@ test('empty rich text fragments do not block reading or create empty draft style
     { text: '', color: '#ffffff' }, { text: '火🔥\n', color: '#FFEA00' },
     { text: '' }, { text: '热身' }, { text: '', bold: true },
   ] };
-  const parsed = readTextPage(textPageHtml({ ...page, texts: [item] }));
+  const parsed = readTextPageJson(textPageJson({ ...page, texts: [item] }));
   assert.deepEqual(textStyleRuns(parsed.texts[0]).map((run) => [run.text, run.range]), [
     ['火🔥\n', [0, 4]], ['热身', [4, 6]],
   ]);

@@ -6,7 +6,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { saveTextStyle, setDefaultTextStyle } from '../studio/server/text-styles.mjs';
-import { readTextPage } from './text-page.mjs';
+import { readTextPageJson } from './text-page.mjs';
 
 const cli = fileURLToPath(new URL('../bin/openfilm.mjs', import.meta.url));
 const home = mkdtempSync(join(tmpdir(), 'styles-cli-'));
@@ -37,18 +37,21 @@ test('the generator uses the user default, supports an explicit preset and prote
     stroke: { color: '#ffffff', width: 6 } } }, null, home);
   setDefaultTextStyle(preset.id, home);
   assert.equal(JSON.parse(run('show', 'default').stdout).id, preset.id);
-  const output = join(home, 'title.html');
+  const output = join(home, 'title.text.json');
   const generated = run('page', output, '--text', 'Keep moving', '--duration', '4', '--size', '1080x1920');
   assert.equal(generated.status, 0, generated.stderr);
-  const page = readTextPage(readFileSync(output, 'utf8'));
+  const page = readTextPageJson(readFileSync(output, 'utf8'));
   assert.equal(page.texts[0].color, '#123456');
   assert.equal(page.texts[0].fontSize, 88);
   assert.equal(page.duration, 4);
   assert.equal(run('page', output, '--text', 'Overwrite', '--duration', '4').status, 2);
-  assert.equal(readTextPage(readFileSync(output, 'utf8')).texts[0].text, 'Keep moving');
-  const explicit = join(home, 'explicit.html');
+  assert.equal(readTextPageJson(readFileSync(output, 'utf8')).texts[0].text, 'Keep moving');
+  const explicit = join(home, 'explicit.text.json');
   assert.equal(run('page', explicit, '--text', 'Explicit', '--duration', '2', '--preset', 'yellow-headline').status, 0);
-  assert.equal(readTextPage(readFileSync(explicit, 'utf8')).texts[0].color, '#ffe21f');
+  assert.equal(readTextPageJson(readFileSync(explicit, 'utf8')).texts[0].color, '#ffe21f');
+  const jsonOutput = join(home, 'direct.text.json');
+  assert.equal(run('page', jsonOutput, '--text', 'Direct JSON', '--duration', '2').status, 0);
+  assert.equal(readTextPageJson(readFileSync(jsonOutput, 'utf8')).texts[0].text, 'Direct JSON');
 });
 
 test('agents can read scene-adaptive ranges without confusing them with renderable presets', () => {
@@ -87,13 +90,13 @@ test('agents can read scene-adaptive ranges without confusing them with renderab
 
 test('reference preset pages carry their fonts instead of depending on system installation', () => {
   for (const id of ['xinqingnian-yellow', 'houxiandai-cyan', 'zhongyuan-red', 'simsun-white', 'simhei-yellow', 'kaiti-white']) {
-    const output = join(home, `${id}.html`);
+    const output = join(home, `${id}.text.json`);
     const generated = run('page', output, '--text', '测试字体', '--duration', '3', '--preset', id);
     assert.equal(generated.status, 0, generated.stderr);
-    const html = readFileSync(output, 'utf8');
-    assert.match(html, /@font-face/);
-    assert.match(html, /data:font\/(ttf|otf|collection);base64,/);
-    const page = readTextPage(html);
+    const json = readFileSync(output, 'utf8');
+    assert.match(json, /@font-face/);
+    assert.match(json, /data:font\/(ttf|otf|collection);base64,/);
+    const page = readTextPageJson(json);
     assert.match(page.texts[0].fontPath, /^openfilm-font:/);
   }
 });

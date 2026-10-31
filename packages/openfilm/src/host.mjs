@@ -29,6 +29,8 @@ const TIMELINE = readFileSync(fileURLToPath(new URL('./timeline.mjs', import.met
 const FILM_DOC = readFileSync(fileURLToPath(new URL('./film-doc.mjs', import.meta.url)), 'utf8');
 /* a page clip's overrides, applied: the timeline imports it from here, and so do Studio's thumbnails of a page clip */
 const OVERRIDES = readFileSync(fileURLToPath(new URL('./overrides.mjs', import.meta.url)), 'utf8');
+/* the built-in structured text renderer: timeline.mjs imports it while playing `.text.json` pages */
+const TEXT_PAGE = readFileSync(fileURLToPath(new URL('./text-page.mjs', import.meta.url)), 'utf8');
 
 /**
  * The start of a film, before the timeline takes its clips over: nothing shows, a page clip has the stage's size to
@@ -79,6 +81,10 @@ export function folderFiles(root, { inject = `<script>${HOST_FLAG}</script>`, ti
     }
     if (path.endsWith('/__film/overrides.mjs')) {
       res.writeHead(200, { ...extraHeaders, 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end(OVERRIDES);
+      return true;
+    }
+    if (path.endsWith('/__film/text-page.mjs')) {
+      res.writeHead(200, { ...extraHeaders, 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }).end(TEXT_PAGE);
       return true;
     }
     if (path.endsWith('/__film/frame-duration')) {

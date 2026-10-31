@@ -195,7 +195,7 @@ const commands = {
     } else if (args[0] === 'page' && args.length === 2) {
       const { existsSync, mkdirSync, writeFileSync } = await import('node:fs');
       const { resolve, dirname } = await import('node:path');
-      const { textPageHtml } = await import('../src/text-page.mjs');
+      const { textPageJson } = await import('../src/text-page.mjs');
       const { textFontCss } = await import('../studio/server/text-fonts.mjs');
       const size = /^(\d+)x(\d+)$/.exec(o.size ?? '1080x1920');
       const duration = Number(o.duration);
@@ -205,9 +205,10 @@ const commands = {
       const out = resolve(args[1]);
       if (existsSync(out)) return { ok: false, usage: true, lines: ['The output file already exists; choose another path.'] };
       const page = saved.styledTextPage({ text: o.text, width: Number(size[1]), height: Number(size[2]), duration }, o.preset);
-      const html = textPageHtml(page, { fontCss: textFontCss(page.texts.map((item) => item.fontFamily ?? ''), true) });
+      const fontCss = textFontCss(page.texts.map((item) => item.fontFamily ?? ''), true);
+      const output = textPageJson(page, { fontCss });
       mkdirSync(dirname(out), { recursive: true });
-      writeFileSync(out, html, { flag: 'wx' });
+      writeFileSync(out, output, { flag: 'wx' });
       data = { path: out, preset: saved.resolveTextStyle(o.preset).id, texts: page.texts.length };
     } else return { ok: false, usage: true, lines: [named(COMMAND_HELP['text-styles'])] };
     return { ok: true, lines: [JSON.stringify(data, null, 2)] };

@@ -2,8 +2,9 @@
 // in host.mjs); the file's own elements are the clips: an <iframe> a web page, a <video>, an <img> a still, an
 // <audio> a sound for the mix. Where each plays and sits is what film-doc.mjs reads in the file, the same reading
 // Studio plays and exports by; how each looks is the file's own CSS. Track 0, the first <section>, is on top.
-import { clipFade, clipSpan, clipTag, declarations, fadeGain, filmHead, fittedFade, kindOf, parseFilm, pictureRect, readFilmFile, sourceAt } from './film-doc.mjs';
+import { clipFade, clipSpan, clipTag, declarations, fadeGain, filmHead, fittedFade, isTextPage, kindOf, parseFilm, pictureRect, readFilmFile, sourceAt } from './film-doc.mjs';
 import { override, restore } from './overrides.mjs';
+import { mountTextPage, readLegacyTextPage, validateTextPage } from './text-page.mjs';
 
 /* the file as written (without what the host puts in it), read as every reader reads it */
 const own = new URL(location.href);
@@ -367,6 +368,66 @@ function wakePage(c) {
   c.awake = pageLimited(async () => {
     if (c.waking !== mine) return;
     const el = c.el;
+    let structured;
+    if (isTextPage(c.row.src)) {
+      const response = await fetch(url(c.row.src), { cache: 'no-store' });
+      if (!response.ok) throw new Error(`${c.row.src}: could not be read`);
+      structured = validateTextPage(await response.json());
+    } else if (/\.html?$/i.test(c.row.src)) {
+      /* Existing projects may still point at the old self-contained text HTML. Migrate it in memory. */
+      const response = await fetch(url(c.row.src), { cache: 'no-store' });
+      if (response.ok) structured = readLegacyTextPage(await response.text());
+    }
+    if (structured) {
+      const page = structured;
+      if (c.waking !== mine) return;
+      if (el.localName === 'iframe') {
+        const root = document.createElement('div');
+        el.replaceWith(root);
+        c.el = root;
+      }
+      c.el.replaceChildren();
+      c.el.dataset.openfilmTextPage = '1';
+      Object.assign(c.el.style, { position: 'relative', width: `${page.width}px`, height: `${page.height}px`, overflow: 'hidden', background: 'transparent' });
+      c.child = mountTextPage(page, c.el);
+      /* A JSON page has no browsing document. Provide the small document/window surface used by overrides and picking. */
+      const root = c.el;
+      const ownerDocument = root.ownerDocument;
+      c.win = {
+        document: {
+          querySelectorAll: (selector) => root.querySelectorAll(selector),
+          createElement: (...args) => ownerDocument.createElement(...args),
+          getSelection: () => ownerDocument.getSelection(),
+          get body() { return root; },
+          get head() { return root; },
+          get documentElement() { return root; },
+          elementsFromPoint(x, y) {
+            const rr = root.getBoundingClientRect();
+            return [...root.querySelectorAll('*')].filter((node) => {
+              const r = node.getBoundingClientRect();
+              return x >= r.left - rr.left && x <= r.right - rr.left && y >= r.top - rr.top && y <= r.bottom - rr.top;
+            }).reverse();
+          },
+        },
+        getComputedStyle: window.getComputedStyle.bind(window),
+        HTMLElement: window.HTMLElement,
+        SVGElement: window.SVGElement,
+        addEventListener: window.addEventListener.bind(window),
+        removeEventListener: window.removeEventListener.bind(window),
+        focus: window.focus.bind(window),
+        filmHost: window.filmHost,
+        innerWidth: page.width,
+        innerHeight: page.height,
+      };
+      c.touched = new Map();
+      c.drawn = false;
+      c.own = { w: page.width, h: page.height };
+      if (hadLayout && c.row && c.own) { c.nw = c.own.w; c.nh = c.own.h; dress(c, c.row); }
+      await ready(c.child);
+      if (c.waking !== mine) return;
+      window.__filmEditor.stage.woke?.();
+      return;
+    }
     /* a film is a picture, never scrolled: a page a little larger than its frame shows no scrollbars (some browsers
        always draw them; exports draw none) */
     el.setAttribute('scrolling', 'no');
@@ -417,6 +478,7 @@ function restPage(c) {
   c.drawn = false;
   c.touched = new Map();
   const el = c.el;
+  if (isTextPage(c.row?.src)) { el.replaceChildren(); return; }
   const close = () => { if (!c.awake && el.isConnected) el.setAttribute('src', 'about:blank'); };
   if (!el.hasAttribute('src') || el.contentDocument?.readyState === 'complete') close();
   else el.addEventListener('load', close, { once: true });
@@ -912,7 +974,7 @@ const STYLE_KEYS = ['color', 'font-family', 'font-size', 'font-weight', 'line-he
 
 /** What an editor shows of a target: its corners on the stage, its text when it holds text alone, its style. */
 function describe(c, el) {
-  const r = el ? el.getBoundingClientRect() : { left: 0, top: 0, right: c.w, bottom: c.h };
+  const r = el ? (el.dataset?.openfilmText ? textBounds(el) : el.getBoundingClientRect()) : { left: 0, top: 0, right: c.w, bottom: c.h };
   const quad = [[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]].map(([x, y]) => toStage(c, x, y));
   if (!el) return { clip: c.id, kind: c.kind, quad };
   const computed = c.win.getComputedStyle(el);
@@ -921,6 +983,19 @@ function describe(c, el) {
     text: el.childElementCount === 0 && el.textContent.trim() ? el.textContent : null,
     style: Object.fromEntries(STYLE_KEYS.map((k) => [k, computed.getPropertyValue(k)])),
   };
+}
+
+/** A text layer's selection box hugs its painted words, rather than its layout width. */
+function textBounds(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const rects = [...range.getClientRects()];
+  if (!rects.length) return el.getBoundingClientRect();
+  const left = Math.min(...rects.map((r) => r.left));
+  const top = Math.min(...rects.map((r) => r.top));
+  const right = Math.max(...rects.map((r) => r.right));
+  const bottom = Math.max(...rects.map((r) => r.bottom));
+  return { left, top, right, bottom };
 }
 
 window.__filmEditor = {

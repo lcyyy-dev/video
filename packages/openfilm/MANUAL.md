@@ -71,8 +71,9 @@ A folder:
 - The picture is captured once `frame` returns, or once the Promise it returns resolves. Create a WebGL context with `preserveDrawingBuffer: true`.
 - A page has no sound: every sound is a clip in film.html. A shot's sound effect goes at the film second it plays: the page clip's `at`, plus the page's t, less the clip's in point (a hit at t = 2 in a clip at 5 goes at 7). When you move the page clip, move its sounds with it.
 
-For editable titles in Jianying / CapCut drafts, `openfilm/text-page` provides `textPageHtml(data)`: an ordinary
-page whose structured text is also exported as native text. See [structured text pages](SPEC.md#structured-text-pages)
+For editable titles in Jianying / CapCut drafts, `openfilm/text-page` provides structured text data. A `.text.json`
+page is rendered directly by OpenFilm's native text renderer and can be exported as native text without an HTML
+wrapper. See [structured text pages](SPEC.md#structured-text-pages)
 for the data and export limits. Unsupported effects keep their rendered appearance, with reasons in the draft's
 `native-text-report.json`.
 
@@ -81,7 +82,7 @@ for the data and export limits. Unsupported effects keep their rendered appearan
 Run them in the film's folder. Each one's `--help` lists its options:
 - `npx openfilm open <folder>`: first. A new film gets a folder of its own, named after it (`open launch-video`); an existing one opens, and a GitHub address of one (a repository, or `…/tree/main/<folder>`) is copied into the projects library and opened. It prints Studio's address: open it in your built-in browser before you write anything and keep it open, so the person watches every change land and edits too. Without a built-in browser, Studio opens in the person's default browser by itself. `open` alone shows the film you are in, else the last one: run it when the person only asks to open OpenFilm.
 - Local text presets: `openfilm/text-styles` lists and applies JSON appearance presets to structured text; see SPEC.md,
-  “Local text style presets”. Apply them before `textPageHtml`; the resulting text remains native on supported draft exports.
+  “Local text style presets”. Apply them before generating the JSON page; the resulting text remains native on supported draft exports.
 - `npx openfilm text-styles list` lists presets; `text-styles rules` prints machine-readable supported properties,
   units, draft mappings, dependencies and fallback conditions. Read these before choosing a style for native text.
 - Before generating text, `text-styles show default` reads the person's default from this Studio's local library.
@@ -93,13 +94,13 @@ Run them in the film's folder. Each one's `--help` lists its options:
   identifies unsupported settings and unverified unit conversions: report these rather than silently dropping
   effects or treating authoring control values as pixels. This policy guides the agent; the page command itself
   applies a resolved preset and does not analyze footage or select values automatically.
-  `text-styles page title.html --text "Start today" --duration 4 --size 1080x1920` creates a structured page with that
+  `text-styles page title.text.json --text "Start today" --duration 4 --size 1080x1920` creates a structured JSON page with that
   style (`--preset <id>` overrides it). Reference it as a page clip; it stores a full snapshot and exports as native
   text where supported. Never replace the person's explicit style choice with the default.
   The reference presets `xinqingnian-yellow`, `houxiandai-cyan` and `zhongyuan-red` include their font files in
   the package. The page command embeds the selected font; for programmatic generation pass
   `textFontCss(page.texts.map(item => item.fontFamily), true)` from `openfilm/text-fonts` to
-  `textPageHtml(page, { fontCss })`. Native draft export carries these fonts into `media/fonts/`.
+  `textPageJson(page, { fontCss })`. Native draft export carries these fonts into `media/fonts/`.
   SimSun (`simsun-white`), SimHei (`simhei-yellow`) and KaiTi (`kaiti-white`) are packaged too. All six policy
   candidates have explicit registry mappings; do not substitute a generic system font for a packaged candidate.
   Read SPEC.md, “Text style validation status”, before claiming a setting is usable. A policy range is not proof

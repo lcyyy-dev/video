@@ -52,6 +52,50 @@ async function stageOf(dir) {
   return { ask, page, close };
 }
 
+test('structured JSON text clips expose a text-sized clip and editable text layer', { timeout: 60_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'of-stage-text-json-'));
+  writeFileSync(join(dir, 'title.text.json'), JSON.stringify({ version: 1, width: 320, height: 180, duration: 2,
+    texts: [{ text: 'JSON title', x: 160, y: 90, fontSize: 32, color: '#ff0000' }] }));
+  writeFileSync(join(dir, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [{ id: 'title', src: 'title.text.json' }] }] }));
+  const stage = await stageOf(dir);
+  try {
+    const clips = await stage.ask('clips', {});
+    assert.ok(clips[0].w < 320 && clips[0].h < 180, JSON.stringify(clips[0]));
+    const hit = await stage.ask('hit', { x: 160, y: 90, detail: true });
+    assert.equal(hit?.kind, 'text');
+    assert.equal(hit?.text?.value, 'JSON title');
+    assert.equal(await stage.ask('textStart', { handle: hit.handle }), true);
+    const editBox = await stage.page.evaluate(() => {
+      const el = document.querySelector('[data-openfilm-text]');
+      const cs = getComputedStyle(el);
+      return { outline: cs.outline, editing: el.getAttribute('data-openfilm-editing') };
+    });
+    assert.match(editBox.outline, /rgb\(13, 153, 255\)/);
+    assert.equal(editBox.editing, '1');
+  } finally { await stage.close(); }
+});
+
+test('resizing a JSON text layer changes its box without scaling the glyphs', { timeout: 60_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'of-stage-text-resize-'));
+  writeFileSync(join(dir, 'title.text.json'), JSON.stringify({ version: 1, width: 320, height: 180, duration: 2,
+    texts: [{ text: 'fixed size text', x: 160, y: 90, width: 100, fontSize: 32, color: '#ffffff' }] }));
+  writeFileSync(join(dir, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [{ id: 'title', src: 'title.text.json' }] }] }));
+  const stage = await stageOf(dir);
+  try {
+    const hit = await stage.ask('hit', { x: 160, y: 90, detail: true });
+    assert.equal(hit?.kind, 'text');
+    await stage.ask('paint', { handle: hit.handle, g: { t: [0, 0], s: [2, 1], r: 0 } });
+    const metrics = await stage.page.evaluate(() => {
+      const el = document.querySelector('[data-openfilm-text]');
+      const cs = getComputedStyle(el);
+      return { width: el.offsetWidth, fontSize: cs.fontSize, scale: cs.scale };
+    });
+    assert.equal(metrics.width, 200);
+    assert.equal(metrics.fontSize, '32px');
+    assert.equal(metrics.scale, 'none');
+  } finally { await stage.close(); }
+});
+
 test('a click on a page\'s backdrop (a box filling the page) takes the clip, not the box; a smaller box is taken', { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'of-stage-backdrop-'));
   writeFileSync(join(dir, 'logistics.html'), `<!doctype html><body style="margin:0">

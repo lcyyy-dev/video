@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { listTextStyles, applyTextStyle } from '../src/text-styles.mjs';
-import { textPageHtml } from '../src/text-page.mjs';
+import { textPageJson } from '../src/text-page.mjs';
 import manifest from '../src/text-fonts.json' with { type: 'json' };
 import { bundledTextFonts } from '../studio/server/text-fonts.mjs';
 
@@ -41,10 +41,10 @@ const pages = styles.map((preset, index) => {
   const label = `${String(index + 1).padStart(2, '0')}·${preset.name}`;
   const item = applyTextStyle({ text: label, x: 540, y: 960, width: 900, align: 'center', lineHeight: 1.12, fontSize: 64 }, preset);
   const page = { version: 1, width: 1080, height: 1920, duration: styleSeconds, texts: [item] };
-  const file = `style-${String(index + 1).padStart(2, '0')}.html`;
+  const file = `style-${String(index + 1).padStart(2, '0')}.text.json`;
   const families = item.fontFamily && !/^(serif|sans-serif|monospace|cursive|fantasy|system-ui)$/.test(item.fontFamily)
     ? [item.fontFamily] : [];
-  writeFileSync(join(titles, file), textPageHtml(page, { fontCss: fontCssFor(families) }));
+  writeFileSync(join(titles, file), textPageJson(page, { fontCss: fontCssFor(families) }));
   return { preset, item, page, file, id: `style-${String(index + 1).padStart(2, '0')}` };
 });
 

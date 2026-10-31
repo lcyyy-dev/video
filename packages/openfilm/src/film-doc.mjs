@@ -51,9 +51,14 @@ export function soundRole(src) {
   return 'voice';
 }
 
-/** A web page clip: an .html file that sets `window.film` (SPEC.md). */
+/** A page clip: an HTML film page or a structured `.text.json` page (SPEC.md). */
 export function isPage(src) {
-  return /\.html?$/i.test(src);
+  return /\.html?$/i.test(src) || /\.text\.json$/i.test(src);
+}
+
+/** A structured JSON text page rendered by the timeline's native text renderer. */
+export function isTextPage(src) {
+  return /\.text\.json$/i.test(src);
 }
 
 const SOUND_EXTENSIONS = new Set(['mp3', 'm4a', 'wav', 'aac', 'ogg', 'oga', 'opus', 'flac', 'aif', 'aiff', 'weba']);

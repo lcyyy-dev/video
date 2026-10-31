@@ -204,7 +204,7 @@ test('clipSpan: trims, speed, stills and pages', () => {
   assert.deepEqual(clipSpan({ src: 'p.html', time: [0, 9], speed: 2 }, 6), { from: 0, to: 9, speed: 1, length: 9 });
   assert.equal(sourceAt({ from: 0, to: 9, speed: 1, length: 9 }, 8, { src: 'p.html' }, 6), 6 - 1e-3);
   assert.equal(sourceAt({ from: 2, to: 8, speed: 2, length: 3 }, 1.5, { src: 'a.mp4' }), 5);
-  assert.deepEqual(['s/a.html', 'a.mp4', 'b.png', 'c.mp3', 'x.txt'].map(clipKind), ['page', 'video', 'still', 'sound', null]);
+  assert.deepEqual(['s/a.html', 'title.text.json', 'a.mp4', 'b.png', 'c.mp3', 'x.txt'].map(clipKind), ['page', 'page', 'video', 'still', 'sound', null]);
 });
 
 test('pictureRect: a video or still is its box; a page is fitted whole inside its box, centered', () => {

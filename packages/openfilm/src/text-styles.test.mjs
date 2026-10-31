@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyTextStyle, getTextStyle, getTextStyleCompatibility, listTextStyles, validateTextStyleLibrary } from './text-styles.mjs';
 import { nativeTextFallbackReason } from './text-compatibility.mjs';
-import { readTextPage, textPageHtml } from './text-page.mjs';
+import { readTextPageJson, textPageJson } from './text-page.mjs';
 
 const item = { text: '每天训练，改变自己', x: 540, y: 1500, width: 900, align: 'center', fontSize: 40,
   fontPath: '/old/font.ttf', color: '#112233', italic: true,
@@ -68,7 +68,7 @@ test('applying and switching appearance preserves content, placement and keys wi
   assert.deepEqual(white.runs, item.runs.map(({ text }) => ({ text })));
   for (const preset of listTextStyles()) {
     const page = { version: 1, width: 1080, height: 1920, duration: 2, texts: [applyTextStyle(item, preset)] };
-    assert.deepEqual(readTextPage(textPageHtml(page)), page);
+    assert.deepEqual(readTextPageJson(textPageJson(page)), page);
   }
 });
 

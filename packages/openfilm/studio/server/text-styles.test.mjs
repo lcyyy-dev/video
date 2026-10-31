@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { textStyleLibrary, saveTextStyle, resolveTextStyle, setDefaultTextStyle, deleteTextStyle, styledTextPage } from './text-styles.mjs';
 import { startStudio } from './server.mjs';
-import { textPageHtml, readTextPage } from '../../src/text-page.mjs';
+import { textPageJson, readTextPageJson } from '../../src/text-page.mjs';
 import { jianyingDraft } from './jianying.mjs';
 import { planNleTimeline } from './nle.mjs';
 import { bundledTextFont, textFontCss } from './text-fonts.mjs';
@@ -38,7 +38,7 @@ test('custom presets persist, defaults resolve, built-ins are immutable and stal
   assert.equal(JSON.parse(readFileSync(join(home, 'text-styles.json'))).defaultId, preset.id);
   const page = styledTextPage({ text: 'Keep moving', width: 1080, height: 1920, duration: 3 });
   assert.equal(page.texts[0].color, '#00cfff');
-  assert.deepEqual(readTextPage(textPageHtml(page)), page);
+  assert.deepEqual(readTextPageJson(textPageJson(page)), page);
   const updated = await request(`/${preset.id}`, 'PUT', { name: preset.name, style: { ...preset.style, color: '#ff0000' }, version: 1 });
   assert.equal(updated.status, 200);
   assert.equal(updated.body.preset.version, 2);
@@ -75,7 +75,7 @@ test('a page generated with a saved default exports its resolved appearance as e
   setDefaultTextStyle(preset.id);
   const page = styledTextPage({ text: 'Editable styled title', width: 1080, height: 1920, duration: 3 });
   const timeline = planNleTimeline({ stage: { w: 1080, h: 1920 }, duration: 3, sounds: [], pictures: [
-    { id: 'title', kind: 'page', src: 'title.html', path: '/project/title.html', at: 0, end: 3, from: 0, speed: 1, track: 0, hidden: false, facts: null },
+    { id: 'title', kind: 'page', src: 'title.text.json', path: '/project/title.text.json', at: 0, end: 3, from: 0, speed: 1, track: 0, hidden: false, facts: null },
   ] }, { title: 'Custom', fps: 30, audio: 'clips', media: 'copy', mediaDir: '/drafts/Custom/media' });
   const { info } = jianyingDraft(timeline, { name: 'Custom', folder: '/drafts/Custom', root: '/drafts', textPages: new Map([['title', page]]) });
   assert.equal(info.materials.videos.length, 0);

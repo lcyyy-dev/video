@@ -20,12 +20,13 @@ const identity = FLAVORS.dev;
 const require = createRequire(import.meta.url);
 const desktop = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2).filter((a) => a !== '--no-build');
-/* Use WSLg's native compositor for source runs. Keep explicit backend choices
-   intact (e.g. --ozone-platform=x11), and leave other Linux sessions alone. */
+/* Keep Electron's browser and renderer on one backend. In this WSLg session
+   DISPLAY is available but no DRM render node exists, so X11 avoids the
+   Wayland/X11 split that makes the window or pointer disappear. */
 if (process.platform === 'linux' && process.env.WAYLAND_DISPLAY
     && existsSync('/mnt/wslg/runtime-dir')
     && !args.some((arg) => arg === '--ozone-platform' || arg.startsWith('--ozone-platform='))) {
-  args.push('--ozone-platform=wayland');
+  args.push(process.env.DISPLAY ? '--ozone-platform=x11' : '--ozone-platform=wayland');
 }
 
 

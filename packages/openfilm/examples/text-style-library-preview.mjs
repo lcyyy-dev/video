@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { listTextStyles } from '../src/text-styles.mjs';
-import { textPageHtml } from '../src/text-page.mjs';
+import { textPageJson } from '../src/text-page.mjs';
 import { bundledTextFonts } from '../studio/server/text-fonts.mjs';
 
 const output = resolve(process.argv[2] ?? 'packages/openfilm/examples/text-style-library-preview.html');
@@ -20,11 +20,8 @@ const cards = styles.map((preset, index) => {
     text: index % 3 === 0 ? '专业训练·看见变化' : index % 3 === 1 ? '每天进步一点点' : '济南体适能训练',
     x: 320, y: 112, width: 570, align: 'center', ...preset.style,
   }] };
-  const inner = textPageHtml(page, { fontCss }).replace(
-    'html,body{margin:0;background:transparent;',
-    'html,body{margin:0;background:linear-gradient(135deg,#111827,#263244);',
-  );
-  return `<article class="card"><div class="meta"><strong>${index + 1}. ${esc(preset.name)}</strong><code>${esc(preset.id)}</code></div><iframe title="${esc(preset.name)}" srcdoc="${esc(inner)}"></iframe><p>${esc(preset.description)}</p></article>`;
+  const json = textPageJson(page, { fontCss });
+  return `<article class="card"><div class="meta"><strong>${index + 1}. ${esc(preset.name)}</strong><code>${esc(preset.id)}</code></div><pre>${esc(json)}</pre><p>${esc(preset.description)}</p></article>`;
 }).join('\n');
 
 const html = `<!doctype html><meta charset="utf-8"><title>OpenFilm 30 native text styles</title><style>

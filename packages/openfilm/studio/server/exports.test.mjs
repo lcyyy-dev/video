@@ -12,7 +12,7 @@ import { filmSubtitleSrt, parseFilmSubtitleStyle } from './film-subtitle.mjs';
 import { zipFiles } from './zip.mjs';
 import { launch } from '../../src/host.mjs';
 import { filmHtml } from '../../src/film-doc.mjs';
-import { textPageHtml } from '../../src/text-page.mjs';
+import { textPageJson } from '../../src/text-page.mjs';
 
 const hasFfmpeg = (() => { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
 const ffmpeg = { skip: !hasFfmpeg && 'no ffmpeg', timeout: 120_000 };
@@ -116,14 +116,14 @@ const frameCount = (file) => parseInt(execFileSync('ffprobe', ['-v', 'error', '-
 test('structured text exports directly to native draft JSON, respecting trim and hidden state', { timeout: 120_000 }, async () => {
   const path = join(scratch, 'NativeText');
   mkdirSync(path);
-  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 3,
+  writeFileSync(join(path, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 3,
     texts: [{ text: 'Native title', x: 160, y: 90, fontSize: 32, color: '#ff0000',
       runs: [{ text: '', color: '#ffff00' }, { text: 'Native ', color: '#ffff00' },
         { text: 'title', color: '#ffffff', stroke: { color: '#000000', width: 2 } }, { text: '' }],
       keyframes: { x: [{ time: 0, value: 0 }, { time: 2, value: 320 }] } }] }));
   writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
-    { clips: [{ id: 'title', src: 'title.html', at: 1, time: [1, 2] }] },
-    { hidden: true, clips: [{ id: 'hidden', src: 'title.html', time: [0, 1] }] },
+    { clips: [{ id: 'title', src: 'title.text.json', at: 1, time: [1, 2] }] },
+    { hidden: true, clips: [{ id: 'hidden', src: 'title.text.json', time: [0, 1] }] },
   ] }));
   for (const format of ['jianying', 'capcut']) {
     const exports = createExports({ drafts: () => null, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
@@ -151,10 +151,10 @@ test('structured text exports directly to native draft JSON, respecting trim and
 test('structured text opacity animation retains its render and explains the fallback', ffmpeg, async () => {
   const path = join(scratch, 'TextFade');
   mkdirSync(path);
-  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 0.1,
+  writeFileSync(join(path, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 0.1,
     texts: [{ text: 'Fade', x: 160, y: 90, fontSize: 32,
       keyframes: { opacity: [{ time: 0, value: 0 }, { time: 0.1, value: 1 }] } }] }));
-  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [{ id: 'fade', src: 'title.html' }] }] }));
+  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [{ id: 'fade', src: 'title.text.json' }] }] }));
   const exports = createExports({ drafts: () => null, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
   const job = await ended(exports, exports.start(project('TextFade', path), { kind: 'nle', format: 'jianying' }));
   assert.equal(job.status, 'done', job.error);
@@ -169,10 +169,10 @@ test('structured text opacity animation retains its render and explains the fall
 test('structured text with Studio element edits renders instead of exporting stale text', ffmpeg, async () => {
   const path = join(scratch, 'TextEdits');
   mkdirSync(path);
-  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 0.1,
+  writeFileSync(join(path, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 0.1,
     texts: [{ text: 'Original', x: 160, y: 90, fontSize: 32 }] }));
   writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
-    { clips: [{ id: 'edited', src: 'title.html', overrides: [{ at: 'body > div', text: 'Edited' }] }] },
+    { clips: [{ id: 'edited', src: 'title.text.json', overrides: [{ at: 'body > div', text: 'Edited' }] }] },
   ] }));
   const exports = createExports({ drafts: () => null, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
   const job = await ended(exports, exports.start(project('TextEdits', path), { kind: 'nle', format: 'jianying' }));
@@ -503,10 +503,10 @@ test('draft export copies original video and audio, with trims and editable text
   execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=160x90:r=30:d=2',
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', source]);
   writeFileSync(join(path, 'voice.wav'), readFileSync(join(root, 'assets/tone.wav')));
-  writeFileSync(join(path, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 1,
+  writeFileSync(join(path, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 1,
     texts: [{ text: '可编辑文字', x: 160, y: 40, fontSize: 32, color: '#FFEA00' }] }));
   writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
-    { clips: [{ id: 'title', src: 'title.html', time: [0, 1] }] },
+    { clips: [{ id: 'title', src: 'title.text.json', time: [0, 1] }] },
     { clips: [{ id: 'shot', src: 'shot.mp4', time: [0.5, 1.5], muted: true,
       box: { x: 0, y: 0, w: 320, h: 180 }, style: 'object-fit: contain' }] },
     { clips: [{ id: 'voice', src: 'voice.wav', time: [0, 1] }] },
@@ -860,11 +860,11 @@ test('chosen draft folders override installed editor defaults for single and bat
   const chosen = join(scratch, 'User chosen drafts');
   mkdirSync(source, { recursive: true });
   mkdirSync(installed, { recursive: true });
-  writeFileSync(join(source, 'title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 1,
+  writeFileSync(join(source, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 1,
     texts: [{ text: 'Editable', x: 160, y: 90, fontSize: 24, color: '#ffffff' }] }));
   writeFileSync(join(source, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
-    { clips: [{ id: 'title-one', src: 'title.html', time: [0, 1] }] },
-    { clips: [{ id: 'title-two', src: 'title.html', time: [0, 1] }] },
+    { clips: [{ id: 'title-one', src: 'title.text.json', time: [0, 1] }] },
+    { clips: [{ id: 'title-two', src: 'title.text.json', time: [0, 1] }] },
   ] }));
   const exports = createExports({ drafts: () => installed, captions: async () => ({ cues: [], style: parseFilmSubtitleStyle(null) }) });
   const ask = { kind: 'nle', format: 'jianying', fps: 24, audio: 'clips', media: 'copy', subtitles: true };

@@ -32,6 +32,27 @@ test('a hidden track\'s clips are still placed for an editor, but neither drawn 
   }
 });
 
+test('a structured text JSON page is mounted by the native renderer without an iframe', { timeout: 60_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'of-text-json-'));
+  writeFileSync(join(dir, 'title.text.json'), JSON.stringify({
+    version: 1, width: 320, height: 180, duration: 2,
+    texts: [{ text: 'Native JSON title', x: 160, y: 90, fontSize: 32, color: '#ff0000', bold: true }],
+  }));
+  writeFileSync(join(dir, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [{ id: 'title', src: 'title.text.json' }] }] }));
+  const s = await open(dir);
+  try {
+    await s.film.seek(1);
+    const state = await s.film.page.evaluate(() => ({
+      iframes: document.querySelectorAll('iframe').length,
+      text: [...document.querySelectorAll('body > section > * div')].map((node) => ({ text: node.textContent, color: node.style.color })),
+    }));
+    assert.equal(state.iframes, 0);
+    assert.deepEqual(state.text, [{ text: 'Native JSON title', color: 'rgb(255, 0, 0)' }]);
+  } finally {
+    await s.close();
+  }
+});
+
 /** `seconds` of silence as a WAV (8 kHz, mono, 16 bit): a sound file the browser reads without a codec. */
 function silence(seconds) {
   const data = Math.round(8000 * seconds) * 2;

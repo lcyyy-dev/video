@@ -47,7 +47,7 @@
     const el = byHandle.get(h)?.deref();
     return el?.isConnected ? el : null;
   };
-  const clipOfNode = (el) => clips().find((c) => c.kind === 'page' && c.win === el?.ownerDocument?.defaultView) ?? null;
+  const clipOfNode = (el) => clips().find((c) => c.kind === 'page' && (c.win === el?.ownerDocument?.defaultView || c.el?.contains?.(el))) ?? null;
   const clipById = (id) => clips().find((c) => c.id === id) ?? null;
 
   /* ── a clip on the stage: its placement maps its own px to stage px ── */
@@ -78,6 +78,21 @@
   };
   const clipTurn = (M) => (Math.atan2(M.b, M.a) * 180) / Math.PI;
   const clipScale = (M) => Math.hypot(M.a, M.b) || 1;
+  const textPageRect = (root) => {
+    const base = root.getBoundingClientRect();
+    const rects = [...root.querySelectorAll('[data-openfilm-text]')].filter((el) => css(el).visibility !== 'hidden').flatMap((el) => {
+      const range = el.ownerDocument.createRange();
+      range.selectNodeContents(el);
+      const list = [...range.getClientRects()];
+      return list.length ? list : [el.getBoundingClientRect()];
+    });
+    if (!rects.length) return { left: 0, top: 0, width: root.offsetWidth, height: root.offsetHeight };
+    const left = Math.min(...rects.map((r) => r.left)) - base.left;
+    const top = Math.min(...rects.map((r) => r.top)) - base.top;
+    const right = Math.max(...rects.map((r) => r.right)) - base.left;
+    const bottom = Math.max(...rects.map((r) => r.bottom)) - base.top;
+    return { left, top, width: right - left, height: bottom - top };
+  };
 
   /** The picture clips a person sees now, the top one first (track 0 is on top). */
   const shown = () => clips()
@@ -254,6 +269,11 @@
     const ro = el.style.getPropertyValue('rotate').trim();
     const px = tr && tr !== 'none' ? tr.split(/\s+/).map((v) => Number.parseFloat(v) || 0) : [];
     const sp = sc && sc !== 'none' ? sc.split(/\s+/).map((v) => Number.parseFloat(v) || 1) : [];
+    if (el.dataset?.openfilmText === '1') {
+      const bw = Number(el.dataset.openfilmTextBaseWidth) || el.offsetWidth || 1;
+      const bh = Number(el.dataset.openfilmTextBaseHeight) || el.offsetHeight || 1;
+      return { t: [px[0] ?? 0, px[1] ?? 0], s: [el.offsetWidth / bw, el.offsetHeight / bh], r: ro && ro !== 'none' ? angleDeg(ro) : 0 };
+    }
     return { t: [px[0] ?? 0, px[1] ?? 0], s: [sp[0] ?? 1, sp[1] ?? sp[0] ?? 1], r: ro && ro !== 'none' ? angleDeg(ro) : 0 };
   };
 
@@ -269,7 +289,21 @@
       }
       if (l < r && t < b) return { left: l, top: t, width: r - l, height: b - t };
     }
-    if (mixedText(el)) return wordsRect(el);
+    if (mixedText(el)) {
+      /* Structured JSON text owns its layout box: the input border and transform
+         handles must describe the same rectangle, including its empty padding. */
+      if (el.dataset?.openfilmText === '1') {
+        const box = el.getBoundingClientRect();
+        return { left: box.left, top: box.top, width: box.width, height: box.height };
+      }
+      /* Legacy mixed text normally hugs its painted words. Once a resize handle changes
+         its authored box, keep measuring that box so the handle can continue resizing it. */
+      const bw = Number(el.dataset?.openfilmTextBaseWidth);
+      const bh = Number(el.dataset?.openfilmTextBaseHeight);
+      const box = el.getBoundingClientRect();
+      if ((bw > 0 && Math.abs(box.width - bw) > 0.5) || (bh > 0 && Math.abs(box.height - bh) > 0.5)) return { left: box.left, top: box.top, width: box.width, height: box.height };
+      return wordsRect(el);
+    }
     const x = el.getBoundingClientRect();
     return { left: x.left, top: x.top, width: x.width, height: x.height };
   };
@@ -280,7 +314,7 @@
    */
   const measureFrame = (el, s, r) => {
     const mixed = mixedText(el);
-    const box = mixed ? wordsRect(el) : el.getBoundingClientRect();
+    const box = mixed && el.dataset?.openfilmText !== '1' ? wordsRect(el) : el.getBoundingClientRect();
     const cx = box.left + box.width / 2;
     const cy = box.top + box.height / 2;
     if (mixed && Math.abs(r % 360) < 0.01) return { cx, cy, w: box.width, h: box.height, r: 0 };
@@ -879,6 +913,7 @@
     put('contenteditable', edit.attrs.contentEditable);
     put('style', edit.attrs.style);
     put('spellcheck', edit.attrs.spellcheck);
+    put('data-openfilm-editing', edit.attrs.editing);
     for (const [b, style] of edit.blocks) { if (style == null) b.removeAttribute('style'); else b.setAttribute('style', style); }
     el.replaceChildren(...edit.children);
     edit.data.forEach((text, n) => { n.data = text; });
@@ -912,7 +947,7 @@
     const data = new Map();
     const walker = doc.createTreeWalker(el, 4);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) data.set(n, n.data);
-    const attrs = { contentEditable: el.getAttribute('contenteditable'), style: el.getAttribute('style'), spellcheck: el.getAttribute('spellcheck') };
+    const attrs = { contentEditable: el.getAttribute('contenteditable'), style: el.getAttribute('style'), spellcheck: el.getAttribute('spellcheck'), editing: el.getAttribute('data-openfilm-editing') };
     /* typed in place, lines and all, where it can be: the line keeps its own width and wraps as it does */
     const overlay = isSvgText(el) || !onlyBreaks(el);
     /* typed in place, the words beside it and under it stay where they are as it grows (holdSearch), its box hugging
@@ -942,7 +977,10 @@
     try { host.contentEditable = 'plaintext-only'; } catch { host.contentEditable = 'true'; }
     if (host.contentEditable !== 'plaintext-only') host.contentEditable = 'true';
     host.spellcheck = false;
-    for (const [name, value] of [['user-select', 'text'], ['-webkit-user-select', 'text'], ['cursor', 'text'], ['outline', 'none'], ['pointer-events', 'auto'], ['caret-color', BLUE]]) {
+    host.setAttribute('data-openfilm-editing', '1');
+    /* The editable node is the same box the stage uses for dragging. Draw the
+       edit border on it directly instead of creating a second input frame. */
+    for (const [name, value] of [['user-select', 'text'], ['-webkit-user-select', 'text'], ['cursor', 'text'], ['outline', `1px solid ${BLUE}`], ['outline-offset', '0px'], ['pointer-events', 'auto'], ['caret-color', BLUE]]) {
       host.style.setProperty(name, value, 'important');
     }
     /* Shift+Enter breaks the line (where the words can hold one); Enter keeps them, Esc gives them up */
@@ -969,7 +1007,10 @@
     window.focus();
     c.win.focus();
     host.focus({ preventScroll: true });
-    doc.getSelection()?.selectAllChildren(host);
+    /* Put the native blinking caret at the end. Selecting the whole line here
+       suppresses the caret in Chromium, making it unclear whether typing is active. */
+    const selection = doc.getSelection();
+    if (selection) { selection.selectAllChildren(host); selection.collapse(host, host.childNodes.length); }
     return true;
   };
 
@@ -1323,7 +1364,8 @@
     clips() {
       const on = new Set(shown());
       return clips().filter((c) => c.el && c.kind !== 'sound').map((c) => {
-        const r = mapRect(matrixOf(c), { left: 0, top: 0, width: c.w, height: c.h });
+        const local = c.el.dataset?.openfilmTextPage ? textPageRect(c.el) : { left: 0, top: 0, width: c.w, height: c.h };
+        const r = mapRect(matrixOf(c), local);
         return { id: c.id, visible: on.has(c), x: r.left, y: r.top, w: r.width, h: r.height };
       });
     },

@@ -74,9 +74,9 @@ import { boxBetween, boxHits, boxPick, moveTargets, pickItem, type Box } from '@
 import { barLayout, type BarWords } from '@/lib/media-bar';
 import { byName, folderFaces } from '@/lib/media-folders';
 
-type Filter = 'all' | 'video' | 'image' | 'audio' | 'page' | 'other';
+type Filter = 'all' | 'video' | 'image' | 'audio' | 'other';
 type SortKey = 'name' | 'time' | 'duration' | 'type';
-const FILTERS: readonly Filter[] = ['all', 'video', 'image', 'audio', 'page', 'other'];
+const FILTERS: readonly Filter[] = ['all', 'video', 'image', 'audio', 'other'];
 const SORTS: readonly SortKey[] = ['name', 'time', 'duration', 'type'];
 /** Tiles dragged inside the pane, to be moved into a folder: their paths, a line each (a name has no line break). */
 const FOLDER_DRAG = 'application/x-openfilm-media';
@@ -89,7 +89,7 @@ const OPEN_FOLDER = new Map<string, string>();
 const HIDDEN_DIRS = [/(^|\/)fonts?(\/|$)/i];
 const hiddenDir = (rel: string) => HIDDEN_DIRS.some((re) => re.test(rel));
 
-const filterOf = (f: WorkspaceResource): Filter => (f.kind === 'mg' ? 'page' : f.kind as Filter);
+const filterOf = (f: WorkspaceResource): Filter => f.kind as Filter;
 
 /** `layout`: tiles in a grid, or rows of a list (name, length, kind). */
 interface ViewState { sort: SortKey; filter: Filter; layout: 'grid' | 'list' }
@@ -270,7 +270,7 @@ export function MediaPool({
     /* every file, of any kind: a document or a model is material too (the agent can make a film of it); Studio
        plays and previews only pictures, videos, sounds and pages */
     const files = media.files.filter((f) => !hiddenDir(relDir(assetRel(f.path))));
-    return [...media.pages, ...files];
+    return files;
   }, [media, assetRel]);
 
   /* every folder under assets/ but a tool's (fonts) */
@@ -773,7 +773,7 @@ export function MediaPool({
   });
 
   const counts = React.useMemo(() => {
-    const out: Record<Filter, number> = { all: 0, video: 0, image: 0, audio: 0, page: 0, other: 0 };
+    const out: Record<Filter, number> = { all: 0, video: 0, image: 0, audio: 0, other: 0 };
     for (const f of allFiles ?? []) { out.all += 1; out[filterOf(f)] += 1; }
     return out;
   }, [allFiles]);

@@ -1,5 +1,5 @@
 // @ts-check
-/** Structured, editable text. JSON is the source; HTML is only its preview. */
+/** Structured, editable text. JSON is the source rendered directly by the timeline and draft exporter. */
 
 /**
  * @typedef {{ text: string, fontSize?: number, color?: string, bold?: boolean, italic?: boolean,
@@ -11,16 +11,16 @@
  *   width?: number, lineHeight?: number, letterSpacing?: number,
  *   stroke?: { color: string, width: number }, shadow?: { color: string, opacity: number, blur: number, x: number, y: number },
  *   runs?: TextRun[], keyframes?: Partial<Record<'x' | 'y' | 'scale' | 'opacity', { time: number, value: number }[]>> }} TextItem
- * @typedef {{ version: 1, width: number, height: number, duration: number, texts: TextItem[] }} TextPage
+ * @typedef {{ version: 1, width: number, height: number, duration: number, texts: TextItem[], fontCss?: string }} TextPage
  */
 
 /** @param {unknown} input @returns {TextPage} */
 export function validateTextPage(input) {
   const page = /** @type {TextPage} */ (input);
   const positive = (/** @type {number} */ n) => Number.isFinite(n) && n > 0;
-  if (!page || Object.keys(page).some((key) => !['version', 'width', 'height', 'duration', 'texts'].includes(key))
+  if (!page || Object.keys(page).some((key) => !['version', 'width', 'height', 'duration', 'texts', 'fontCss'].includes(key))
     || page.version !== 1 || !positive(page.width) || !positive(page.height) || !positive(page.duration)
-    || !Array.isArray(page.texts) || !page.texts.length) throw new Error('Invalid OpenFilm text page');
+    || !Array.isArray(page.texts) || !page.texts.length || (page.fontCss !== undefined && typeof page.fontCss !== 'string')) throw new Error('Invalid OpenFilm text page');
   const keys = new Set(['text', 'x', 'y', 'fontSize', 'color', 'fontFamily', 'fontPath', 'bold', 'italic', 'scale', 'opacity', 'keyframes',
     'backgroundColor', 'backgroundOpacity', 'borderRadius', 'underline', 'align', 'width', 'lineHeight', 'letterSpacing', 'stroke', 'shadow', 'runs']);
   const color = (/** @type {string} */ value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
@@ -107,8 +107,14 @@ export function textValueAt(points, time) {
 
 /** Mount validated data in a browser container; also embedded in standalone pages. @param {TextPage} page @param {HTMLElement} [root] */
 export function mountTextPage(page, root = document.body) {
+  if (page.fontCss) {
+    const style = document.createElement('style');
+    style.textContent = page.fontCss;
+    root.append(style);
+  }
   const nodes = page.texts.map((item) => {
     const node = document.createElement('div');
+    node.dataset.openfilmText = '1';
     node.textContent = item.text;
     Object.assign(node.style, {
       position: 'absolute', whiteSpace: item.width ? 'pre-wrap' : 'pre', textAlign: item.align ?? 'center',
@@ -139,6 +145,10 @@ export function mountTextPage(page, root = document.body) {
       }
     }
     root.append(node);
+    /* Keep the authored box size separate from editor overrides. Text resizing changes this box,
+       while the glyph metrics (font-size) stay fixed. */
+    node.dataset.openfilmTextBaseWidth = String(item.width ?? (node.offsetWidth || 1));
+    node.dataset.openfilmTextBaseHeight = String(node.offsetHeight || item.fontSize * (item.lineHeight ?? 1.25));
     return node;
   });
   const film = {
@@ -158,17 +168,24 @@ export function mountTextPage(page, root = document.body) {
   return film;
 }
 
-/** Self-contained preview; insert in film.html as an ordinary iframe. @param {TextPage} input @param {{ fontCss?: string }} [options] */
-export function textPageHtml(input, options = {}) {
+/** A standalone structured text page. The timeline renders this JSON directly without an HTML wrapper. */
+/** @param {unknown} input @param {{ fontCss?: string }} [options] */
+export function textPageJson(input, options = {}) {
   const page = validateTextPage(input);
-  const json = JSON.stringify(page).replace(/</g, '\\u003c');
-  return `<!doctype html><meta charset="utf-8"><style>${(options.fontCss ?? '').replace(/<\/style/gi, '<\\/style')}html,body{margin:0;background:transparent;width:${page.width}px;height:${page.height}px;overflow:hidden}</style><body>
-<script id="openfilm-text" type="application/json">${json}</script>
-<script>${textValueAt.toString()};${textStyleRuns.toString()};window.film=(${mountTextPage.toString()})(JSON.parse(document.getElementById('openfilm-text').textContent));</script></body>`;
+  const withFonts = typeof options.fontCss === 'string' && options.fontCss ? { ...page, fontCss: options.fontCss } : page;
+  return `${JSON.stringify(withFonts, null, 2)}\n`;
 }
 
-/** Only explicitly structured pages opt in; arbitrary HTML stays a rendered page. @param {string} html */
-export function readTextPage(html) {
-  const match = html.match(/<script\s+id="openfilm-text"\s+type="application\/json">([\s\S]*?)<\/script>/);
-  return match ? validateTextPage(JSON.parse(match[1])) : null;
+/** Read a standalone structured text page. @param {string} json */
+export function readTextPageJson(json) {
+  try { return validateTextPage(JSON.parse(json)); } catch { return null; }
+}
+
+/** Read the embedded data from a pre-JSON text page so existing projects can migrate on load. */
+/** @param {string} html */
+export function readLegacyTextPage(html) {
+  try {
+    const match = String(html).match(/<script\s+id=["']openfilm-text["']\s+type=["']application\/json["'][^>]*>([\s\S]*?)<\/script>/i);
+    return match ? validateTextPage(JSON.parse(match[1])) : null;
+  } catch { return null; }
 }

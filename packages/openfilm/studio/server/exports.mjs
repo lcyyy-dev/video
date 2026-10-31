@@ -57,10 +57,10 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { fileURLToPath } from 'node:url';
 import { FilmPage, launch } from '../../src/host.mjs';
 import { filmSound, kill as killProcess, mix, open } from '../../src/shared.mjs';
-import { FILM_FILE, clipFade, filmHtml, fittedFade, kindOf, pictureRect, readFilmFile } from '../../src/film-doc.mjs';
+import { FILM_FILE, clipFade, filmHtml, fittedFade, isTextPage, kindOf, pictureRect, readFilmFile } from '../../src/film-doc.mjs';
 import { hasPictureEffects, NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
-import { readTextPage, textValueAt } from '../../src/text-page.mjs';
+import { readLegacyTextPage, readTextPageJson, textValueAt } from '../../src/text-page.mjs';
 import { bundledTextFont } from './text-fonts.mjs';
 import { nativeTextFallbackReason } from '../../src/text-compatibility.mjs';
 import { slidesPdf, writePptx } from './slides.mjs';
@@ -1138,7 +1138,8 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
           if (!track.hidden) duration = Math.max(duration, c.end);
           if (kind !== 'sound') {
             if (app && kind === 'page') {
-              const page = readTextPage(await readFile(path, 'utf8'));
+              const source = await readFile(path, 'utf8');
+              const page = isTextPage(row.src) ? readTextPageJson(source) : readLegacyTextPage(source);
               if (page) {
                 const reason = nativeTextFallbackReason(page, {
                   canvas: { width: doc.stage.w, height: doc.stage.h },

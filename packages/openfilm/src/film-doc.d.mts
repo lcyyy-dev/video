@@ -86,6 +86,7 @@ export declare const SPEED_MAX: number;
 
 export declare function isStill(src: string): boolean;
 export declare function isPage(src: string): boolean;
+export declare function isTextPage(src: string): boolean;
 export declare function soundRole(src: string): 'voice' | 'music' | 'sfx';
 export declare function clipKind(src: unknown): FilmClipKind | null;
 export declare function hasPicture(src: unknown): boolean;

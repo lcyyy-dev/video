@@ -26,7 +26,20 @@ export function override(c, list = []) {
     if (nodes.length) c.found[i] = true;
     for (const el of nodes) {
       if (o.t) set(el, 'translate', `${o.t[0]}px ${o.t[1]}px`);
-      if (o.s != null) set(el, 'scale', Array.isArray(o.s) ? `${o.s[0]} ${o.s[1]}` : String(o.s));
+      if (o.s != null) {
+        const text = el.dataset?.openfilmText === '1';
+        if (text) {
+          /* JSON text uses s as the editor's box resize. Never apply a CSS scale to the text,
+             otherwise the glyphs themselves become wider/taller. */
+          const sx = Array.isArray(o.s) ? Number(o.s[0]) || 1 : Number(o.s) || 1;
+          const sy = Array.isArray(o.s) ? Number(o.s[1]) || sx : Number(o.s) || 1;
+          const bw = Number(el.dataset.openfilmTextBaseWidth) || el.offsetWidth || 1;
+          const bh = Number(el.dataset.openfilmTextBaseHeight) || el.offsetHeight || 1;
+          set(el, 'scale', 'none');
+          set(el, 'width', `${Math.max(1, bw * sx)}px`, 'important');
+          set(el, 'height', `${Math.max(1, bh * sy)}px`, 'important');
+        } else set(el, 'scale', Array.isArray(o.s) ? `${o.s[0]} ${o.s[1]}` : String(o.s));
+      }
       if (o.r != null) set(el, 'rotate', `${o.r}deg`);
       for (const [k, v] of Object.entries(o.style ?? {})) {
         /* a custom property (`--accent`) is set as it is named, its value as it is: what a number means is the page's */

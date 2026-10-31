@@ -60,5 +60,11 @@ export default defineConfig({
   css: { postcss: { plugins: [scopeChat] } },
   /* one React for both trees (each would find its own package's otherwise) */
   resolve: { dedupe: ['react', 'react-dom', 'lucide-react'] },
-  build: { outDir: 'dist', emptyOutDir: true, target: 'es2022', sourcemap: false },
+  build: {
+    outDir: 'dist', emptyOutDir: true, target: 'es2022', sourcemap: false,
+    /* The desktop shell intentionally ships Studio and Chat as one local entry
+       so they share one renderer and load without a network round-trip. Keep
+       the warning threshold above the measured 2.25 MB bundle. */
+    chunkSizeWarningLimit: 2500,
+  },
 });

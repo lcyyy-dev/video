@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { textPageHtml } from '../../../../src/text-page.mjs';
+import { textPageJson } from '../../../../src/text-page.mjs';
 
 const page = {
   version: 1,
@@ -38,6 +38,6 @@ const page = {
   ],
 };
 
-const output = join(dirname(fileURLToPath(import.meta.url)), 'original-audio-vertical.html');
-writeFileSync(output, textPageHtml(page));
+const output = join(dirname(fileURLToPath(import.meta.url)), 'original-audio-vertical.text.json');
+writeFileSync(output, textPageJson(page));
 console.log(output);

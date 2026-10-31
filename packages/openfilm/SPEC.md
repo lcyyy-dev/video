@@ -150,9 +150,9 @@ after `load`) before reporting the page as not a film.
 ### Structured text pages
 
 `openfilm/text-page` is an optional helper for text that should remain editable in Jianying / CapCut drafts.
-`textPageHtml(data)` returns a self-contained HTML page following §2; write it to a file and reference it with an
-ordinary iframe. It embeds its source in `<script id="openfilm-text" type="application/json">`. No film attributes
-or page-host methods are added. Arbitrary HTML is still rendered as media on export.
+`textPageJson(data)` returns a standalone `.text.json` source rendered directly by OpenFilm's native text renderer;
+the same data is used for native draft export. No HTML wrapper or page-host script is generated for text. Arbitrary HTML
+is still rendered as media on export.
 
 For an in-app preview, `mountTextPage(validatedData, container)` uses the same DOM renderer and returns its film
 controller without changing `window.film`. It appends its nodes to the supplied container; the caller handles
@@ -160,8 +160,8 @@ container sizing, positioning, and cleanup. Standalone HTML installs this contro
 
 ```js
 import { writeFileSync } from 'node:fs';
-import { textPageHtml } from 'openfilm/text-page';
-writeFileSync('title.html', textPageHtml({
+import { textPageJson } from 'openfilm/text-page';
+writeFileSync('title.text.json', textPageJson({
   version: 1, width: 1080, height: 1920, duration: 4,
   texts: [{ text: 'Start moving', x: 540, y: 300, fontSize: 80,
     color: '#ffffff', bold: true, stroke: { color: '#000000', width: 3 } }],
@@ -214,7 +214,7 @@ using portable `openfilm-font:<id>` references, without replacing explicitly sel
 files through authenticated Studio endpoints. `text-styles page` embeds the selected font in its HTML so the page renders
 without system font installation; native draft export copies matching bundled fonts into `media/fonts/`.
 For programmatic generation, use `textFontCss(families, true)` from `openfilm/text-fonts` as the `fontCss` option
-to `textPageHtml(page, { fontCss })`. Draft JSON uses destination paths, which must be rebased when moving a
+to `textPageJson(page, { fontCss })`. Draft JSON uses destination paths, which must be rebased when moving a
 draft to a different directory, just like other referenced media.
 
 The other three font candidates are also packaged: SimSun (`simsun.ttc`), SimHei (`simhei.ttf`) and KaiTi
@@ -272,7 +272,7 @@ from `{ name, style }`; `PUT /api/text-styles/:id` updates a custom preset with 
 All writes use the normal Studio authentication and origin checks.
 
 `openfilm text-styles list` includes custom presets from the same Studio home. `show default` and `default` resolve
-the selected preset; `default <id>` changes it. `text-styles page title.html --text "Start today" --duration 4
+the selected preset; `default <id>` changes it. `text-styles page title.text.json --text "Start today" --duration 4
 --size 1080x1920` creates a new structured page with the selected default (`--preset <id>` overrides it). It centers
 the text in a box 90% of the canvas width; placement can be edited independently afterwards. It never overwrites an
 existing file. Generated pages hold resolved appearance, not live references: changing a library preset never

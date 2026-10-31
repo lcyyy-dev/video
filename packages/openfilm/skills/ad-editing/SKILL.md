@@ -185,13 +185,13 @@ second appearance source or an automatic vision engine.
 Use structured text pages matching the film canvas for native editable export. For example:
 
 ```sh
-openfilm text-styles page titles/s01.html --text 'Your line' --duration 3.2 --size 1080x1920 --preset xinqingnian-yellow
+openfilm text-styles page titles/s01.text.json --text 'Your line' --duration 3.2 --size 1080x1920 --preset xinqingnian-yellow
 ```
 
 Use unique output names: this command refuses overwrites. Update pages with `openfilm/text-page` when changing
 placement, wrapping or layout; preserve the appearance copied from the selected preset. For programmatic generation,
 call `applyTextStyle(item, presetId, layoutOverrides)` from `openfilm/text-styles`, then pass
-`textFontCss(families, true)` from `openfilm/text-fonts` as `textPageHtml(page, { fontCss })`. Keep packaged fonts as
+`textFontCss(families, true)` from `openfilm/text-fonts` as `textPageJson(page, { fontCss })`. Keep packaged fonts as
 `openfilm-font:<id>` references. Save full styles rather than live preset references. Do not replace structured copy with arbitrary HTML or a text MOV to
 conceal an unsupported property.
 
