@@ -729,7 +729,7 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
           composerFiles.add(filesFromTransfer(event.dataTransfer));
         }}
         data-prompt-shell=""
-        className={`rounded-[12px] border bg-[var(--composer-bg)] shadow-[0_2px_8px_rgba(0,0,0,0.04)] transition-colors duration-200 ${
+        className={`rounded-[12px] border bg-[var(--composer-bg)] shadow-[0_2px_8px_rgba(0,0,0,0.04)] ${
           dropping ? 'border-[var(--accent)]' : 'border-[var(--composer-border)] focus-within:border-[var(--composer-border-active)]'
         }`}
       >

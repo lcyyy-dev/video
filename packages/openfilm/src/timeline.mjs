@@ -234,11 +234,12 @@ function roll(c, want) {
   const v = c.el;
   const speed = c.span.speed ?? 1;
   const drift = v.currentTime - want;
-  if (Math.abs(drift) > ROLL_DRIFT || v.ended) { v.currentTime = want; v.playbackRate = speed; }
-  else {
-    const rate = speed * (1 - Math.max(-0.1, Math.min(0.1, drift * 2)));
-    if (Math.abs(v.playbackRate - rate) > 0.005) v.playbackRate = rate;
-  }
+  /* Let the browser's native decoder advance frames at the source cadence.
+     Nudging playbackRate every animation frame makes Chromium continually
+     reschedule 59.94/60fps video and appears as judder. Correct only a real
+     timeline drift, otherwise keep the authored speed unchanged. */
+  if (Math.abs(drift) > ROLL_DRIFT || v.ended) v.currentTime = want;
+  if (Math.abs(v.playbackRate - speed) > 0.005) v.playbackRate = speed;
   if (v.paused) v.play().catch((e) => { if (e?.name === 'NotAllowedError') c.held = true; });
   c.lastWant = want;
 }
@@ -249,7 +250,10 @@ function roll(c, want) {
 function step(c, want) {
   const v = c.el;
   c.lastWant = want;
-  if (!v.seeking && Math.abs(v.currentTime - want) > 1 / 30) v.currentTime = want;
+  /* The fallback is used when autoplay is unavailable. Use the source cadence
+     rather than a fixed 30/60fps threshold, so high-frame-rate footage is not
+     silently reduced to every other frame. */
+  if (!v.seeking && Math.abs(v.currentTime - want) > (c.frameDuration ?? 1 / 60)) v.currentTime = want;
 }
 /**
  * A video on screen while a person looks at one moment or scrubs: sought, and waited for until its frame is decoded
@@ -324,6 +328,9 @@ function wake(c, from = null) {
   v.preload = 'auto';
   /* without the fragment: which seconds play is the film's to keep (a browser would stop the video at its end) */
   v.src = url(c.row.src).href;
+  void frameOf(c).then((seconds) => {
+    if (seconds && seconds > 0) c.frameDuration = seconds;
+  });
   /* an exact frame's video loads at that frame: one sought at once after loading can stay on its first frame
      (Chromium). Not while a person watches: a start set before loading stalls the whole picture for a moment */
   if (from > 0) v.currentTime = from;

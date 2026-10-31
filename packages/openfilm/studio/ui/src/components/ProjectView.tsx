@@ -381,6 +381,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     if (!playing) return undefined;
     let frame = 0;
     let lastTick = 0;
+    let lastPreview = -Infinity;
     const tick = (now: number) => {
       const t = player.current.time();
       /* looping: back to the start of what loops once its end is reached */
@@ -405,7 +406,15 @@ export function ProjectView({ projectId, onProject, onLeave }: {
         for (const fn of listeners.current) fn();
         return;
       }
-      preview.current?.seek(pictureAt(t));
+      /* Video elements continue decoding at their source cadence by themselves.
+         Do not send an exact cross-frame seek for every browser RAF: that
+         duplicates work in the embedded film and can make 59.94/60fps footage
+         judder. Pages and overlays remain synchronized at 30Hz while native
+         video playback remains full-rate. */
+      if (now - lastPreview >= 33) {
+        lastPreview = now;
+        preview.current?.seek(pictureAt(t));
+      }
       for (const fn of listeners.current) fn();
       /* the rest of the editor hears the time a few times a second; the playhead and timecode read the clock */
       if (now - lastTick > 50) { lastTick = now; setTimeMs(t * 1000); }

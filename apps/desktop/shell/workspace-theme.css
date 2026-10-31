@@ -197,7 +197,7 @@
   border-radius: 11px;
   background: var(--surface);
   border-color: var(--border);
-  transition: border-color 140ms, background-color 140ms;
+  transition: none;
 }
 .of-chat .edit-template-trigger:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
