@@ -1,0 +1,15 @@
+services:
+  portal:
+    build: .
+    restart: unless-stopped
+    command: ["node", "portal-server.mjs"]
+    env_file: .env
+    environment:
+      PORTAL_BIND: 0.0.0.0
+      PORTAL_DIST: /portal
+    ports:
+      - "127.0.0.1:8791:8791"
+    volumes:
+      - ${PORTAL_DIST:?Set PORTAL_DIST to built keygen-portal dist directory}:/portal:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

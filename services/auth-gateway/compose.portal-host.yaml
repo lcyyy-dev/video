@@ -1,0 +1,7 @@
+services:
+  portal:
+    network_mode: host
+    ports: !reset []
+    environment:
+      PORTAL_BIND: 127.0.0.1
+      KEYGEN_URL: http://127.0.0.1:3300/v1

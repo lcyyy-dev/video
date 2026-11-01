@@ -25,7 +25,7 @@ export interface EditTemplateBridge {
 interface AppBridge {
   clipboardText(): Promise<string>;
   editTemplate: EditTemplateBridge;
-  sub2api: { get(): Promise<{ baseUrl: string; model: string; configured: boolean }>; set(input: { baseUrl: string; apiKey: string; model?: string }): Promise<{ baseUrl: string; model: string; configured: boolean }>; test(input: { baseUrl: string; apiKey: string; model: string }): Promise<{ ok: true; baseUrl: string; model: string }> };
+  sub2api: { status(): Promise<{ authorized: boolean; message?: string }>; onAuthorization(listener: (authorized: boolean) => void): () => void; get(): Promise<{ baseUrl: string; model: string; configured: boolean }>; set(input: { activationCode: string }): Promise<{ baseUrl: string; model: string; configured: boolean }>; test(): Promise<{ ok: true; baseUrl: string; model: string }> };
   hello(): Promise<{ platform: string; flavor: string; theme: Theme; language: string; chatOpen: boolean; project: Project | null; selection: StudioSelection | null; ffmpeg: FfmpegState; version: string; chatMin: number }>;
   onTheme(listener: (theme: Theme) => void): () => void;
   /** Studio's language (its <html lang>) */

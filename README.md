@@ -1,4 +1,4 @@
-> 当前分支仅提供桌面客户端：`pnpm dev` 启动客户端。模板配置保存在项目内，广告模板固定使用 `ad-editing`。独立网页版已移除；下方通用引擎说明保留作为格式和 CLI 参考。详见 [客户端工作流](docs/CLIENT_EDIT_WORKFLOW.zh-CN.md)。
+> 当前分支仅提供桌面客户端：`pnpm dev` 启动客户端。模板配置保存在项目内，广告模板固定使用 `ad-editing`。独立网页版已移除；下方通用引擎说明保留作为格式和 CLI 参考。详见 [客户端工作流](docs/CLIENT_EDIT_WORKFLOW.zh-CN.md) 与 [OpenFilm、Keygen、sub2api 授权架构](docs/SUB2API_HOSTED_CODEX.zh-CN.md)。
 
 <p align="center">
   <br>

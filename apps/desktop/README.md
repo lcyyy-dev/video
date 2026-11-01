@@ -27,6 +27,13 @@ use original video audio only; TTS is not connected and narration generation is 
 Exports are limited to video, Jianying/CapCut drafts, and project archives/folders. The underlying film format,
 renderer and media utilities remain shared with the CLI. See [the scope record](../../docs/CLIENT_SIMPLIFICATION.zh-CN.md).
 
+On Windows, the Jianying export dialog automatically suggests the drafts location from the installed editor's
+`User Data/Config/globalSetting` (`currentCustomDraftPath`), including custom locations on other drives. If unavailable,
+it falls back to the default drafts directory. A folder already chosen in OpenFilm takes priority. Detection runs on
+the user's computer; the first Windows launch saves a detected directory before any export dialog is opened.
+Installers contain no machine-specific draft path. Later launches preserve the saved choice, and retry detection
+if no directory has been saved yet.
+
 Desktop network proxy settings (HTTP/HTTPS/ALL/NO_PROXY, including lowercase variants) are preserved for Studio and Codex; explicit login-shell proxy settings take precedence.
 
 On Linux, the launcher keeps the desktop session's display and audio variables. WSLg source runs default to the native Wayland backend; pass `--ozone-platform=x11` to the launcher to override it. Optional development libraries in

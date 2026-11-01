@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { join } from 'node:path';
+import { join, win32 } from 'node:path';
 import { planNleTimeline } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
 import { applyTextStyle, listTextStyles } from '../../src/text-styles.mjs';
@@ -196,9 +196,32 @@ test('the drafts folders: 剪映\'s and CapCut\'s, on a Mac and on Windows, when
   assert.equal(draftsRoot('jianying', { platform: 'darwin', home: '/mac-home', exists: (p) => p === mac('JianyingPro') }), mac('JianyingPro'));
   assert.equal(draftsRoot('capcut', { platform: 'darwin', home: '/mac-home', exists: (p) => p === mac('CapCut') }), mac('CapCut'));
   assert.equal(draftsRoot('capcut', { platform: 'darwin', home: '/mac-home', exists: (p) => p === mac('JianyingPro') }), null);
-  const win = join('D:\\local-app-data', 'JianyingPro', 'User Data', 'Projects', 'com.lveditor.draft');
+  const win = win32.join('D:\\local-app-data', 'JianyingPro', 'User Data', 'Projects', 'com.lveditor.draft');
   assert.equal(draftsRoot('jianying', { platform: 'win32', home: 'D:\\win-home', localAppData: 'D:\\local-app-data', exists: (p) => p === win }), win);
   assert.equal(draftsRoot('jianying', { platform: 'linux', home: '/linux-home', exists: () => true }), null);
+});
+
+test('Windows draft detection reads the editor custom location and decodes QSettings paths', () => {
+  const configured = 'D:\\剪映草稿\\My Drafts';
+  const detected = draftsRoot('jianying', {
+    platform: 'win32', home: 'C:\\Users\\Alice', localAppData: 'C:\\Users\\Alice\\AppData\\Local',
+    readText: file => {
+      assert.equal(file, 'C:\\Users\\Alice\\AppData\\Local\\JianyingPro\\User Data\\Config\\globalSetting');
+      return String.raw`[General]
+currentCustomDraftPath="D:\\\x526a\x6620\x8349\x7a3f\\My Drafts"
+`;
+    },
+    exists: folder => folder === configured || folder.includes('com.lveditor.draft'),
+  });
+  assert.equal(detected, configured);
+});
+
+test('Windows draft detection safely falls back for missing, invalid and unavailable custom paths', () => {
+  const fallback = 'C:\\Users\\Alice\\AppData\\Local\\JianyingPro\\User Data\\Projects\\com.lveditor.draft';
+  for (const content of ['', 'currentCustomDraftPath=relative/path', 'currentCustomDraftPath=D:/Disconnected/Drafts', 'currentCustomDraftPath=']) {
+    assert.equal(draftsRoot('jianying', { platform: 'win32', home: 'C:\\Users\\Alice', readText: () => content, exists: folder => folder === fallback }), fallback);
+  }
+  assert.equal(draftsRoot('jianying', { platform: 'win32', home: 'C:\\Users\\Alice', readText: () => { throw new Error('unreadable'); }, exists: () => false }), null);
 });
 
 test('a draft says which app wrote it: 剪映 or CapCut', () => {

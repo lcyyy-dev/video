@@ -1,0 +1,18 @@
+# Docker Desktop: connect directly to the bundled Keygen CE Docker network.
+services:
+  gateway:
+    environment:
+      KEYGEN_URL: http://keygen:3000/v1
+    networks:
+      - default
+      - keygen
+  admin:
+    environment:
+      KEYGEN_URL: http://keygen:3000/v1
+    networks:
+      - default
+      - keygen
+networks:
+  keygen:
+    external: true
+    name: openfilm-keygen_default

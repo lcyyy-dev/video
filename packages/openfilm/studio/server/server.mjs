@@ -35,7 +35,7 @@ import {
 import { FetchError, createFetches, fetchFilm, parseRepoUrl } from './fetch-repo.mjs';
 import { exampleFile, exampleFolder, listExamples } from './examples.mjs';
 import { pickFiles, pickFolder } from './folder-picker.mjs';
-import { readPrefs, writePrefs } from './prefs.mjs';
+import { readPrefs, writePrefs, initializeDraftExportFolder } from './prefs.mjs';
 import { TextStyleError, textStyleLibrary, saveTextStyle, setDefaultTextStyle, deleteTextStyle } from './text-styles.mjs';
 import { bundledTextFonts, textFontCss } from './text-fonts.mjs';
 import { ensureProxies } from './proxies.mjs';
@@ -96,6 +96,10 @@ export function desktopInstaller(os, arch, base = DESKTOP_FILES) {
  * @param {{ port?: number, key?: string, openBrowser?: (url: string) => void, advertise?: boolean, onQuit?: () => void, stays?: boolean, editorDir?: string, working?: () => string[] }} [options]
  */
 export async function startStudio({ port = 4747, key, openBrowser = systemBrowser, advertise = false, onQuit, stays = false, editorDir, working = () => [] } = {}) {
+  // Initialize on the recipient's first launch, under their own Windows account, before any export dialog opens.
+  if (process.platform === 'win32' && !readPrefs().draftExportFolder && draftApps().jianying) {
+    initializeDraftExportFolder(draftFolders().jianying);
+  }
   let COOKIE = cookieName(port);
   let FRAMED = framedCookieName(port);
   /** The key from either session cookie. */

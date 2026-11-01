@@ -34,7 +34,8 @@ import { startUpdates } from './updates.mjs';
 import { ensureFfmpeg, ffmpegDir, ffmpegDownloadable, ffmpegIn, ffmpegOnPath } from './ffmpeg-runtime.mjs';
 import { PATH_SEP } from './environment.mjs';
 import { createTabs } from './tabs.mjs';
-import { checkSub2ApiConfig, publicSub2ApiConfig, saveSub2ApiConfig } from './sub2api-config.mjs';
+import { activateGateway, checkGatewayAuthorization, checkSub2ApiConfig, publicSub2ApiConfig, gatewayEndpoint } from './sub2api-config.mjs';
+import { authorizationController } from './authorization-state.mjs';
 import { precomputeUploadFrames } from './source-analysis.mjs';
 
 process.env.OPENFILM_CLIENT_PROFILE = CLIENT_PROFILE;
@@ -61,11 +62,11 @@ const DATA = app.getPath('userData');
 const LOGS = join(DATA, 'logs');
 mkdirSync(LOGS, { recursive: true });
 const log = (line) => { try { appendFileSync(join(LOGS, 'studio.log'), line); } catch { /* no log */ } };
-/* Keep hosted-model credentials in the OS credential store when Electron can provide one (Windows DPAPI,
-   Keychain-backed storage on macOS). Linux environments without a working keyring retain the existing file fallback. */
+/* Device credentials require OS encryption (Windows DPAPI, macOS Keychain, or a Linux keyring). */
 const sub2apiStorage = () => {
   try {
     if (!safeStorage.isEncryptionAvailable()) return {};
+    if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text') return {};
     return {
       encrypt: (value) => safeStorage.encryptString(value).toString('base64'),
       decrypt: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
@@ -116,6 +117,26 @@ let quitting = false;
 let localAgents = null;
 /** @type {ReturnType<typeof createRoster> | null} */
 let roster = null;
+let fullMenu = null;
+const lockedMenu = () => Menu.buildFromTemplate([
+  { label: '编辑', submenu: [{ role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+  { label: '退出', role: 'quit' },
+]);
+const authorization = authorizationController(() => checkGatewayAuthorization(DATA, sub2apiStorage()), next => {
+  if (fullMenu) Menu.setApplicationMenu(next ? fullMenu : lockedMenu());
+  broadcast('desktop:authorization', next);
+  if (!next) localAgents?.closeAll();
+});
+const ipc = {
+  handle(channel, handler) {
+    ipcMain.handle(channel, (event, ...args) => {
+      authorization.guard(channel);
+      return handler(event, ...args);
+    });
+  },
+};
+const authorizationStatus = () => authorization.status();
+
 
 /** the board Studio's panes sit on (its --dock-shell), so the window never flashes another color */
 const BACKGROUND = { light: '#f2f2f2', dark: '#111111' };
@@ -433,20 +454,21 @@ async function start() {
   win.on('closed', () => { win = null; views.clear(); app.quit(); });
 
   ipcMain.on('desktop:theme', (event, next) => { if (fromPage(event)) setTheme(next); });
-  ipcMain.handle('desktop:hello', (event) => {
+  ipc.handle('desktop:hello', (event) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
     return { flavor: FLAVOR, version: app.getVersion(), ffmpeg: ffmpegFound, update: updates?.snapshot() ?? null, editorLayout: state.editorLayout, chatOpen: state.chatOpen, chatWidth: state.chatWidth, chatMin: CHAT_MIN, studioMin: STUDIO_MIN, fullScreen: Boolean(win?.isFullScreen()), sub2api: publicSub2ApiConfig(DATA, sub2apiStorage()) };
   });
-  ipcMain.handle('desktop:clipboard-text', (event) => fromPage(event) ? clipboard.readText() : '');
-  ipcMain.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA, sub2apiStorage()) : null);
-  ipcMain.handle('desktop:sub2api:set', (event, input) => {
+  ipc.handle('desktop:clipboard-text', (event) => fromPage(event) ? clipboard.readText() : '');
+  ipc.handle('desktop:sub2api:status', event => fromPage(event) ? authorizationStatus() : { authorized: false });
+  ipc.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA, sub2apiStorage()) : null);
+  ipc.handle('desktop:sub2api:set', async (event, input) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
-    const result = saveSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? 'gpt-6.1-sol') }, sub2apiStorage());
+    const result = await authorization.activate(() => activateGateway(DATA, { ...gatewayEndpoint(), activationCode: String(input?.activationCode ?? '') }, sub2apiStorage()));
     localAgents?.closeAll();
     void roster?.refresh();
     return result;
   });
-  ipcMain.handle('desktop:sub2api:test', (event, input) => fromPage(event) ? checkSub2ApiConfig(DATA, { baseUrl: String(input?.baseUrl ?? ''), apiKey: String(input?.apiKey ?? ''), model: String(input?.model ?? '') }, fetch, sub2apiStorage()) : null);
+  ipc.handle('desktop:sub2api:test', event => fromPage(event) ? checkSub2ApiConfig(DATA, fetch, sub2apiStorage()) : null);
   /* the chat's column as the person left it (the page sizes it; the window keeps it for next time) */
   ipcMain.on('desktop:editor-layout', (event, next) => {
     if (!fromPage(event)) return;
@@ -460,7 +482,7 @@ async function start() {
     saveState();
   });
   /* the chat's record of each project (in the project's .film/chat and .film/logs) and the app's own preferences */
-  registerChatIpc(ipcMain, {
+  registerChatIpc(ipc, {
     trusted: fromPage,
     projects: async () => (await studioApi('/api/projects')).projects.filter((p) => !p.missing).map((p) => p.path),
     dataDir: DATA,
@@ -469,7 +491,7 @@ async function start() {
     log,
   });
   /* the tabs, drawn by each page in Studio's top bar: asked for, and told of every change (tellTabs) */
-  const tabHandle = (channel, fn) => ipcMain.handle(channel, (event, opts) => {
+  const tabHandle = (channel, fn) => ipc.handle(channel, (event, opts) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
     return fn(tabOf(event.sender), opts ?? {});
   });
@@ -495,7 +517,7 @@ async function start() {
   /* the agents: Studio's home and library go with them, so the `openfilm` they run finds this window's Studio */
   /* the person's own skills: Skills/ beside this app's projects (~/Movies/OpenFilm/Skills), as its `openfilm` finds them */
   const mySkills = process.env.OPENFILM_SKILLS || (env.OPENFILM_LIBRARY ? join(dirname(env.OPENFILM_LIBRARY), 'Skills') : (await import('openfilm/skills')).mySkillsDir());
-  localAgents = registerLocalAgentIpc(ipcMain, {
+  localAgents = registerLocalAgentIpc(ipc, {
     trusted: fromPage,
     log,
     /* Studio refuses to delete a project an agent is working in */
@@ -520,12 +542,12 @@ async function start() {
 
     },
   });
-  registerEditTemplateIpc(ipcMain, {
+  registerEditTemplateIpc(ipc, {
     trusted: fromPage,
     projects: async () => (await studioApi('/api/projects')).projects.filter(project => !project.missing).map(project => project.path),
   });
   /* the composer's Skills button */
-  registerSkillsIpc(ipcMain, {
+  registerSkillsIpc(ipc, {
     trusted: fromPage,
     projects: async () => (await studioApi('/api/projects')).projects.filter((project) => !project.missing).map((project) => project.path),
     mine: mySkills,
@@ -548,7 +570,7 @@ async function start() {
     checkProgram: checkAgentProgram,
     diagnose: (id) => diagnoseAgent(id, { appVersion: app.getVersion() }),
   });
-  const agentHandle = (channel, fn) => ipcMain.handle(channel, (event, opts) => {
+  const agentHandle = (channel, fn) => ipc.handle(channel, (event, opts) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
     return fn(opts ?? {});
   });
@@ -563,7 +585,7 @@ async function start() {
   /* a file on the disk brought into the chat goes into the project the page names, through Studio's own import (it
      shows in Studio's media at once, and the import is in the project's history); one without a path the page sends
      itself */
-  ipcMain.handle('desktop:import-file', async (event, request) => {
+  ipc.handle('desktop:import-file', async (event, request) => {
     if (!fromPage(event) || !studio) return { ok: false, error: 'Studio is not running.' };
     const projectId = String(request?.projectId ?? '');
     if (!/^[\w-]+$/.test(projectId)) return { ok: false, error: 'No project is open.' };
@@ -585,10 +607,10 @@ async function start() {
       return { ok: true, path: answer.path };
     } catch (error) { return { ok: false, error: error.message }; }
   });
-  ipcMain.handle('desktop:reveal', (event, path) => { if (fromPage(event) && typeof path === 'string' && path) shell.showItemInFolder(path); });
-  ipcMain.handle('desktop:pick-folder', (event, options) => (fromPage(event) ? pickFolder(options) : null));
+  ipc.handle('desktop:reveal', (event, path) => { if (fromPage(event) && typeof path === 'string' && path) shell.showItemInFolder(path); });
+  ipc.handle('desktop:pick-folder', (event, options) => (fromPage(event) ? pickFolder(options) : null));
   /* a picture of part of the window (the viewer, for a reference in the chat): what the person sees, as JPEG */
-  ipcMain.handle('desktop:capture', async (event, rect) => {
+  ipc.handle('desktop:capture', async (event, rect) => {
     if (!fromPage(event) || !rect || typeof rect !== 'object') return null;
     const box = { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
     if (!Object.values(box).every((n) => Number.isFinite(n)) || box.width < 2 || box.height < 2 || box.width > 8000 || box.height > 8000) return null;
@@ -622,12 +644,12 @@ async function start() {
       updates?.close();
     },
   });
-  ipcMain.handle('desktop:update-restart', (event) => (fromPage(event) ? updates?.restart() : { ok: false }));
+  ipc.handle('desktop:update-restart', (event) => (fromPage(event) ? updates?.restart() : { ok: false }));
   /* Settings → About: the state now, and a check that answers with the state it ends in (no dialog) */
-  ipcMain.handle('desktop:update-state', (event) => (fromPage(event) ? updates?.snapshot() ?? null : null));
-  ipcMain.handle('desktop:update-check', (event) => (fromPage(event) ? updates?.check() ?? null : null));
+  ipc.handle('desktop:update-state', (event) => (fromPage(event) ? updates?.snapshot() ?? null : null));
+  ipc.handle('desktop:update-check', (event) => (fromPage(event) ? updates?.check() ?? null : null));
 
-  Menu.setApplicationMenu(applicationMenu({
+  fullMenu = applicationMenu({
     productName: PRODUCT_NAME,
     packaged: app.isPackaged,
     toggleChat: () => activeView()?.webContents.send('desktop:toggle-chat'),
@@ -651,7 +673,9 @@ async function start() {
       beta: updates.channel() === 'beta',
       setBeta: (on) => updates.setChannel(on ? 'beta' : 'stable'),
     } : null,
-  }));
+  });
+  Menu.setApplicationMenu(authorization.get() ? fullMenu : lockedMenu());
+  setInterval(() => { void authorizationStatus(); }, 60_000).unref();
 
   win.show();
   if (needFfmpeg) {

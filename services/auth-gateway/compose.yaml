@@ -1,0 +1,24 @@
+services:
+  gateway:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8188:8787"
+    env_file: .env
+    volumes:
+      - ./data:/data:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  admin:
+    build: .
+    restart: unless-stopped
+    command: ["node", "admin.mjs"]
+    env_file: .env
+    environment:
+      ADMIN_BIND: 0.0.0.0
+    ports:
+      - "127.0.0.1:8790:8790"
+    volumes:
+      - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

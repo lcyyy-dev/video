@@ -4,7 +4,8 @@
  */
 import { layoutReady } from './bridge';
 import { ResizeCursor } from './ResizeCursor';
-import { StrictMode } from 'react';
+import { ActivationGate } from './ActivationGate';
+import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from 'openfilm/studio-ui/App.tsx';
 import { FocusNav } from 'openfilm/studio-ui/components/FocusNav.tsx';
@@ -15,10 +16,21 @@ import '../chat/src/chat.css';
 import './polish.css';
 import './workspace-theme.css';
 
+function Workspace() {
+  useEffect(() => {
+    const controller = new AbortController();
+    let stop: (() => void) | undefined;
+    void mountChat(document.getElementById('of-chat')!, controller.signal).then(cleanup => {
+      if (controller.signal.aborted) cleanup(); else stop = cleanup;
+    });
+    return () => { controller.abort(); stop?.(); };
+  }, []);
+  return <><FocusNav /><App /><ResizeCursor /></>;
+}
+
 async function start() {
   await layoutReady;
   applyStudioHost();
-  createRoot(document.getElementById('root')!).render(<StrictMode><FocusNav /><App /><ResizeCursor /></StrictMode>);
-  void mountChat(document.getElementById('of-chat')!);
+  createRoot(document.getElementById('root')!).render(<StrictMode><ActivationGate><Workspace /></ActivationGate></StrictMode>);
 }
 void start();

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { prefsOf, readPrefs, writePrefs } from './prefs.mjs';
+import { prefsOf, readPrefs, writePrefs, initializeDraftExportFolder } from './prefs.mjs';
 
 test('the version whose notes were last shown: a version, else none', () => {
   assert.equal(prefsOf(null).seenVersion, null, 'a new install has none');
@@ -45,6 +45,24 @@ test('a chosen draft export folder survives preference reads and unrelated updat
     assert.equal(readPrefs().draftExportFolder, chosen);
     writePrefs({ draftExportFolder: null });
     assert.equal(readPrefs().draftExportFolder, null);
+  } finally {
+    if (was === undefined) delete process.env.OPENFILM_HOME; else process.env.OPENFILM_HOME = was;
+  }
+});
+
+test('first launch persists a detected draft folder and preserves an existing user choice', () => {
+  const home = mkdtempSync(join(tmpdir(), 'of-detected-drafts-'));
+  const was = process.env.OPENFILM_HOME;
+  process.env.OPENFILM_HOME = home;
+  try {
+    assert.equal(initializeDraftExportFolder(null).draftExportFolder, null);
+    const detected = join(home, 'Jianying Drafts');
+    initializeDraftExportFolder(detected);
+    assert.equal(readPrefs().draftExportFolder, detected);
+    const chosen = join(home, 'Chosen Drafts');
+    writePrefs({ draftExportFolder: chosen });
+    initializeDraftExportFolder(detected);
+    assert.equal(readPrefs().draftExportFolder, chosen);
   } finally {
     if (was === undefined) delete process.env.OPENFILM_HOME; else process.env.OPENFILM_HOME = was;
   }

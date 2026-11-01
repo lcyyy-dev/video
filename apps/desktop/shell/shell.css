@@ -11,3 +11,19 @@
 #of-chat-layer { height: 0; background: transparent; }
 /* focused by a click to keep the keyboard in the chat (index.html), never ringed */
 #of-chat:focus, #of-chat-layer:focus { outline: none; }
+
+body:not([data-authorized='true']) #of-chat,
+body:not([data-authorized='true']) #of-chat-layer { display: none !important; }
+.activation-lock { position: fixed; inset: 0; z-index: 2147483647; background: var(--dock-shell, #111); }
+.activation-dialog { width: min(420px, calc(100vw - 40px)); margin: auto; padding: 30px; border: 1px solid var(--border, #353535); border-radius: 16px; background: var(--surface, #1c1e22); color: var(--text, #eee); box-shadow: 0 20px 80px #0005; font: 14px/1.6 var(--font-sans, system-ui); }
+.activation-dialog::backdrop { background: #0003; }
+.activation-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--accent, #75a4ff); color: #fff; font-weight: 700; margin-bottom: 18px; }
+.activation-dialog h1 { font-size: 22px; margin: 0 0 8px; }
+.activation-dialog p { margin: 0 0 22px; color: var(--text-muted, #aaa); }
+.activation-dialog label { display: block; font-size: 13px; }
+.activation-dialog input { box-sizing: border-box; width: 100%; height: 42px; margin: 8px 0 18px; padding: 0 12px; border: 1px solid var(--border, #444); border-radius: 7px; background: var(--surface-2, #252830); color: inherit; outline: none; }
+.activation-dialog input:focus { border-color: var(--accent, #75a4ff); }
+.activation-dialog button { display: block; width: 100%; min-height: 40px; border: 0; border-radius: 7px; background: var(--accent, #75a4ff); color: #fff; cursor: pointer; }
+.activation-dialog button:disabled { opacity: .5; cursor: default; }
+.activation-dialog button.activation-retry { margin-top: 8px; background: transparent; color: var(--text-muted, #aaa); }
+.activation-dialog [role='status'] { min-height: 22px; margin-top: 14px; color: var(--text-muted, #aaa); font-size: 12px; overflow-wrap: anywhere; }

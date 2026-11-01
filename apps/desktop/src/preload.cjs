@@ -102,9 +102,11 @@ contextBridge.exposeInMainWorld('openfilmNative', {
     onChange: on('desktop:prefs'),
   },
   sub2api: {
+    status: () => ipcRenderer.invoke('desktop:sub2api:status'),
+    onAuthorization: on('desktop:authorization'),
     get: () => ipcRenderer.invoke('desktop:sub2api:get'),
     set: (input) => ipcRenderer.invoke('desktop:sub2api:set', input),
-    test: (input) => ipcRenderer.invoke('desktop:sub2api:test', input),
+    test: () => ipcRenderer.invoke('desktop:sub2api:test'),
   },
   /* a file on the disk brought into the project (the page has no way to read it) */
   importFile: (request) => ipcRenderer.invoke('desktop:import-file', request),

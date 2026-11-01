@@ -25,7 +25,8 @@
  *     lists none of them and finds a video by nothing but its path.
  */
 import { randomUUID } from 'node:crypto';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { join, win32 } from 'node:path';
 import { textStyleRuns, textValueAt } from '../../src/text-page.mjs';
 import fontManifest from '../../src/text-fonts.json' with { type: 'json' };
 
@@ -42,14 +43,25 @@ import fontManifest from '../../src/text-fonts.json' with { type: 'json' };
 const APP_FOLDER = /** @type {Record<DraftApp, string>} */ ({ jianying: 'JianyingPro', capcut: 'CapCut' });
 
 /**
- * Where 剪映 or CapCut keeps its drafts by default (its Settings › Drafts location can move them): the folder when it
- * is there, else null.
+ * Read the Windows editor's configured drafts location before trying its default directory.
+ * Detection runs on the user's machine, never while building the installer.
  * @param {DraftApp} app
- * @param {{ platform?: NodeJS.Platform, home: string, localAppData?: string, exists: (path: string) => boolean }} where
+ * @param {{ platform?: NodeJS.Platform, home: string, localAppData?: string, exists: (path: string) => boolean, readText?: (path: string) => string }} where
  */
-export function draftsRoot(app, { platform = process.platform, home, localAppData, exists }) {
-  const base = platform === 'darwin' ? join(home, 'Movies') : platform === 'win32' ? localAppData ?? join(home, 'AppData', 'Local') : null;
-  const dir = base && join(base, APP_FOLDER[app], 'User Data', 'Projects', 'com.lveditor.draft');
+export function draftsRoot(app, { platform = process.platform, home, localAppData, exists, readText = path => readFileSync(path, 'utf8') }) {
+  const paths = platform === 'win32' ? win32 : { join };
+  const base = platform === 'darwin' ? join(home, 'Movies') : platform === 'win32' ? localAppData ?? paths.join(home, 'AppData', 'Local') : null;
+  if (platform === 'win32' && base) {
+    try {
+      const settings = readText(paths.join(base, APP_FOLDER[app], 'User Data', 'Config', 'globalSetting'));
+      // QSettings INI escapes backslashes and non-ASCII characters; do not execute or evaluate its contents.
+      const value = /^\s*currentCustomDraftPath\s*=([^\r\n]*)/m.exec(settings)?.[1].trim();
+      const folder = value?.replace(/^"(.*)"$/, '$1').replace(/\\(\\|"|x[0-9a-fA-F]{1,4})/g,
+        (_match, escape) => escape.startsWith('x') ? String.fromCharCode(parseInt(escape.slice(1), 16)) : escape);
+      if (folder && win32.isAbsolute(folder) && !/[\x00-\x1f]/.test(folder) && exists(win32.normalize(folder))) return win32.normalize(folder);
+    } catch { /* Missing, unreadable or unsupported settings fall back to the editor's default. */ }
+  }
+  const dir = base && paths.join(base, APP_FOLDER[app], 'User Data', 'Projects', 'com.lveditor.draft');
   return dir && exists(dir) ? dir : null;
 }
 

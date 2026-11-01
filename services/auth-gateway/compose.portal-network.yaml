@@ -1,0 +1,11 @@
+services:
+  portal:
+    environment:
+      KEYGEN_URL: http://keygen:3000/v1
+    networks:
+      - default
+      - keygen
+networks:
+  keygen:
+    external: true
+    name: openfilm-keygen_default

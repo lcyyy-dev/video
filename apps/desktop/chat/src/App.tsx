@@ -794,8 +794,8 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
       <div className="flex items-center gap-0.5 px-0.5">
         <ModelDisplay />
         <div className="min-w-0 flex-1" />
-        <Tooltip label="Sub2API 连接设置">
-          <button type="button" onClick={() => setSub2apiOpen(open => !open)} className="openfilm-composer-tool" aria-label="Sub2API 连接设置"><KeyRound size={16} strokeWidth={1.75} /></button>
+        <Tooltip label="OpenFilm 激活">
+          <button type="button" onClick={() => setSub2apiOpen(open => !open)} className="openfilm-composer-tool" aria-label="OpenFilm 激活"><KeyRound size={16} strokeWidth={1.75} /></button>
         </Tooltip>
       </div>
       {sub2apiOpen ? <Sub2ApiSettings onClose={() => setSub2apiOpen(false)} /> : null}

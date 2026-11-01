@@ -1,0 +1,14 @@
+diff --git a/src/keygen/client.ts b/src/keygen/client.ts
+index eb655ba..3c0e2d9 100644
+--- a/src/keygen/client.ts
++++ b/src/keygen/client.ts
+@@ -13 +13 @@ export class Client {
+-  private host = `https://${config.host}`
++  private host = `${import.meta.env.VITE_KEYGEN_PROTOCOL || "https"}://${config.host}`
+diff --git a/src/keygen/licenses/validate-key.ts b/src/keygen/licenses/validate-key.ts
+index f33022c..6f7ee0b 100644
+--- a/src/keygen/licenses/validate-key.ts
++++ b/src/keygen/licenses/validate-key.ts
+@@ -21 +21 @@ export default async function validateKey({
+-    `https://${config.host}/v1/accounts/${config.id}/licenses/actions/validate-key`,
++    `${import.meta.env.VITE_KEYGEN_PROTOCOL || "https"}://${config.host}/v1/accounts/${config.id}/licenses/actions/validate-key`,

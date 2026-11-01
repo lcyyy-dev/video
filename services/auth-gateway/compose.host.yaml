@@ -1,0 +1,16 @@
+# Linux/WSL local verification when upstream services listen only on host loopback.
+services:
+  gateway:
+    network_mode: host
+    ports: !reset []
+    environment:
+      BIND: 127.0.0.1
+      PORT: "8188"
+      KEYGEN_URL: http://127.0.0.1:3300/v1
+      SUB2API_URL: http://127.0.0.1:8189/v1
+  admin:
+    network_mode: host
+    ports: !reset []
+    environment:
+      ADMIN_BIND: 127.0.0.1
+      KEYGEN_URL: http://127.0.0.1:3300/v1

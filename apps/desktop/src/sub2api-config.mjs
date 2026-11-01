@@ -1,59 +1,74 @@
 import { VideoPolicyError } from './video-policy.mjs';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { deviceIdentity, createGatewayFetch, signedHeaders } from './gateway-auth.mjs';
 
-const fileFor = dataDir => dataDir ? join(dataDir, 'sub2api.json') : null;
-const storedFor = (dataDir, decrypt = null) => {
-  const file = fileFor(dataDir);
-  if (!file || !existsSync(file)) return {};
-  try {
-    const value = JSON.parse(readFileSync(file, 'utf8'));
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-    if (typeof value.apiKeyEncrypted === 'string' && typeof decrypt === 'function') {
-      try { return { ...value, apiKey: decrypt(value.apiKeyEncrypted) }; } catch { return value; }
-    }
-    return value;
-  } catch { return {}; }
-};
-
-/** Read the hosted model endpoint without ever passing the product key to Codex. */
-export function readSub2ApiConfig(env = process.env, dataDir = null, storage = {}) {
-  const stored = storedFor(dataDir, storage.decrypt);
-  const rawBaseUrl = String(env.OPENFILM_SUB2API_BASE_URL ?? stored.baseUrl ?? '').trim();
-  const apiKey = String(env.OPENFILM_SUB2API_API_KEY ?? stored.apiKey ?? '').trim();
-  if (!rawBaseUrl && !apiKey) return null;
-  if (!rawBaseUrl || !apiKey) throw new VideoPolicyError('请配置完整的 Sub2API 地址和 Key。');
+/** Public service configuration only. Sub2API credentials never belong in the client. */
+export function gatewayEndpoint(env = process.env) {
+  const baseUrl = String(env.OPENFILM_GATEWAY_BASE_URL ?? 'https://api.u4178022.nyat.app:13547/v1').trim();
   let url;
-  try { url = new URL(rawBaseUrl); } catch { throw new VideoPolicyError('Sub2API 地址无效。'); }
-  const insecure = url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
-  if (url.protocol !== 'https:' && !insecure) throw new VideoPolicyError('Sub2API 生产地址必须使用 HTTPS。');
-  if (url.username || url.password || url.search || url.hash || !/^\/v1\/?$/.test(url.pathname)) throw new VideoPolicyError('Sub2API 地址必须是域名下的 /v1。');
-  url.pathname = '/v1';
-  return { baseUrl: url.toString().replace(/\/$/, ''), apiKey, model: /^[\w.-]+$/.test(String(env.OPENFILM_SUB2API_MODEL ?? stored.model ?? '')) ? String(env.OPENFILM_SUB2API_MODEL ?? stored.model) : 'gpt-6.1-sol' };
+  try { url = new URL(baseUrl); } catch { throw new VideoPolicyError('授权服务地址无效。'); }
+  const local = url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !local) throw new VideoPolicyError('授权服务必须使用 HTTPS。');
+  if (url.username || url.password || url.search || url.hash || !/^\/v1\/?$/.test(url.pathname)) throw new VideoPolicyError('授权服务地址必须以 /v1 结尾。');
+  const model = String(env.OPENFILM_GATEWAY_MODEL ?? 'gpt-6.1-sol');
+  if (!/^[\w.-]+$/.test(model)) throw new VideoPolicyError('模型名称无效。');
+  return { baseUrl: url.toString().replace(/\/$/, ''), model };
 }
 
-export function saveSub2ApiConfig(dataDir, input, storage = {}) {
-  const existing = storedFor(dataDir, storage.decrypt);
-  const next = readSub2ApiConfig({ OPENFILM_SUB2API_BASE_URL: input.baseUrl, OPENFILM_SUB2API_API_KEY: input.apiKey || existing.apiKey, OPENFILM_SUB2API_MODEL: input.model }, null, storage);
-  mkdirSync(dataDir, { recursive: true });
-  const file = fileFor(dataDir);
-  let protectedKey = null;
-  try { protectedKey = typeof storage.encrypt === 'function' ? storage.encrypt(next.apiKey) : null; } catch { /* fall back when the OS key store is unavailable */ }
-  writeFileSync(file, JSON.stringify({ baseUrl: next.baseUrl, ...(protectedKey ? { apiKeyEncrypted: protectedKey } : { apiKey: next.apiKey }), model: next.model }, null, 2), { mode: 0o600 });
-  chmodSync(file, 0o600);
-  return { baseUrl: next.baseUrl, model: next.model, configured: true };
+export async function activateGateway(dataDir, input, storage = {}, fetchImpl = fetch) {
+  const config = gatewayEndpoint({ OPENFILM_GATEWAY_BASE_URL: input.baseUrl, OPENFILM_GATEWAY_MODEL: input.model });
+  const identity = deviceIdentity(dataDir, storage);
+  if (!input.activationCode?.trim()) throw new VideoPolicyError('请输入激活码。');
+  const body = JSON.stringify({ activationCode: input.activationCode.trim(), publicKey: identity.publicKey });
+  const response = await fetchImpl(`${new URL(config.baseUrl).origin}/auth/activate`, {
+    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(30000),
+    headers: { 'content-type': 'application/json', ...signedHeaders(identity, 'POST', '/auth/activate', body) }, body,
+  });
+  if (!response.ok) throw new VideoPolicyError('激活失败，请检查激活码及设备授权。');
+  const result = await response.json();
+  if (typeof result.refreshToken !== 'string') throw new VideoPolicyError('激活服务返回无效凭证。');
+  const encrypted = storage.encrypt(result.refreshToken);
+  if (!encrypted) throw new VideoPolicyError('系统安全存储不可用。');
+  writeFileSync(join(dataDir, 'gateway-session.json'), JSON.stringify({ baseUrl: config.baseUrl, model: config.model, refreshTokenEncrypted: encrypted }), { mode: 0o600 });
+  const directFile = join(dataDir, 'sub2api.json');
+  if (existsSync(directFile)) unlinkSync(directFile);
+  return { baseUrl: config.baseUrl, model: config.model, configured: true };
+}
+
+export function gatewayConfig(dataDir, storage = {}, fetchImpl = fetch) {
+  if (!dataDir || !existsSync(join(dataDir, 'gateway-session.json'))) return null;
+  const saved = JSON.parse(readFileSync(join(dataDir, 'gateway-session.json'), 'utf8'));
+  const identity = deviceIdentity(dataDir, storage);
+  const refreshToken = storage.decrypt(saved.refreshTokenEncrypted);
+  const endpoint = gatewayEndpoint({ OPENFILM_GATEWAY_BASE_URL: saved.baseUrl, OPENFILM_GATEWAY_MODEL: saved.model });
+  return { ...endpoint, apiKey: 'device-session', fetchImpl: createGatewayFetch({ baseUrl: saved.baseUrl, refreshToken, identity, fetchImpl }) };
 }
 
 export function publicSub2ApiConfig(dataDir, storage = {}) {
-  const config = readSub2ApiConfig(process.env, dataDir, storage);
-  return config ? { baseUrl: config.baseUrl, model: config.model, configured: true } : { baseUrl: 'http://127.0.0.1:8188/v1', model: 'gpt-6.1-sol', configured: false };
+  let gateway = null;
+  try { gateway = gatewayConfig(dataDir, storage); } catch { /* Invalid storage must still allow the activation screen to open. */ }
+  const endpoint = gateway ?? gatewayEndpoint();
+  return { baseUrl: endpoint.baseUrl, model: endpoint.model, configured: Boolean(gateway) };
 }
 
-export async function checkSub2ApiConfig(dataDir, input = {}, fetchImpl = fetch, storage = {}) {
-  const stored = storedFor(dataDir, storage.decrypt);
-  if (input.model !== undefined && !/^[\w.-]+$/.test(input.model)) throw new VideoPolicyError('模型名称无效。');
-  const config = readSub2ApiConfig({ OPENFILM_SUB2API_BASE_URL: input.baseUrl || stored.baseUrl, OPENFILM_SUB2API_API_KEY: input.apiKey || stored.apiKey, OPENFILM_SUB2API_MODEL: input.model || stored.model }, null, storage);
-  if (!config) throw new VideoPolicyError('请先填写 Sub2API 地址和 Key。');
+/** Validate authorization without generating model tokens. Fail closed on network/storage errors. */
+export async function checkGatewayAuthorization(dataDir, storage = {}, fetchImpl = fetch) {
+  try {
+    const config = gatewayConfig(dataDir, storage, fetchImpl);
+    if (!config) return { authorized: false, message: '请输入激活码以使用 OpenFilm。' };
+    const response = await config.fetchImpl(`${new URL(config.baseUrl).origin}/auth/status`, {
+      method: 'POST', body: '{}', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(20000),
+    });
+    if (!response.ok || (await response.json()).authorized !== true) return { authorized: false, message: '授权无效或设备已解绑，请重新激活。' };
+    return { authorized: true, message: '' };
+  } catch { return { authorized: false, message: '无法验证授权，请检查网络后重试。' }; }
+}
+
+export async function checkSub2ApiConfig(dataDir, fetchImpl = fetch, storage = {}) {
+  const config = gatewayConfig(dataDir, storage, fetchImpl);
+  if (!config) throw new VideoPolicyError('请先输入激活码完成激活。');
+  fetchImpl = config.fetchImpl;
   let response;
   let lastError;
   /* WSL2 and a local Windows Sub2API service can briefly return 502 while the upstream worker wakes up. */

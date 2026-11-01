@@ -3,13 +3,13 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { AgentSession, INSTRUCTIONS } from './agents.mjs';
 import { createCodexProvider } from './codex-provider.mjs';
-import { readSub2ApiConfig } from './sub2api-config.mjs';
+import { gatewayConfig } from './sub2api-config.mjs';
 
 /** Native ACP conversation; the wrapper owns connection credentials and project sandbox configuration only. */
 export class ProjectSession extends AgentSession {
   async start() {
-    const hosted = readSub2ApiConfig(process.env, this.opts.dataDir, this.opts.storage);
-    if (!hosted) throw new Error('请先在连接设置中配置模型服务。');
+    const hosted = gatewayConfig(this.opts.dataDir, this.opts.storage);
+    if (!hosted) throw new Error('请先输入激活码完成 OpenFilm 激活。');
     this.provider = await createCodexProvider(hosted);
     const root = resolve(this.opts.cwd);
     const home = join(this.opts.dataDir, 'project-codex', createHash('sha256').update(root).digest('hex'));

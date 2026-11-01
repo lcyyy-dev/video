@@ -42,6 +42,13 @@ export function readPrefs() {
   try { return prefsOf(JSON.parse(readFileSync(file(), 'utf8'))); } catch { return prefsOf(null); }
 }
 
+/** Save a detected editor directory once; never replace a user's existing choice. @param {string | null} folder */
+export function initializeDraftExportFolder(folder) {
+  const current = readPrefs();
+  if (current.draftExportFolder || !folder || !isAbsolute(folder)) return current;
+  return writePrefs({ draftExportFolder: folder });
+}
+
 /**
  * Change some of them (a field at a time); returns them all. The file is shared with every OpenFilm on this computer
  * (`npx openfilm`, the app), older or newer: what this one does not know of it is written back as it was.
