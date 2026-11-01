@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createCodexProvider } from './codex-provider.mjs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 
 test('provider preserves tool declarations, tool results and streamed Responses events', async () => {
   const request = JSON.stringify({ input: [{ type: 'function_call_output', call_id: 'one', output: 'done' }], tools: [{ type: 'function', name: 'shell' }], stream: true });
@@ -28,4 +31,34 @@ test('provider preserves tool declarations, tool results and streamed Responses 
     assert.equal((await fetch(`${provider.baseUrl}/responses`, { method: 'POST' })).status, 403);
     assert.equal((await fetch(`${provider.baseUrl}/arbitrary`, { headers: { authorization: `Bearer ${provider.token}` } })).status, 404);
   } finally { release(); await provider.close(); }
+});
+
+test('native narration is capability-authenticated and never forwards caller text or proxy parameters', async () => {
+  let calls = 0;
+  const provider = await createCodexProvider({ baseUrl: 'https://gateway.test/v1', apiKey: 'private', fetchImpl: () => { throw new Error('unexpected model forwarding'); }, narration: async signal => {
+    assert.ok(signal instanceof AbortSignal); calls++;
+    return { sentences: [{ src: 'assets/narration/example.mp3', duration: 1 }] };
+  } });
+  const url = provider.baseUrl.replace('/v1', '/tts/generate');
+  try {
+    assert.equal((await fetch(url, { method: 'POST' })).status, 403);
+    assert.equal((await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${provider.token}` } })).status, 403, 'model bridge credential cannot invoke narration');
+    assert.equal((await fetch(`${provider.baseUrl}/responses`, { method: 'POST', headers: { authorization: `Bearer ${provider.narrationCapability}` }, body: '{}' })).status, 403, 'narration capability cannot call the model proxy');
+    assert.equal((await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${provider.narrationCapability}`, origin: 'https://evil.test' } })).status, 403);
+    assert.equal((await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${provider.narrationCapability}` }, body: '{"text":"override","url":"http://localhost"}' })).status, 400);
+    const response = await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${provider.narrationCapability}` } });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).sentences[0].duration, 1);
+    assert.equal(calls, 1);
+  } finally { await provider.close(); }
+});
+
+test('bundled narrate command reaches native bridge without additional Python or Node installation', async () => {
+  const provider = await createCodexProvider({ baseUrl: 'https://gateway.test/v1', narration: async () => ({ model: 'seed-tts-2.0', duration: 1.1, sentences: [] }) });
+  try {
+    const { stdout } = await promisify(execFile)(process.execPath, [fileURLToPath(new URL('../../../packages/openfilm/bin/openfilm.mjs', import.meta.url)), 'narrate'], {
+      env: { ...process.env, OPENFILM_NO_UPDATE_CHECK: '1', OPENFILM_NARRATION_URL: provider.baseUrl.replace('/v1', '/tts/generate'), OPENFILM_NARRATION_CAPABILITY: provider.narrationCapability }, timeout: 10000,
+    });
+    assert.equal(JSON.parse(stdout).model, 'seed-tts-2.0');
+  } finally { await provider.close(); }
 });

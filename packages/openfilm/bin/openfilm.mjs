@@ -6,6 +6,7 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
   openfilm open    [folder | url]      start or open a project; Studio shows it to the person
   openfilm look    [what] [t | a-b]    check the film and draw it: a contact sheet with its sound and loudness
   openfilm render  [a-b]               the MP4, saved beside film.html
+  openfilm narrate                    desktop advertising: generate saved body-copy narration
   openfilm get     [what] [--options]  voice-over, music, sound effects, transcripts, images, video, from a connected service
   openfilm capture <url> <file.png>    a picture of a live web page, to show a product or a site as it is
   openfilm skills                      the skills this film can be made with; \`openfilm skill <name>\` prints one
@@ -18,6 +19,11 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
 
 /* one command's help: what it does, what it takes, where its output goes */
 const COMMAND_HELP = {
+  narrate: `openfilm narrate
+
+  Desktop advertising only. Generate the saved body copy through the native authorized TTS gateway.
+  No text, URL or output-path arguments. Prints measured sentence timing and project-relative audio paths.
+  Unchanged sentence audio is reused. Requires an active OpenFilm desktop project session.`,
   'text-styles': `openfilm text-styles [list | elements | sample | rules | generation-rules | show <id> | default [id]]
 openfilm text-styles page <file.text.json> --text <copy> --duration <seconds> [--size 1080x1920] [--preset <id>] [--seed <value>]
 
@@ -178,6 +184,17 @@ for (const [name, [lo, hi, whole]] of Object.entries(RANGES)) {
   process.exit(2);
 }
 const commands = {
+  narrate: async () => {
+    if (args.length || Object.keys(o).length) return { ok: false, usage: true, lines: [COMMAND_HELP.narrate] };
+    const endpoint = process.env.OPENFILM_NARRATION_URL;
+    const token = process.env.OPENFILM_NARRATION_CAPABILITY;
+    let url; try { url = new URL(endpoint); } catch { throw new Error('广告旁白需要在 OpenFilm 客户端会话内生成。'); }
+    if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.pathname !== '/tts/generate' || url.search || url.hash || url.username || url.password || !token) throw new Error('旁白会话地址无效。');
+    const response = await fetch(url, { method: 'POST', redirect: 'error', headers: { authorization: `Bearer ${token}` } });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result?.error?.message ?? '旁白生成失败。');
+    return { ok: true, lines: [JSON.stringify(result, null, 2)] };
+  },
   'text-styles': async () => {
     const styles = await import('../src/text-styles.mjs');
     const saved = await import('../studio/server/text-styles.mjs');

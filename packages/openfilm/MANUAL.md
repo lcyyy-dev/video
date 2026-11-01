@@ -79,6 +79,15 @@ for the data and export limits. Unsupported effects keep their rendered appearan
 
 ## Tools
 
+Desktop advertising narration: when the saved advertising template enables read-aloud, run `openfilm narrate`.
+It takes no text, URL, credential or output-path arguments. The native desktop process reads the saved body copy,
+speaker and speech rate, calls Doubao seed-tts-2.0 through the Keygen-authorized gateway, and returns real audio
+paths and measured sentence timing (also saved in `.film/narration.json`). Use these independent audio clips to
+time the video, text and subtitles; lower source video volume to 0.15 by default. Reuse unchanged audio. Report
+synthesis failures instead of silently skipping requested narration, and report fixed-duration conflicts without
+deleting copy, cutting speech or silently extending the film. This capability is only available inside an active
+desktop advertising session; copy rewriting, talking-head and live-clip templates never synthesize narration.
+
 Run them in the film's folder. Each one's `--help` lists its options:
 - `npx openfilm open <folder>`: first. A new film gets a folder of its own, named after it (`open launch-video`); an existing one opens, and a GitHub address of one (a repository, or `…/tree/main/<folder>`) is copied into the projects library and opened. It prints Studio's address: open it in your built-in browser before you write anything and keep it open, so the person watches every change land and edits too. Without a built-in browser, Studio opens in the person's default browser by itself. `open` alone shows the film you are in, else the last one: run it when the person only asks to open OpenFilm.
 - Local text elements: `openfilm/text-styles` exposes the JSON element pools and samples native-compatible

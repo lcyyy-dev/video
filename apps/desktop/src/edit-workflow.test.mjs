@@ -40,9 +40,9 @@ test('each enabled template routes to its own bundled workflow', () => {
       assert.doesNotMatch(prepared.text, /文字颜色与行宽规则|同屏文案规则|去标点规则：/);
       continue;
     }
-    assert.match(prepared.text, /所有模板均不调用本地、云端、系统语音或其他 TTS/);
-    assert.match(prepared.text, /直接跳过音频生成/);
-    assert.match(prepared.text, /不询问配音方案/);
+    assert.match(prepared.text, /只有广告模板开启文案朗读/);
+    assert.match(prepared.text, /失败明确报告/);
+    assert.match(prepared.text, /其他模板不生成旁白/);
     assert.match(prepared.text, /不删字、不精简、不只用标题/);
     assert.match(prepared.text, /保持用户指定时长/);
     assert.match(prepared.text, /同一画面允许同时展示两句或多句文案/);

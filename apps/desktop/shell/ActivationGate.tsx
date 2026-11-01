@@ -44,7 +44,7 @@ export function ActivationGate({ children }: { children: ReactNode }) {
       await native.sub2api.set({ activationCode: code.trim() });
       setCode('');
       await check();
-    } catch (error) { setMessage(error instanceof Error ? error.message : '激活失败，请检查激活码。'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '') : '激活失败，请检查激活码。'); }
     finally { setBusy(false); }
   }
   if (authorized) return children;

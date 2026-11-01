@@ -14,11 +14,11 @@ the template's exact copy, use supplied audio without synthesizing narration, as
 
 ### Optional narration
 
-Advertising uses one workflow, without advertising subcategories. The content field narration is an optional read-aloud checkbox, off by default. When off, retain original video audio and do not generate narration. When on, it requests narration but unavailable TTS must be skipped immediately without blocking, asking questions or creating an empty audio track. There is no separate recording input or reuse step. TTS is currently not connected.
+Advertising uses one workflow, without advertising subcategories. The content field narration is an optional read-aloud checkbox, off by default. When off, retain original video audio and do not generate narration. When on, call the native narration capability supplied by the desktop session. It reads the saved advertising body text, speaker and speech rate, and calls seed-tts-2.0 through the Keygen gateway. Read .film/narration.json and place its real audio files as independent clips at the measured start times. Lower original source audio to 0.15 by default. Failures must be reported as incomplete narration, never silently skipped.
 
 ## Reference text layout
 
-Retain original video audio and skip unavailable narration synthesis. When the template
+Retain original video audio when narration is off; when on, generate native gateway narration before arranging shots. When the template
 contains a title, supporting lines and a location, use this compact vertical-ad structure unless the person specifies
 another layout. Arrange these text roles as a compact group using the spacing rule below; choose a seed or explicit
 preset after inspecting the frame:
@@ -107,7 +107,7 @@ record; `film.html` remains the editable film. Reuse confirmed analysis and choi
 Split the copy into complete sentences at sentence punctuation and natural pauses; assign stable sentence IDs. When
 the template already contains wording, that wording is locked: preserve all wording and order, removing only sentence punctuation for display, with no shortening,
 summary, rewrite, additions or deletions. In 原声 · 无朗读, use those sentences only as caption/text units. In narrated
-modes, retain original video audio only; do not generate speech. Keep complete sentences and never
+modes, use the native gateway narration and real measured durations. Keep complete sentences and never
 truncate a sentence to meet a duration target. Visual shots and text groups may contain multiple sentences simultaneously; preserve every character.
 
 Probe supplied media for duration, dimensions and sound. Use `openfilm look --quick <media-file>` for a fast contact sheet,
@@ -125,11 +125,11 @@ or silently fill shortages with unrelated shots. If nothing fits, identify the s
 
 ## Time narration before final cuts
 
-Preserve source video audio. Use source speech timing only for captions derived from actual speech; skip narration generation while TTS is unavailable.
+Preserve source video audio. Use source speech timing only for captions derived from actual speech; use native gateway narration when enabled.
 
 Use source video audio and its real speech boundaries for any speech-derived captions; do not divide evenly or estimate speech timing from character counts. Do not request, import or reuse separate narration recordings.
 
-TTS is not connected. Never synthesize narration using local, cloud or system voices. Continue with original video audio and on-screen text; skip audio generation without asking for a narration choice and do not create an empty narration track.
+Generate narration only with the desktop native Keygen gateway capability. Never use alternate cloud, local or system voices. Preserve original punctuation in spoken text. Reuse unchanged sentence audio and report failed synthesis explicitly.
 A requested silent video may use explicitly recorded shot durations and must be labeled accordingly.
 
 Place each line after the previous line's actual end plus any separately specified pause. Do not add pauses already
@@ -257,7 +257,7 @@ Default workflow: receive the command, execute the command, and report the resul
 
 ## Copy and audio execution policy
 
-When TTS is unavailable, skip audio generation immediately, retain original video audio, and create no empty narration track. Do not stop to ask about narration.
+When requested TTS fails, report incomplete narration and retain successful sentence assets for retry. Never claim a silent video fulfills a narration request. If a fixed duration cannot fit the complete narration, report the conflict without truncating speech, deleting copy or silently extending the video.
 Preserve every character of supplied final titles and body copy. Never ask whether to shorten, use only the title, or retain the full copy. For an authorized source rewrite, use the complete resulting script. Keep the requested duration and arrange all copy across text clips by adapting layout and timing. Missing TTS imposes no spoken-duration constraint. Complete the edit without asking the person to choose between shortened copy, title-only and a longer duration; report any readability limitation afterward.
 
 A frame may show two or more sentences simultaneously, grouped by meaning in multiple lines or text blocks. Do not enforce one sentence per screen or exclusive time intervals per sentence. For a short video with long copy, prefer related sentences together and allocate display time per group, preserving all copy and the requested duration while avoiding the subject. A single-line headline rule does not limit the number of body sentences on screen.

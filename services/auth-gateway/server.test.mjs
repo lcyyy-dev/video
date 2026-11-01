@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateKeyPairSync } from 'node:crypto';
@@ -10,6 +10,7 @@ import { createGatewayFetch, signedHeaders } from '../../apps/desktop/src/gatewa
 test('activation, refresh, per-user key substitution, streaming, replay and revocation', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'gateway-test-'));
   const mappingFile = join(dir, 'mappings.json');
+  const readMappings = () => JSON.parse(readFileSync(mappingFile, 'utf8'));
   writeFileSync(mappingFile, JSON.stringify({ alice: { apiKey: 'alice-private' }, bob: { apiKey: 'bob-private' } }));
   const devices = new Map(); let revoked = false; const calls = [];
   const upstream = async (url, options) => {
@@ -28,10 +29,14 @@ test('activation, refresh, per-user key substitution, streaming, replay and revo
       const id = url.split('/licenses/')[1].split('/')[0];
       return Response.json({ meta: { valid: !revoked && devices.get(id) === body.meta.scope.fingerprint } });
     }
+    if (url === 'https://openspeech.bytedance.com/api/v3/tts/unidirectional') {
+      calls.push({ url, key: options.headers['X-Api-Key'], body });
+      return new Response('{"code":0,"data":"YXVkaW8="}\n{"code":20000000}\n');
+    }
     calls.push({ url, key: options.headers.authorization, body: options.body.toString() });
     return new Response('data: {"text":"OK"}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } });
   };
-  const server = createGateway({ secret: 'a'.repeat(64), mappingFile, keygenUrl: 'http://keygen/v1', keygenToken: 'admin', sub2apiUrl: 'http://sub2api/v1', fetchImpl: upstream });
+  const server = createGateway({ secret: 'a'.repeat(64), mappingFile, keygenUrl: 'http://keygen/v1', keygenToken: 'admin', sub2apiUrl: 'http://sub2api/v1', fetchImpl: upstream, ttsKey: 'speech-private' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const identity = () => generateKeyPairSync('ed25519', { publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
@@ -57,6 +62,18 @@ test('activation, refresh, per-user key substitution, streaming, replay and revo
       assert.match(await response.text(), /\[DONE\]/);
       assert.equal(calls.at(-1).key, `Bearer ${name}-private`);
       assert.equal(calls.at(-1).body, body);
+      const ttsBody = JSON.stringify({ text: '欢迎光临', speaker: 'zh_female_vv_uranus_bigtts' });
+      const savedMappings = readMappings();
+      writeFileSync(mappingFile, JSON.stringify({ ...savedMappings, [name]: {} }));
+      const tts = await client(`${origin}/tts/synthesize`, { method: 'POST', body: ttsBody });
+      assert.equal(tts.status, 200);
+      assert.equal((await tts.json()).audio, 'YXVkaW8=');
+      assert.equal(calls.at(-1).key, 'speech-private');
+      writeFileSync(mappingFile, JSON.stringify(savedMappings));
+      assert.match(calls.at(-1).url, /^https:\/\/openspeech.bytedance.com\//);
+      const beforeInvalidTts = calls.length;
+      assert.equal((await client(`${origin}/tts/synthesize`, { method: 'POST', body: JSON.stringify({ ...JSON.parse(ttsBody), url: 'http://keygen' }) })).status, 400);
+      assert.equal(calls.length, beforeInvalidTts);
       const headers = { ...signedHeaders(device, 'POST', '/v1/responses', body, session.accessToken), authorization: `Bearer ${session.accessToken}` };
       assert.equal((await fetch(`${origin}/v1/responses`, { method: 'POST', headers, body })).status, 200);
       assert.equal((await fetch(`${origin}/v1/responses`, { method: 'POST', headers, body })).status, 401);
@@ -67,10 +84,12 @@ test('activation, refresh, per-user key substitution, streaming, replay and revo
       revoked = true;
       assert.equal((await client(`${origin}/auth/status`, { method: 'POST', body: '{}' })).status, 403);
       assert.equal((await client(`${origin}/v1/responses`, { method: 'POST', body })).status, 403);
+      assert.equal((await client(`${origin}/tts/synthesize`, { method: 'POST', body: ttsBody })).status, 403);
       revoked = false;
     }
     assert.equal((await fetch(`${origin}/v1/responses`, { method: 'POST', body: '{}' })).status, 401);
     assert.equal((await fetch(`${origin}/v1/anything`)).status, 404);
+    assert.equal((await fetch(`${origin}/tts/synthesize`, { method: 'POST', body: '{}' })).status, 401);
   } finally {
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));

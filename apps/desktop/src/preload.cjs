@@ -86,6 +86,8 @@ contextBridge.exposeInMainWorld('openfilmNative', {
     changes: (project, turnId) => ipcRenderer.invoke('desktop:chat:changes', { project, turnId }),
   },
   editTemplate: {
+    voices: (project) => ipcRenderer.invoke('desktop:edit-template:voices', { project }),
+    preview: (project, config) => ipcRenderer.invoke('desktop:edit-template:preview', { project, config }),
     load: (project) => ipcRenderer.invoke('desktop:edit-template:load', { project }),
     save: (project, config) => ipcRenderer.invoke('desktop:edit-template:save', { project, config }),
   },

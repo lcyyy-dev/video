@@ -1,5 +1,6 @@
 *
 !server.mjs
+!tts.mjs
 !Dockerfile
 !admin.mjs
 !admin.html

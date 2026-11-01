@@ -23,6 +23,7 @@ import { applicationMenu } from './menu.mjs';
 import { registerLocalAgentIpc } from './local-agents-ipc.mjs';
 import { registerChatIpc } from './chat-ipc.mjs';
 import { registerEditTemplateIpc } from './edit-template-ipc.mjs';
+import { credentialStorage } from './credential-storage.mjs';
 import { registerSkillsIpc } from './skills-ipc.mjs';
 import { createRoster } from './agent-roster.mjs';
 import { CLIENT_AGENTS, CLIENT_PROFILE } from 'openfilm/client-scope';
@@ -34,7 +35,7 @@ import { startUpdates } from './updates.mjs';
 import { ensureFfmpeg, ffmpegDir, ffmpegDownloadable, ffmpegIn, ffmpegOnPath } from './ffmpeg-runtime.mjs';
 import { PATH_SEP } from './environment.mjs';
 import { createTabs } from './tabs.mjs';
-import { activateGateway, checkGatewayAuthorization, checkSub2ApiConfig, publicSub2ApiConfig, gatewayEndpoint } from './sub2api-config.mjs';
+import { gatewayConfig, activateGateway, checkGatewayAuthorization, checkSub2ApiConfig, publicSub2ApiConfig, gatewayEndpoint } from './sub2api-config.mjs';
 import { authorizationController } from './authorization-state.mjs';
 import { precomputeUploadFrames } from './source-analysis.mjs';
 
@@ -62,17 +63,7 @@ const DATA = app.getPath('userData');
 const LOGS = join(DATA, 'logs');
 mkdirSync(LOGS, { recursive: true });
 const log = (line) => { try { appendFileSync(join(LOGS, 'studio.log'), line); } catch { /* no log */ } };
-/* Device credentials require OS encryption (Windows DPAPI, macOS Keychain, or a Linux keyring). */
-const sub2apiStorage = () => {
-  try {
-    if (!safeStorage.isEncryptionAvailable()) return {};
-    if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text') return {};
-    return {
-      encrypt: (value) => safeStorage.encryptString(value).toString('base64'),
-      decrypt: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
-    };
-  } catch { return {}; }
-};
+const sub2apiStorage = () => credentialStorage({ safeStorage, dataDir: DATA });
 
 if (!app.requestSingleInstanceLock()) {
   if (!app.isPackaged) console.log(`${PRODUCT_NAME} is already running; requesting its existing window.`);
@@ -544,6 +535,7 @@ async function start() {
   });
   registerEditTemplateIpc(ipc, {
     trusted: fromPage,
+    hosted: () => gatewayConfig(DATA, sub2apiStorage()),
     projects: async () => (await studioApi('/api/projects')).projects.filter(project => !project.missing).map(project => project.path),
   });
   /* the composer's Skills button */

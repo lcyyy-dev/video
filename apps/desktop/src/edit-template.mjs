@@ -5,7 +5,7 @@ export const TEMPLATE_TYPES = Object.freeze([
   { id: 'copy', name: '文案二创', hint: '保留原意 · 润色文案', skill: 'copy-rewrite' },
   { id: 'live', name: '直播切片', hint: '完整观点 · 精华剪辑', skill: 'live-clips' },
 ]);
-export const initialTemplate = () => ({ kind: 'ad', narration: false, title: true, titleText: '', subtitles: false, subtitleTexts: [], body: true, bodyText: '', reveal: '直出', highlight: true, location: false, locationText: '', source: '', notes: '', textStyleIds: [] });
+export const initialTemplate = () => ({ kind: 'ad', narration: false, speaker: 'zh_female_vv_uranus_bigtts', speechRate: 0, title: true, titleText: '', subtitles: false, subtitleTexts: [], body: true, bodyText: '', reveal: '直出', highlight: true, location: false, locationText: '', source: '', notes: '', textStyleIds: [] });
 
 /** The title is fitted before a page is written. CJK characters are full-width; Latin text is narrower. */
 export function titleFontSize(text, { maxWidth = 930, max = 112, min = 42 } = {}) {
@@ -53,6 +53,9 @@ export function normalizeTemplate(raw) {
     config.location = false; config.locationText = '';
     config.narration = false; config.textStyleIds = [];
   }
+  if (config.kind !== 'ad') config.narration = false;
+  if (!/^[a-zA-Z0-9_]{1,120}$/.test(config.speaker)) throw new Error('无效的配音音色。');
+  if (!Number.isInteger(config.speechRate) || config.speechRate < -50 || config.speechRate > 100) throw new Error('无效的配音语速。');
   config.reveal = '直出';
   return config;
 }
@@ -67,7 +70,7 @@ export function templateSummary(config) {
       ? config.subtitleTexts.filter(Boolean).map((text, index) => `副标题${index + 1}：${text}`)
       : ['副标题：需要，内容待补充'])
     : ['副标题：不需要'];
-  const narration = `文案朗读：${config.body && config.narration ? '已勾选；TTS 不可用时直接跳过配音生成，不阻塞流程，保留视频原声' : '未勾选；不生成配音，保留视频原声'}`;
+  const narration = `文案朗读：${config.kind === 'ad' && config.body && config.narration ? `已勾选；豆包 seed-tts-2.0；音色 ${config.speaker}；语速 ${config.speechRate}；生成正文全文旁白，失败必须报告，禁止静默跳过` : '未勾选；不生成配音，保留视频原声'}`;
   const title = config.title
     ? [`标题：${config.titleText || '需要，内容待补充'}`, '标题排版：根据画布尺寸、文字长度和位置选择绝对像素字号，优先单行，不换行']
     : ['标题：不需要'];

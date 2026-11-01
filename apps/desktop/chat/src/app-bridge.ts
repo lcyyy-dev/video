@@ -18,6 +18,8 @@ export type FfmpegState = boolean | null | { state: 'downloading'; progress?: nu
  * (`error`: 'agent-busy' | 'exporting' | 'install-failed'); a failed check is the menu's to say.
  */
 export interface EditTemplateBridge {
+  voices(project: string): Promise<{ configured: boolean; speakers: string[] }>;
+  preview(project: string, config: EditTemplateConfig): Promise<{ audio: string; format: string }>;
   load(project: string): Promise<EditTemplateConfig>;
   save(project: string, config: EditTemplateConfig): Promise<EditTemplateConfig>;
 }

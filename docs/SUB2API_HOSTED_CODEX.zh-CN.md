@@ -59,7 +59,7 @@ OPENFILM_GATEWAY_MODEL=gpt-6.1-sol
 
 这两个配置不包含密钥，也不绕过激活。非本机地址必须使用 HTTPS，地址必须以 `/v1` 结尾。
 
-成功激活后客户端保存 `gateway-device.json` 与 `gateway-session.json`，私钥及续期凭据通过 Electron safeStorage 加密；安全存储不可用时拒绝激活。旧 `sub2api.json` 不再作为授权依据，并在成功激活后删除。Codex 子进程只拿到本机临时请求桥的地址与随机 Token，设备私钥不传入模型或剪辑工具。
+成功激活后客户端保存 `gateway-device.json` 与 `gateway-session.json`，私钥及续期凭据优先通过 Electron safeStorage 加密。Linux/WSL 无可用系统密钥环时改用 AES-256-GCM，本地随机密钥 gateway-storage.key 以 0600 权限保存到应用数据目录；不使用 basic_text，也不改写或绕过服务器授权。备份此类授权时需同时保留该密钥文件；已有系统加密凭据仍需原系统密钥环。旧 `sub2api.json` 不再作为授权依据，并在成功激活后删除。Codex 子进程只拿到本机临时请求桥的地址与随机 Token，设备私钥不传入模型或剪辑工具。
 
 Windows 使用系统内置 DPAPI，无需额外安装密钥环；macOS 使用系统 Keychain。Linux/WSL 需要已安装并解锁的 GNOME Keyring 或 KWallet；不接受 `basic_text` 弱加密后端。平台存储方式不同，设备激活与授权检查规则一致。
 

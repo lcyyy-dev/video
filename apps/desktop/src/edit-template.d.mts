@@ -1,6 +1,6 @@
 export type TemplateKind = 'ad' | 'talk' | 'copy' | 'live';
 export interface EditTemplateConfig {
-  kind: TemplateKind; narration: boolean; title: boolean; titleText: string;
+  kind: TemplateKind; narration: boolean; speaker: string; speechRate: number; title: boolean; titleText: string;
   subtitles: boolean; subtitleTexts: string[]; body: boolean; bodyText: string;
   reveal: string; highlight: boolean; location: boolean; locationText: string;
   source: string; notes: string;

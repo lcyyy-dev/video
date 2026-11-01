@@ -82,7 +82,7 @@ docker compose logs -f gateway
 
 Windows 上的 SakuraFrp 继续映射本机 `127.0.0.1:8188`，此端口由网关接管；sub2api 改为仅本机访问的 8189。sub2api 和 Keygen 管理端不得公开暴露。Compose 默认只把网关端口发布到宿主机回环地址。
 
-OpenFilm 只提供激活码入口，输入 Keygen 许可证 Key 后点击激活。服务地址和模型由主进程配置，默认使用固定公网入口；开发环境也必须激活。设备私钥及续期凭据使用 Electron 系统安全存储加密；系统安全存储不可用时拒绝激活。模型调用通过本地请求桥签名，sub2api Key 不传入客户端。
+OpenFilm 只提供激活码入口，输入 Keygen 许可证 Key 后点击激活。服务地址和模型由主进程配置，默认使用固定公网入口；开发环境也必须激活。设备私钥及续期凭据优先使用 Electron 系统安全存储加密。Linux/WSL 没有可用密钥环时，使用 AES-256-GCM 和应用数据目录内仅当前用户可读写的随机密钥（gateway-storage.key，0600 权限）；不使用 Chromium basic_text。旧的系统加密凭据仍需原密钥环解锁，不会被静默覆盖。模型调用通过本地请求桥签名，sub2api Key 不传入客户端。
 
 ## 协议
 

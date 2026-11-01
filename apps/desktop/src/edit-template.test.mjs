@@ -33,7 +33,7 @@ test('optional narration persists and old advertising modes migrate without reta
   for (const narration of [false, true]) {
     const config = normalizeTemplate({ ...initialTemplate(), narration });
     assert.equal(normalizeTemplate(JSON.parse(JSON.stringify(config))).narration, narration);
-    assert.match(templateSummary(config), narration ? /已勾选；TTS 不可用时直接跳过/ : /未勾选；不生成配音/);
+    assert.match(templateSummary(config), narration ? /已勾选；豆包 seed-tts-2.0/ : /未勾选；不生成配音/);
     assert.doesNotMatch(templateSummary(config), /广告素材 \/ /);
   }
   assert.equal(normalizeTemplate({ kind: 'ad', adMode: '文案朗读 + 音频' }).narration, true);
@@ -78,13 +78,15 @@ test('copy templates retain source content and discard retired rewrite settings'
 });
 
 
-test('narration is available to every template only when body content is enabled', () => {
+test('narration is available only to advertising with body content enabled', () => {
   for (const kind of ['ad', 'talk', 'copy', 'live']) {
     const config = normalizeTemplate({ ...initialTemplate(), kind, body: true, narration: true });
     if (kind === 'copy') {
       assert.doesNotMatch(templateSummary(config), /文案朗读/);
+    } else if (kind !== 'ad') {
+      assert.equal(config.narration, false);
     } else {
-      assert.match(templateSummary(config), /文案朗读：已勾选；TTS 不可用时直接跳过/);
+      assert.match(templateSummary(config), /文案朗读：已勾选；豆包 seed-tts-2.0/);
       assert.match(templateSummary({ ...config, body: false }), /文案朗读：未勾选/);
     }
   }

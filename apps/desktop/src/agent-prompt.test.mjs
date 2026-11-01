@@ -6,7 +6,7 @@ test('the video agent uses the current Studio, reads its workflow, and preserves
   assert.ok(INSTRUCTIONS.endsWith(STUDIO_REFERENCES));
   assert.match(INSTRUCTIONS, /openfilm skill <name>/);
   assert.match(INSTRUCTIONS, /Preserve\s+manual timeline edits/);
-  assert.match(INSTRUCTIONS, /simulation clearly/);
+  assert.match(INSTRUCTIONS, /native Keygen gateway TTS/);
   assert.equal(isAgentId('codex'), true);
   for (const removed of ['claude', 'byok', 'gemini', 'opencode']) assert.equal(isAgentId(removed), false);
 });

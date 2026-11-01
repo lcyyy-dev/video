@@ -89,6 +89,34 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   const [creatingStyle, setCreatingStyle] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [speakers, setSpeakers] = useState<string[]>([]);
+  const [previewing, setPreviewing] = useState(false);
+  const [speechError, setSpeechError] = useState('');
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const previewEpoch = useRef(0);
+  useEffect(() => {
+    return () => { previewEpoch.current++; audio.current?.pause(); };
+  }, [open, projectPath]);
+  useEffect(() => {
+    if (!open || config.kind !== 'ad' || !config.narration) return;
+    let cancelled = false;
+    void app.editTemplate.voices(projectPath).then(result => {
+      if (!cancelled) { setSpeakers(result.speakers); setSpeechError(result.configured ? '' : '旁白服务尚未配置，请联系管理员。'); }
+    }).catch(error => { if (!cancelled) setSpeechError(error.message); });
+    return () => { cancelled = true; audio.current?.pause(); };
+  }, [open, projectPath, config.kind, config.narration]);
+  const previewSpeech = async () => {
+    const epoch = ++previewEpoch.current;
+    setPreviewing(true); setSpeechError(''); audio.current?.pause();
+    try {
+      const result = await app.editTemplate.preview(projectPath, config);
+      if (epoch !== previewEpoch.current) return;
+      const player = new Audio(`data:audio/mpeg;base64,${result.audio}`);
+      audio.current = player;
+      await player.play();
+    } catch (error) { if (epoch === previewEpoch.current) setSpeechError((error as Error).message); }
+    finally { setPreviewing(false); }
+  };
   const dialog = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -198,7 +226,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   const toggleTextStyle = (id: string) => patch({ textStyleIds: selectedTextStyleIds.has(id)
     ? config.textStyleIds.filter(value => value !== id)
     : [...config.textStyleIds, id] });
-  const elements = config.kind === 'copy' ? ['文案润色'] : [config.body && config.narration && '文案朗读（TTS 暂未接入）', config.title && '标题', config.subtitles && '副标题', config.body && '正文', config.body && config.highlight && '关键词高亮', config.location && '地点', config.textStyleIds.length ? `文字样式 ${config.textStyleIds.length} 个` : '自动文字样式'].filter(Boolean);
+  const elements = config.kind === 'copy' ? ['文案润色'] : [config.kind === 'ad' && config.body && config.narration && '文案朗读（豆包 TTS 2.0）', config.title && '标题', config.subtitles && '副标题', config.body && '正文', config.body && config.highlight && '关键词高亮', config.location && '地点', config.textStyleIds.length ? `文字样式 ${config.textStyleIds.length} 个` : '自动文字样式'].filter(Boolean);
   const visibleStyles = textStyles.filter(preset => `${preset.name} ${preset.description}`.toLowerCase().includes(styleQuery.toLowerCase()));
   const previewPreset = textStyles.find(preset => preset.id === previewId) ?? textStyles.find(preset => selectedTextStyleIds.has(preset.id)) ?? visibleStyles[0];
   const newPreset: TextStylePreset = { id: 'preview-custom', version: 1, name: styleName || '新增样式', description: '自建文字样式', style: styleDraft };
@@ -263,8 +291,14 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
                 <button type="button" className="edit-template-remove-subtitle" aria-label={`删除副标题 ${index + 1}`} onClick={() => removeSubtitle(index)} disabled={subtitleFields.length === 1}>删除</button>
               </div>)}</div>
             </Toggle>
-            <Toggle label="正文 / 文案" action={config.body ? <button type="button" className="edit-template-add-subtitle edit-template-narration" aria-pressed={config.narration} onClick={() => patch({ narration: !config.narration })}>文案朗读</button> : null} checked={config.body} onChange={body => patch({ body })}>
+            <Toggle label="正文 / 文案" action={config.kind === 'ad' && config.body ? <button type="button" className="edit-template-add-subtitle edit-template-narration" aria-pressed={config.narration} onClick={() => patch({ narration: !config.narration })}>文案朗读</button> : null} checked={config.body} onChange={body => patch({ body })}>
               {text('bodyText', '正文内容', '输入正文或文案，可稍后补充', true)}
+              {config.kind === 'ad' && config.narration ? <div className="edit-template-group">
+                <label>旁白音色<select aria-label="旁白音色" value={config.speaker} onChange={e => patch({ speaker: e.target.value })}>{[...new Set([config.speaker, ...speakers])].map(speaker => <option key={speaker} value={speaker}>{speaker === 'zh_female_vv_uranus_bigtts' ? 'Vivi · 女声' : speaker}</option>)}</select></label>
+                <label>语速<input aria-label="旁白语速" type="range" min="-50" max="100" value={config.speechRate} onChange={e => patch({ speechRate: Number(e.target.value) })} />{(1 + config.speechRate / 100).toFixed(2)} 倍</label>
+                <button type="button" disabled={previewing || busy} onClick={() => void previewSpeech()}>{previewing ? '正在生成试听…' : '试听正文前 100 字'}</button>
+                {speechError ? <p role="alert">{speechError}</p> : null}
+              </div> : null}
             </Toggle>
             <Toggle label="地点" checked={config.location} onChange={location => patch({ location })}>{text('locationText', '地点内容', '门店名称 / 地址 / 拍摄地点')}</Toggle>
             </>}

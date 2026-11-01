@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { pathToFileURL } from 'node:url';
+import { synthesizeTts } from './tts.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = (status, message) => Object.assign(new Error(message), { status });
@@ -12,7 +13,7 @@ async function bodyOf(req) {
   const chunks = []; let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > 32 * 1024 * 1024) throw fail(413, '请求过大');
+    if (size > (req.url.startsWith('/tts/') ? 16000 : 32 * 1024 * 1024)) throw fail(413, '请求过大');
     chunks.push(chunk);
   }
   return Buffer.concat(chunks);
@@ -22,6 +23,8 @@ export function createGateway(config) {
   if (!config.secret || config.secret.length < 32) throw new Error('GATEWAY_SECRET 至少需要 32 字符');
   const fetchImpl = config.fetchImpl ?? fetch;
   const nonces = new Map();
+  const ttsLimits = new Map();
+  const speakers = (config.ttsSpeakers ?? 'zh_female_vv_uranus_bigtts').split(',').map(s => s.trim()).filter(Boolean);
   const mappings = () => JSON.parse(readFileSync(config.mappingFile, 'utf8'));
   function issue(claims) {
     const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');
@@ -76,7 +79,7 @@ export function createGateway(config) {
     res.on('close', () => { if (!res.writableEnded) abort.abort(); });
     const json = (status, value) => { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
-      const allowed = req.method === 'POST' && ['/auth/activate', '/auth/refresh', '/auth/status', '/v1/responses'].includes(req.url) || req.method === 'GET' && req.url === '/v1/models';
+      const allowed = req.method === 'POST' && ['/auth/activate', '/auth/refresh', '/auth/status', '/v1/responses', '/tts/synthesize', '/tts/voices'].includes(req.url) || req.method === 'GET' && req.url === '/v1/models';
       if (!allowed) return json(404, { error: { message: '接口不存在' } });
       const raw = await bodyOf(req);
       if (req.url === '/auth/activate') {
@@ -108,9 +111,24 @@ export function createGateway(config) {
       let pem; try { pem = Buffer.from(publicKey ?? '', 'base64').toString(); } catch { throw fail(401, '设备信息无效'); }
       if (proof(req, raw, pem, token) !== claims.fingerprint) throw fail(403, '设备不匹配');
       const mapping = mappings()[claims.license];
-      if (!mapping?.apiKey) throw fail(403, '授权已撤销');
+      if (!mapping) throw fail(403, '授权已撤销');
       await validate(claims.license, claims.fingerprint);
       if (req.url === '/auth/status') return json(200, { authorized: true });
+      if (req.url === '/tts/voices') return json(200, { configured: Boolean(config.ttsKey), speakers });
+      if (req.url === '/tts/synthesize') {
+        if (raw.length > 16000) throw fail(413, '配音请求过大');
+        let input; try { input = JSON.parse(raw); } catch { throw fail(400, '配音参数无效'); }
+        const now = Date.now();
+        for (const [id, entry] of ttsLimits) if (!entry.active && entry.reset <= now) ttsLimits.delete(id);
+        const limit = ttsLimits.get(claims.license) ?? { count: 0, active: 0, reset: now + 60000 };
+        if (limit.reset <= now) { limit.count = 0; limit.reset = now + 60000; }
+        if (limit.active >= 2 || limit.count >= 30) throw fail(429, '配音请求过于频繁，请稍后重试');
+        limit.count++; limit.active++; ttsLimits.set(claims.license, limit);
+        try {
+          return json(200, await synthesizeTts({ input, speakers, key: config.ttsKey, fetchImpl, signal: abort.signal }));
+        } finally { limit.active--; }
+      }
+      if (!mapping.apiKey) throw fail(403, '授权尚未关联模型服务');
       const headers = { authorization: `Bearer ${mapping.apiKey}`, 'content-type': req.headers['content-type'] ?? 'application/json', accept: req.headers.accept ?? 'text/event-stream' };
       for (const name of ['openai-beta', 'session_id', 'conversation_id', 'content-encoding']) if (req.headers[name]) headers[name] = req.headers[name];
       const response = await fetchImpl(`${config.sub2apiUrl.replace(/\/$/, '')}${req.url.slice(3)}`, { method: req.method, headers, redirect: 'error', signal: abort.signal, ...(req.method === 'POST' ? { body: raw } : {}) });
@@ -124,6 +142,6 @@ export function createGateway(config) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const server = createGateway({ secret: process.env.GATEWAY_SECRET, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN, sub2apiUrl: process.env.SUB2API_URL });
+  const server = createGateway({ secret: process.env.GATEWAY_SECRET, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN, sub2apiUrl: process.env.SUB2API_URL, ttsKey: process.env.DOUBAO_TTS_API_KEY, ttsSpeakers: process.env.DOUBAO_TTS_SPEAKERS });
   server.listen(Number(process.env.PORT ?? 8787), process.env.BIND ?? '0.0.0.0');
 }

@@ -21,8 +21,7 @@ Windows installers include a pinned Codex executable and its complete native run
 Sub2API domain and user key as described in [the hosted Codex guide](../../docs/SUB2API_HOSTED_CODEX.zh-CN.md);
 the video planner does not inherit the user's ChatGPT credentials. Windows uses an app-private Codex home and receives Codex updates through
 app releases. Source runs and macOS builds still use a separately installed Codex. This client carries four fixed video workflows: `ad-editing`, `talk-editing`, `copy-rewrite` and `live-clips`. It does not include other agent
-runtimes, a skill marketplace, remote project galleries, or cloud media-provider configuration. For narration,
-use original video audio only; TTS is not connected and narration generation is deferred.
+runtimes, a skill marketplace, remote project galleries, or cloud media-provider configuration. Advertising alone supports optional body-copy narration using Doubao seed-tts-2.0 through the Keygen gateway. The native process generates sentence audio and measured timing in `.film/narration.json`; cloud credentials remain server-side. Other templates retain their original-audio behavior.
 
 Exports are limited to video, Jianying/CapCut drafts, and project archives/folders. The underlying film format,
 renderer and media utilities remain shared with the CLI. See [the scope record](../../docs/CLIENT_SIMPLIFICATION.zh-CN.md).
