@@ -231,7 +231,7 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   };
   return <>
     <button ref={trigger} type="button" className="edit-template-trigger" title={busy ? '剪辑执行中，结束后可调整模板' : '选择并配置本项目的剪辑模板'} disabled={loading || busy} onClick={() => { setConfig(applied); setStep(1); setOpen(true); }}>
-      <span className="workspace-step-number" aria-hidden="true">02</span>
+      <span className="workspace-step-number" aria-hidden="true">01</span>
       <span className="template-trigger-icon" aria-hidden="true"><Layers size={18} strokeWidth={1.5} /></span>
       <span className="template-trigger-copy"><strong>剪辑模板</strong></span>
       <ChevronRight size={15} aria-hidden="true" />

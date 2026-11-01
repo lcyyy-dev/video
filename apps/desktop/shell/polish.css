@@ -24,6 +24,11 @@ body, .of-chat { font-family: var(--font-sans); }
 [data-film-inspector] [class*='emptyHint_'] p { font-size: 14px; }
 [data-timeline-scope] [class~='text-[10px]'], [data-timeline-scope] [class~='text-[10.5px]'], [data-timeline-scope] [class~='text-[11px]'] { font-size: 12px; }
 [data-track-name] { font-size: 12px; }
+[data-media-pool] { font-size: 14px; }
+[data-media-pool] :is(button, input, p, span) { font-size: 14px !important; }
+[data-viewer-bar] > span { font-size: 14px; }
+[data-viewer-bar] > span > span { font-size: 13px; }
+[data-timeline-empty] p { font-size: 14px; }
 .of-chat .starter-spotlight { font-size: 15px; }
 .of-chat .starter-heading { font-size: 24px; }
 .of-chat [contenteditable='true'] { font-size: 15px; }

@@ -178,6 +178,7 @@ export const FilmInspector = React.memo(function FilmInspector({
   fades,
   transition,
   templateOf,
+  onRenameProject,
 }: {
   element: StageElement | null;
   /** The clips selected on the timeline. A layer picked on the picture wins: one selection at a time. */
@@ -236,6 +237,7 @@ export const FilmInspector = React.memo(function FilmInspector({
   onMaskAsked?: () => void;
   /** The film when nothing is selected. */
   film?: FilmSummary | null;
+  onRenameProject?: (name: string) => void;
   /** The canvas: a shape (the editor grows it around the film), or a size typed. */
   onCanvas?: (next: FilmFrameId, size?: { w: number; h: number }) => void;
   /** Show the canvas at a size not kept yet, as its width or height is dragged (null: as it is again). */
@@ -344,7 +346,7 @@ export const FilmInspector = React.memo(function FilmInspector({
         ) : geometry?.kind === 'group' && geometry.group ? (
           <GroupPanel geometry={geometry} group={geometry.group} layers={layers} onEditLayers={onEditLayers} {...(onPlaceLayers ? { onPlace: onPlaceLayers } : {})} t={t} />
         ) : (
-          <FilmPanel t={t} stage={stageSize} draft={canvasDraft} film={film ?? null} onCanvas={onCanvas} onCanvasPreview={onCanvasPreview} rate={rate ?? null} />
+          <FilmPanel t={t} stage={stageSize} draft={canvasDraft} film={film ?? null} onCanvas={onCanvas} onCanvasPreview={onCanvasPreview} rate={rate ?? null} onRenameProject={onRenameProject} />
         )}
       </div>
       </fieldset>
@@ -363,7 +365,7 @@ export const FilmInspector = React.memo(function FilmInspector({
  * (what is on it stays as it is, centered).
  */
 function FilmPanel({
-  t, stage: kept, draft, film, onCanvas, onCanvasPreview, rate,
+  t, stage: kept, draft, film, onCanvas, onCanvasPreview, rate, onRenameProject,
 }: {
   t: T;
   stage: { w: number; h: number };
@@ -373,8 +375,11 @@ function FilmPanel({
   onCanvas?: (next: FilmFrameId, size?: { w: number; h: number }) => void;
   onCanvasPreview?: (size: { w: number; h: number } | null) => void;
   rate: { fps: number; fromFootage: boolean; onChange: (fps: number) => void } | null;
+  onRenameProject?: (name: string) => void;
 }) {
   const canvas = Boolean(onCanvas);
+  const [editingTitle, setEditingTitle] = React.useState(false);
+  const [titleDraft, setTitleDraft] = React.useState(film?.title ?? '');
   /* what the picture shows: the size being dragged, else the film's */
   const stage = draft ?? kept;
   const preset = CANVAS_RATIOS.find((r) => shaped(stage, filmFrameRatio(r.id, stage)));
@@ -393,7 +398,7 @@ function FilmPanel({
         </div>
         <div className={overviewStyles.heroBody}>
           <div className={overviewStyles.projectHeading}>
-            <h2 title={film?.title || t('inspector.film')}>{film?.title || t('inspector.film')}</h2>
+            {onRenameProject && film?.title ? (editingTitle ? <input autoFocus value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { const next = titleDraft.trim(); if (next) onRenameProject(next); setEditingTitle(false); } if (e.key === 'Escape') setEditingTitle(false); }} onBlur={() => { const next = titleDraft.trim(); if (next && next !== film.title) onRenameProject(next); setEditingTitle(false); }} className="min-w-0 max-w-full rounded-md bg-transparent text-[22px] font-semibold text-[var(--text)] outline-none ring-1 ring-[var(--accent)]" /> : <button type="button" className="text-left" title="点击修改项目名称" onClick={() => { setTitleDraft(film.title ?? ''); setEditingTitle(true); }}><h2 title={film.title}>{film.title}</h2></button>) : <h2 title={film?.title || t('inspector.film')}>{film?.title || t('inspector.film')}</h2>}
             <p>{stage.w} × {stage.h}<span>px</span></p>
           </div>
           <div className={overviewStyles.canvasDiagram} aria-hidden="true">
@@ -411,7 +416,7 @@ function FilmPanel({
           </div>)}
         </div> : null}
       </SpotlightCard>
-      <Section id="film-stage" title={t('inspector.stage')}>
+      <Section id="film-stage" title={t('inspector.stage')} closedByDefault>
         {canvas ? (
           <MenuSelect
             label={t('inspector.stageShape')}
@@ -433,7 +438,7 @@ function FilmPanel({
         </Row>
       </Section>
       {rate ? (
-        <Section id="film-rate" title={t('inspector.frameRate')}>
+        <Section id="film-rate" title={t('inspector.frameRate')} closedByDefault>
           <MenuSelect
             label={t('inspector.frameRate')}
             value={String(rate.fps)}

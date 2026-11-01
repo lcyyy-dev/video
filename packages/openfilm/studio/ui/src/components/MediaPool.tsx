@@ -784,6 +784,7 @@ export function MediaPool({
   return (
     <div
       ref={setRootEl}
+      data-media-pool=""
       className="relative flex h-full min-h-0 flex-col"
       /* the pane's keys, while they are its own (the timeline's Delete is the timeline's): Delete (or Backspace) asks to
          delete what is picked, as an editor's project panel does; Enter puts the one file picked on the timeline, as
@@ -879,17 +880,25 @@ export function MediaPool({
       </div>
 
       {/* where you are: All, then the folders you went into (drop a file on one to move it there) */}
-      <div className="flex h-7 shrink-0 items-center gap-0.5 overflow-x-auto px-2.5 text-[12.5px]">
-        <button type="button" onClick={() => { setAt(''); setView((v) => ({ ...v, filter: 'all' })); }} {...dropProps('')}
-          className={`shrink-0 rounded px-1.5 py-0.5 ${view.filter === 'all' && !query ? 'bg-[var(--bg-active)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'} ${dropTarget === '' ? 'ring-1 ring-[var(--accent)]' : ''}`}>
-          {topName}
-        </button>
-        {!inSaved && !at ? FILTERS.slice(1).map((f) => (
-          <button key={f} type="button" onClick={() => setView((v) => ({ ...v, filter: f }))}
-            className={`shrink-0 rounded px-1.5 py-0.5 ${view.filter === f ? 'bg-[var(--bg-active)] font-medium text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}>
-            {t(`media.filter_${f}`)} <span className="text-[var(--text-faint)]">{counts[f]}</span>
+      <div className="flex h-7 shrink-0 items-center gap-1 overflow-x-auto px-2.5 text-[12.5px]">
+        {!inSaved && !at ? (
+          <div className="inline-flex max-w-full shrink-0 items-center overflow-x-auto rounded-full border border-[var(--border)] bg-[var(--bg)] p-[2px]">
+            {FILTERS.map((f) => {
+              const active = f === 'all' ? view.filter === 'all' && !query : view.filter === f;
+              return (
+                <button key={f} type="button" onClick={() => { setAt(''); setQuery(''); setView((v) => ({ ...v, filter: f })); }} {...(f === 'all' ? dropProps('') : {})}
+                  className={`shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-medium transition ${active ? 'bg-[var(--surface-3,var(--bg-hover))] text-[var(--text)] shadow-[var(--shadow-sm)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'} ${dropTarget === '' && f === 'all' ? 'ring-1 ring-[var(--accent)]' : ''}`}>
+                  {f === 'all' ? topName : t(`media.filter_${f}`)} <span className="text-[var(--text-faint)]">{counts[f]}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <button type="button" onClick={() => { setAt(''); setView((v) => ({ ...v, filter: 'all' })); }} {...dropProps('')}
+            className={`shrink-0 rounded px-1.5 py-0.5 ${view.filter === 'all' && !query ? 'font-medium text-[var(--text)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'} ${dropTarget === '' ? 'ring-1 ring-[var(--accent)]' : ''}`}>
+            {topName}
           </button>
-        )) : null}
+        )}
         {!flat ? crumbs.map((name, i) => {
           const rel = crumbs.slice(0, i + 1).join('/');
           const last = i === crumbs.length - 1;

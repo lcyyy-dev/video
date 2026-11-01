@@ -199,6 +199,14 @@ export function ProjectsPopover({
     if (projectId === currentProjectId) { close(); return; }
     setBusy(kind);
     onOpen(projectId);
+    /* In the desktop's tabbed client, onOpen activates another tab and this
+       library remains mounted in the old tab. Its currentProjectId therefore
+       cannot change to clear `busy`; close this picker immediately after the
+       tab switch request instead of waiting for an event from another page. */
+    if (studioHost?.tabs) {
+      setBusy(null);
+      close();
+    }
   };
   /* another project opened: done */
   const latestClose = React.useRef(close);
@@ -213,10 +221,10 @@ export function ProjectsPopover({
     if (wasOpen.current) latestClose.current();
   }, [currentProjectId]);
 
-  async function newProject() {
+  async function newProject(name?: string) {
     setBusy('creating');
     try {
-      const project = await api.newProject(t('project.untitled'));
+      const project = await api.newProject(name?.trim() || t('project.untitled'));
       go(project.id, 'creating');
     } catch {
       setBusy(null);
@@ -328,8 +336,7 @@ export function ProjectsPopover({
             <ProjectsView
               projects={lib.projects}
               creating={busy !== null}
-              onNewProject={() => void newProject()}
-              onOpenFolder={() => void openFolder()}
+              onNewProject={(name) => void newProject(name)}
               onLocate={(project) => void locate(project)}
               /* its folder is gone: there is nothing to open, and the editor would only say so */
               onOpen={(project) => (project.missing ? lib.flash(t('projects.missingOpen')) : go(project.id, 'opening'))}
@@ -340,7 +347,6 @@ export function ProjectsPopover({
                 else setPendingDelete(ids);
               })}
               folders={lib.folders}
-              onCreateFolder={lib.createFolder}
               onRenameFolder={lib.renameFolder}
               onDeleteFolder={(folder) => {
                 const inside = lib.projects.filter((p) => p.folderId === folder.id).map((p) => p.id);

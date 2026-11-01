@@ -6,8 +6,6 @@ import {
   Check,
   Clock3,
   Folder,
-  FolderOpen,
-  FolderPlus,
   FolderSearch,
   LayoutGrid,
   List,
@@ -40,25 +38,20 @@ export function ProjectsView({
   projects,
   creating = false,
   onNewProject,
-  onOpenFolder,
   onLocate,
   onOpen,
   onRename,
   onDelete,
   folders,
-  onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
-  onMoveToFolder,
   onClose,
   heading,
 }: {
   projects: LibraryProject[];
   /** A project is being created or opened; "New project" does not take a second click meanwhile. */
   creating?: boolean;
-  onNewProject: () => void;
-  /** "Open folder…": a folder anywhere, opened as a project (the app's own dialog, else Studio's folder browser). */
-  onOpenFolder: () => void;
+  onNewProject: (name?: string) => void;
   /** A project whose folder is gone: pick the folder it is in now. */
   onLocate: (project: LibraryProject) => void;
   onOpen: (project: LibraryProject) => void;
@@ -70,13 +63,12 @@ export function ProjectsView({
   folders: ProjectFolder[];
   /** Make a folder; resolves to it (null: it could not be made). */
   /** A new folder, in `parentId` (null: the top level). */
-  onCreateFolder: (name: string, parentId?: string | null) => Promise<ProjectFolder | null>;
   /** A new name for a folder. Never empty. */
   onRenameFolder: (folderId: string, name: string) => void;
   /** Ask to delete a folder and the projects in it (the popover confirms first). */
   onDeleteFolder: (folder: ProjectFolder) => void;
   /** Put a project in a folder, or (null) in none. */
-  onMoveToFolder: (projectId: string, folderId: string | null) => void;
+  onMoveToFolder?: (projectId: string, folderId: string | null) => void;
   /** Missing: no close button (Studio has no project to go back to). */
   onClose?: () => void;
   /** The title row's left, in place of "Projects" (the launcher's switch between the projects and the examples). */
@@ -93,7 +85,6 @@ export function ProjectsView({
   const [renamingId, setRenamingId] = React.useState<string | null>(null);
   /* folders: the one being looked at (null = all), the project a folder is being picked for, the folder being named */
   const [folderId, setFolderId] = React.useState<string | null>(null);
-  const [moving, setMoving] = React.useState<LibraryProject | null>(null);
   const [renamingFolderId, setRenamingFolderId] = React.useState<string | null>(null);
   /* the folder looked at was deleted (here or elsewhere): back to all */
   React.useEffect(() => {
@@ -112,11 +103,6 @@ export function ProjectsView({
   const trail = React.useMemo(() => folderTrail(folders, folderId), [folders, folderId]);
   const counts = React.useMemo(() => folderCounts(projects, folders), [projects, folders]);
   const posters = React.useMemo(() => folderPosters(projects, folders), [projects, folders]);
-
-  async function newFolder() {
-    const created = await onCreateFolder(t('projects.untitledFolder'), folderId);
-    if (created) setRenamingFolderId(created.id);
-  }
 
   function folderProps(folder: ProjectFolder): FolderItemProps {
     return {
@@ -216,7 +202,6 @@ export function ProjectsView({
       },
       onCancelRename: () => setRenamingId((current) => (current === project.id ? null : current)),
       onStartSelect: () => startSelecting(project),
-      onMoveToFolder: () => setMoving(project),
       onLocate: () => onLocate(project),
       onDelete: () => onDelete([project.id]),
     };
@@ -261,17 +246,6 @@ export function ProjectsView({
                 <ViewButton active={view === 'cards'} label={t('library.viewCards')} onClick={() => setView('cards')} icon={<LayoutGrid size={14} />} />
                 <ViewButton active={view === 'list'} label={t('library.viewList')} onClick={() => setView('list')} icon={<List size={14} />} />
               </div>
-              {/* at the top level or inside a folder: a folder can hold folders */}
-              <Tooltip label={t('projects.newFolder')} side="bottom">
-                <button
-                  type="button"
-                  aria-label={t('projects.newFolder')}
-                  onClick={() => void newFolder()}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
-                >
-                  <FolderPlus size={15} strokeWidth={1.9} />
-                </button>
-              </Tooltip>
             </>
           ) : null}
           {onClose ? (
@@ -296,13 +270,13 @@ export function ProjectsView({
             </div>
           ) : view === 'cards' ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
-              {showNew ? <NewProjectCard creating={creating} onNewProject={onNewProject} onOpenFolder={onOpenFolder} /> : null}
+              {showNew ? <NewProjectCard creating={creating} onNewProject={onNewProject} /> : null}
               {showFolders ? levelFolders.map((folder) => <FolderCard key={`folder:${folder.id}`} {...folderProps(folder)} />) : null}
               {visible.map((project) => <ProjectCard key={project.id} {...itemProps(project)} />)}
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-[var(--border)]">
-              {showNew ? <NewProjectListRow creating={creating} onNewProject={onNewProject} onOpenFolder={onOpenFolder} /> : null}
+              {showNew ? <NewProjectListRow creating={creating} onNewProject={onNewProject} /> : null}
               {showFolders ? levelFolders.map((folder) => <FolderListRow key={`folder:${folder.id}`} {...folderProps(folder)} />) : null}
               {visible.map((project) => <ProjectListRow key={project.id} {...itemProps(project)} />)}
             </div>
@@ -351,24 +325,7 @@ export function ProjectsView({
         ) : null}
       </div>
 
-      {moving ? (
-        <FolderPicker
-          title={titleOf(moving, t)}
-          folders={folders}
-          counts={counts}
-          current={moving.folderId && folders.some((f) => f.id === moving.folderId) ? moving.folderId : null}
-          onPick={(fid) => {
-            onMoveToFolder(moving.id, fid);
-            setMoving(null);
-          }}
-          onCreate={async (name) => {
-            const created = await onCreateFolder(name);
-            if (created) onMoveToFolder(moving.id, created.id);
-            setMoving(null);
-          }}
-          onClose={() => setMoving(null)}
-        />
-      ) : null}
+
     </div>
   );
 }
@@ -386,7 +343,7 @@ interface ItemProps {
   onCommitRename: (name: string) => void;
   onCancelRename: () => void;
   onStartSelect: () => void;
-  onMoveToFolder: () => void;
+  onMoveToFolder?: () => void;
   onLocate: () => void;
   onDelete: () => void;
 }
@@ -529,18 +486,17 @@ function ProjectCardTitle({
 
 type NewProjectProps = {
   creating: boolean;
-  onNewProject: () => void;
-  onOpenFolder: () => void;
-};
+  onNewProject: (name?: string) => void;
+  };
 
 /** The grid's first cell: start a new project, card-sized, so "new ones start here" reads at a glance. */
-function NewProjectCard({ creating, onNewProject, onOpenFolder }: NewProjectProps) {
+function NewProjectCard({ creating, onNewProject }: NewProjectProps) {
   const t = useT();
   return (
     <article className="group min-w-0">
       <button
         type="button"
-        onClick={onNewProject}
+        onClick={() => onNewProject()}
         disabled={creating}
         aria-busy={creating}
         className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] transition hover:border-[var(--text-faint)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:opacity-60"
@@ -550,22 +506,22 @@ function NewProjectCard({ creating, onNewProject, onOpenFolder }: NewProjectProp
         </span>
         <span className="text-[13px] font-medium">{t('projects.newProject')}</span>
       </button>
+      <input aria-label="项目名称" placeholder="项目名称（可选）" disabled={creating}
+        onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onNewProject(e.currentTarget.value); } }}
+        className="mt-2 box-border h-8 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent)]" />
       {/* where the other cards have their name: starting from a film that exists */}
-      <div className="mt-2 flex">
-        <ImportMenu creating={creating} onOpenFolder={onOpenFolder} className="-ml-1.5 h-7 px-1.5 text-[12.5px]" />
-      </div>
     </article>
   );
 }
 
 /** "New project" in the list view: the same entries, as a row. */
-function NewProjectListRow({ creating, onNewProject, onOpenFolder }: NewProjectProps) {
+function NewProjectListRow({ creating, onNewProject }: NewProjectProps) {
   const t = useT();
   return (
     <article className="group flex min-w-0 items-center gap-3 py-4 sm:gap-4">
       <button
         type="button"
-        onClick={onNewProject}
+        onClick={() => onNewProject()}
         disabled={creating}
         aria-busy={creating}
         className="flex aspect-video w-28 shrink-0 items-center justify-center rounded-md border border-dashed border-[var(--border-strong)] text-[var(--text-muted)] transition hover:border-[var(--text-faint)] hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:opacity-60 sm:w-36"
@@ -578,28 +534,22 @@ function NewProjectListRow({ creating, onNewProject, onOpenFolder }: NewProjectP
       <div className="min-w-0 flex-1">
         <button
           type="button"
-          onClick={onNewProject}
+          onClick={() => onNewProject()}
           disabled={creating}
           className="text-left text-[14px] font-medium text-[var(--text)] hover:underline disabled:opacity-60"
         >
           {t('projects.newProject')}
         </button>
+        <input aria-label="项目名称" placeholder="项目名称（可选）" disabled={creating}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onNewProject(e.currentTarget.value); } }}
+          className="mt-2 box-border h-8 w-full max-w-[240px] rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent)]" />
       </div>
-      <ImportMenu creating={creating} onOpenFolder={onOpenFolder} className="h-8 px-2.5 text-[12.5px]" />
     </article>
   );
 }
 
 /** Open an existing local project without a menu of remote sources. */
-function ImportMenu({ creating, onOpenFolder, className }: Omit<NewProjectProps, 'onNewProject'> & { className: string }) {
-  const t = useT();
-  return (
-    <button type="button" disabled={creating} onClick={onOpenFolder}
-      className={`inline-flex shrink-0 items-center gap-1 rounded-md text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text)] disabled:opacity-60 ${className}`}>
-      <FolderOpen size={13} />{t('projects.openFolder')}
-    </button>
-  );
-}
+
 
 function ProjectCard({
   project,
@@ -613,7 +563,6 @@ function ProjectCard({
   onCommitRename,
   onCancelRename,
   onStartSelect,
-  onMoveToFolder,
   onLocate,
   onDelete,
 }: ItemProps) {
@@ -669,7 +618,7 @@ function ProjectCard({
             {project.working ? <span className="truncate text-[var(--accent)]">· {t('projects.agentRunning')}</span> : null}
           </button>
         </div>
-        {!selecting ? <ItemMenu project={project} onOpen={onOpen} onStartRename={onStartRename} onStartSelect={onStartSelect} onMoveToFolder={onMoveToFolder} onLocate={onLocate} onDelete={onDelete} size={14} /> : null}
+        {!selecting ? <ItemMenu project={project} onOpen={onOpen} onStartRename={onStartRename} onStartSelect={onStartSelect} onLocate={onLocate} onDelete={onDelete} size={14} /> : null}
       </div>
     </article>
   );
@@ -708,18 +657,16 @@ function ItemMenu({
   onOpen,
   onStartRename,
   onStartSelect,
-  onMoveToFolder,
   onLocate,
   onDelete,
   size,
-}: Pick<ItemProps, 'project' | 'onOpen' | 'onStartRename' | 'onStartSelect' | 'onMoveToFolder' | 'onLocate' | 'onDelete'> & { size: number }) {
+}: Pick<ItemProps, 'project' | 'onOpen' | 'onStartRename' | 'onStartSelect' | 'onLocate' | 'onDelete'> & { size: number }) {
   if (project.missing) return <ProjectMenu onLocate={onLocate} onRemove={onDelete} size={size} />;
   return (
     <ProjectMenu
       onOpen={onOpen}
       onRename={onStartRename}
       onSelect={onStartSelect}
-      onMoveToFolder={onMoveToFolder}
       onDelete={onDelete}
       size={size}
     />
@@ -739,7 +686,6 @@ function ProjectListRow({
   onCommitRename,
   onCancelRename,
   onStartSelect,
-  onMoveToFolder,
   onLocate,
   onDelete,
 }: ItemProps) {
@@ -783,7 +729,7 @@ function ProjectListRow({
         </button>
       </div>
       {project.missing && !selecting ? <MissingActions compact onLocate={onLocate} onRemove={onDelete} /> : null}
-      {!selecting ? <ItemMenu project={project} onOpen={onOpen} onStartRename={onStartRename} onStartSelect={onStartSelect} onMoveToFolder={onMoveToFolder} onLocate={onLocate} onDelete={onDelete} size={15} /> : null}
+      {!selecting ? <ItemMenu project={project} onOpen={onOpen} onStartRename={onStartRename} onStartSelect={onStartSelect} onLocate={onLocate} onDelete={onDelete} size={15} /> : null}
     </article>
   );
 }
@@ -1157,147 +1103,6 @@ function InlineNameInput({
  * Pick a folder for a project: a small centered card, "Move to folder" and the project's name on top, then the places
  * it can go (each a tinted folder tile, the name and how many it holds; the current one ticked), "No folder" first and
  * a new folder last (named, then the project goes straight in). A pick moves it and closes.
- */
-function FolderPicker({
-  title,
-  folders,
-  counts,
-  current,
-  onPick,
-  onCreate,
-  onClose,
-}: {
-  title: string;
-  folders: ProjectFolder[];
-  counts: Record<string, number>;
-  current: string | null;
-  onPick: (folderId: string | null) => void;
-  onCreate: (name: string) => void | Promise<void>;
-  onClose: () => void;
-}) {
-  const t = useT();
-  const [creating, setCreating] = React.useState(false);
-  const tree = React.useMemo(() => {
-    const out: { folder: ProjectFolder; depth: number }[] = [];
-    const walk = (parent: string | null, depth: number) => {
-      for (const f of folders) {
-        if (parentOf(f, folders) !== parent || out.some((o) => o.folder.id === f.id)) continue;
-        out.push({ folder: f, depth });
-        walk(f.id, depth + 1);
-      }
-    };
-    walk(null, 0);
-    return out;
-  }, [folders]);
-  React.useEffect(() => {
-    /* this Escape closes the picker, not the popover under it */
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.stopImmediatePropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
-
-  const row = (selected: boolean) =>
-    `group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${
-      selected ? 'bg-[var(--bg-active)]' : 'hover:bg-[var(--bg-hover)]'
-    }`;
-  const tile = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg';
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal
-      className="fixed inset-0 z-[10100] flex items-center justify-center bg-black/35 p-4 backdrop-blur-[2px]"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="w-full max-w-[360px] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-lg)]"
-        style={{ animation: 'openfilm-pop 0.16s ease-out both' }}
-      >
-        <div className="flex items-start gap-3 px-5 pb-3 pt-5">
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold text-[var(--text)]">{t('projects.moveToFolder')}</p>
-            <p className="mt-0.5 truncate text-[12.5px] text-[var(--text-muted)]">{title}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('confirm.cancel')}
-            className="-mr-1.5 -mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--text-muted)] transition hover:bg-[var(--bg-hover)] hover:text-[var(--text)]"
-          >
-            <X size={15} />
-          </button>
-        </div>
-
-        <div className="max-h-[52vh] overflow-y-auto px-2.5 pb-1">
-          <button type="button" onClick={() => onPick(null)} className={row(current === null)}>
-            <span className={`${tile} border border-dashed border-[var(--border-strong)] text-[var(--text-faint)]`}>
-              <FolderOpen size={16} strokeWidth={1.7} />
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[13.5px] text-[var(--text)]">{t('projects.noFolder')}</span>
-            {current === null ? <Check size={15} className="shrink-0 text-[var(--text)]" /> : null}
-          </button>
-          {/* as a tree: each folder under the one it is in, a step in */}
-          {tree.map(({ folder, depth }) => (
-            <button key={folder.id} type="button" onClick={() => onPick(folder.id)} className={row(current === folder.id)} style={{ paddingLeft: 10 + depth * 18 }}>
-              <span className={`${tile} bg-[var(--surface-3)] text-[var(--text-dim)]`}>
-                <Folder size={16} strokeWidth={1.7} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13.5px] text-[var(--text)]">{folder.name}</span>
-                <span className="block text-[11.5px] tabular-nums text-[var(--text-faint)]">
-                  {counts[folder.id] ?? 0}
-                </span>
-              </span>
-              {current === folder.id ? <Check size={15} className="shrink-0 text-[var(--text)]" /> : null}
-            </button>
-          ))}
-        </div>
-
-        <div className="border-t border-[var(--border-soft)] p-2.5">
-          {creating ? (
-            <div className="flex items-center gap-3 px-2.5 py-1.5">
-              <span className={`${tile} bg-[var(--brand-wind-from)]/15 text-[var(--brand-wind-from)]`}>
-                <FolderPlus size={16} strokeWidth={1.7} />
-              </span>
-              <InlineNameInput
-                initial=""
-                placeholder={t('projects.folderNamePlaceholder')}
-                onCommit={(name) => {
-                  setCreating(false);
-                  if (name) void onCreate(name);
-                }}
-                onCancel={() => setCreating(false)}
-                className="h-8 min-w-0 flex-1 rounded-lg border border-[var(--text)] bg-[var(--surface)] px-2.5 text-[13px] text-[var(--text)] outline-none placeholder:text-[var(--text-faint)]"
-              />
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition hover:bg-[var(--bg-hover)]"
-            >
-              <span className={`${tile} bg-[var(--brand-wind-from)]/15 text-[var(--brand-wind-from)]`}>
-                <FolderPlus size={16} strokeWidth={1.7} />
-              </span>
-              <span className="text-[13.5px] text-[var(--text)]">{t('projects.newFolder')}</span>
-            </button>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
-
-/**
- * The cover, or (none, or it failed to load) a gradient made from the id. While Studio draws it (the first time can
- * take a while) the card shows its plain face with the film mark, not a black frame that reads as a black film.
  */
 function PosterMedia({ project, shade = false }: { project: LibraryProject; shade?: boolean }) {
   const [failedUrl, setFailedUrl] = React.useState<string | null>(null);

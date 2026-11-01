@@ -2114,6 +2114,7 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .edit-template-trigger > .template-trigger-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; line-height: 0; }
 .template-trigger-icon > svg { display: block; flex-shrink: 0; margin: 0; }
 .edit-template-trigger > .template-trigger-copy { flex: 1; justify-content: flex-start; }
+.of-chat .edit-template-trigger { min-height: 80px; padding-block: 20px; font-size: 13px; }
 
 .edit-template-copy-source { display: flex; flex-direction: column; gap: 10px; padding: 14px; font-size: 14px; }
 .template-native-stepper textarea[aria-label='正文内容'],

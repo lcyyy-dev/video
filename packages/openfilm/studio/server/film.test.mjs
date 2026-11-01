@@ -11,7 +11,7 @@ const folder = (film) => {
   if (film !== undefined) writeFileSync(join(root, 'film.html'), typeof film === 'string' ? film : filmHtml(film));
   return root;
 };
-const film = (...tracks) => ({ stage: { w: 1920, h: 1080 }, tracks: tracks.map((clips) => ({ clips })) });
+const film = (...tracks) => ({ stage: { w: 1080, h: 1920 }, tracks: tracks.map((clips) => ({ clips })) });
 const onDisk = (root) => readFilmFile(readFileSync(join(root, 'film.html'), 'utf8')).value;
 
 test('a folder without film.html reads as empty, and the first insert makes the film', async () => {
@@ -20,7 +20,7 @@ test('a folder without film.html reads as empty, and the first insert makes the 
   assert.equal(read.value, null);
   const { doc } = await editProjectFilm(root, read.rev, [{ op: 'insert', clip: { src: 'scenes/title.html' } }]);
   assert.deepEqual(doc.tracks[0].clips[0], { src: 'scenes/title.html', id: 'title' });
-  assert.deepEqual(onDisk(root).stage, { w: 1920, h: 1080 });
+  assert.deepEqual(onDisk(root).stage, { w: 1080, h: 1920 });
 });
 
 test('a clip is found by its id wherever the agent moved it', async () => {

@@ -132,7 +132,7 @@ function useKeptFlag(key: string, initial = true): [boolean, (open: boolean) => 
   }, [key]);
   return [open, keep, setOpen];
 }
-const TIMELINE_H = 200;
+const TIMELINE_H = 360;
 const TIMELINE_SHARE = 0.45;
 const TIMELINE_SPARE = 48;
 const VIEWER_BESIDE_ASSETS = 440;
@@ -620,14 +620,17 @@ export function ProjectView({ projectId, onProject, onLeave }: {
   /* ── layout ── */
   const dockColRef = React.useRef<HTMLDivElement | null>(null);
   const viewerRowRef = React.useRef<HTMLDivElement | null>(null);
-  const { width: storedTimelineHeight, commit: commitTimelineHeight, saved: timelineHeightSaved } = usePaneSize('openfilm.project.timelineH', TIMELINE_H, MIN_DOCK_H);
+  /* First launch default: leave the media bin, viewer/inspector and a useful
+     slice of the timeline visible together. Once a value is stored, the
+     person's last layout remains authoritative. */
+  const { width: storedTimelineHeight, commit: commitTimelineHeight, saved: timelineHeightSaved } = usePaneSize('openfilm.project.timelineH', 360, MIN_DOCK_H);
   const { width: inspectorWidth, commit: commitInspectorWidth } = usePaneSize('openfilm.project.inspectorW', DEFAULT_INSPECTOR, MIN_INSPECTOR);
   const hostPanel = useHostPanel();
   const leftAssets = hostPanel?.assets?.placement === 'left' ? hostPanel.assets : null;
   const [localAssetsPaneOpen, setLocalAssetsPaneOpen] = useKeptFlag('openfilm.project.assets');
   const assetsPaneOpen = leftAssets?.open ?? localAssetsPaneOpen;
   const setAssetsPaneOpen = leftAssets?.setOpen ?? setLocalAssetsPaneOpen;
-  const { width: storedAssetsWidth, commit: setAssetsWidth } = usePaneSize('openfilm.project.assetsW', 280, 200);
+  const { width: storedAssetsWidth, commit: setAssetsWidth } = usePaneSize('openfilm.project.assetsW', 440, 200);
   const assetsWidth = storedAssetsWidth ?? 280;
   const [timelineOpen, setTimelineOpen] = useKeptFlag('openfilm.project.timeline');
   const [inspectorOpen, setInspectorOpen] = useKeptFlag('openfilm.project.inspector');
@@ -2415,6 +2418,14 @@ export function ProjectView({ projectId, onProject, onLeave }: {
       toast.showError(e instanceof ApiError && e.status === 409 ? t('projects.renameTaken').replace('{name}', next) : t('project.renameFailed'));
     }
   };
+  const renameProject = React.useCallback((name: string) => {
+    setTitleDraft(name);
+    void (async () => {
+      const project = await api.rename(projectId, name);
+      setLoaded((l) => (l ? { ...l, project } : l));
+      studioHost?.tabs?.report({ title: name });
+    })().catch((e) => toast.showError(e instanceof ApiError && e.status === 409 ? t('projects.renameTaken').replace('{name}', name) : t('project.renameFailed')));
+  }, [projectId, t, toast]);
   const [projectsOpen, setProjectsOpen] = React.useState(false);
 
   const [settingsOpen, setSettingsOpen] = React.useState<SettingsSection | null>(null);
@@ -2796,6 +2807,7 @@ export function ProjectView({ projectId, onProject, onLeave }: {
                       onMaskAsked={maskAsked}
                       stage={stage}
                       film={filmSummary}
+                      onRenameProject={renameProject}
                       onCanvas={changeCanvas}
                       onCanvasPreview={previewCanvas}
                       canvasDraft={canvasDraft}

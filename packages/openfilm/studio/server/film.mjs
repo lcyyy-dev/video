@@ -21,7 +21,7 @@ export { EditError };
 /** @typedef {import('./ops.mjs').FilmValue} FilmValue @typedef {import('./ops.mjs').Op} Op */
 
 /** What a folder starts as: one 1920×1080 stage and no clips. */
-export const EMPTY_FILM = Object.freeze({ stage: Object.freeze({ w: 1920, h: 1080 }), tracks: Object.freeze([]) });
+export const EMPTY_FILM = Object.freeze({ stage: Object.freeze({ w: 1080, h: 1920 }), tracks: Object.freeze([]) });
 
 /** The revision of a film.html text: what an edit is made against. */
 export const revOf = (/** @type {string} */ text) => createHash('sha256').update(text).digest('hex').slice(0, 16);

@@ -478,6 +478,21 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
 
   /** each open turn's way to settle (by turn id), and the agent's run each running turn belongs to */
   const settlers = React.useRef(new Map<string, (patch: Partial<Turn & TurnBalance>) => void>());
+  const completionTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [completionNotice, setCompletionNotice] = React.useState<string | null>(null);
+  const completionChannel = React.useMemo(() => typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('openfilm-task-completions'), []);
+  React.useEffect(() => {
+    if (!completionChannel) return undefined;
+    const onMessage = (event: MessageEvent<{ projectName?: string }>) => {
+      if (!event.data?.projectName) return;
+      setCompletionNotice(event.data.projectName);
+      if (completionTimer.current) clearTimeout(completionTimer.current);
+      completionTimer.current = setTimeout(() => setCompletionNotice(null), 2000);
+    };
+    completionChannel.addEventListener('message', onMessage);
+    return () => { completionChannel.removeEventListener('message', onMessage); completionChannel.close(); };
+  }, [completionChannel]);
+  React.useEffect(() => () => { if (completionTimer.current) clearTimeout(completionTimer.current); }, []);
   const runs = React.useRef(new Map<string, Promise<unknown>>());
   /** the conversation shown now (a turn opened in another is kept, not shown) */
   const shownSession = React.useRef(sessionId);
@@ -549,6 +564,12 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
       settlers.current.delete(id);
       if (keeping) clearTimeout(keeping);
       stopKeeping();
+      if (patch.status === 'ready') {
+        setCompletionNotice(project.name);
+        completionChannel?.postMessage({ projectName: project.name });
+        if (completionTimer.current) clearTimeout(completionTimer.current);
+        completionTimer.current = setTimeout(() => setCompletionNotice(null), 2000);
+      }
       const done = settleLocalTurn(meta, turn, patch);
       void ready.then(async (taken) => {
         const found = taken ? await app.chat.changes(project.path, id).catch(() => null) : null;
@@ -733,7 +754,7 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
           dropping ? 'border-[var(--accent)]' : 'border-[var(--composer-border)] focus-within:border-[var(--composer-border-active)]'
         }`}
       >
-        <div className="creative-prompt-heading"><span className="workspace-step-label"><span className="workspace-step-number" aria-hidden="true">03</span>{t('workspace.promptTitle')}</span><span>{t('workspace.promptHint')}</span></div>
+        <div className="creative-prompt-heading"><span className="workspace-step-label"><span className="workspace-step-number" aria-hidden="true">02</span>{t('workspace.promptTitle')}</span><span>{t('workspace.promptHint')}</span></div>
         <div className="flex items-end gap-1 py-2.5 pl-3.5 pr-2">
           <div className="min-w-0 flex-1">
             <PromptEditor
@@ -748,7 +769,7 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
               revealLabel={t('library.revealReference')}
               removeLabel={t('library.removeReference')}
               placeholder={composerFiles.files.length ? t('composer.materialPromptPlaceholder') : t('workspace.promptExample')}
-              minHeight={48}
+              minHeight={80}
               maxHeight={158}
               contentClassName="text-[14px] leading-[22px] text-[var(--chat-text)]"
               onPasteFiles={(files) => composerFiles.add(files)}
@@ -796,6 +817,11 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
         <WaitingContext.Provider value={Boolean(localTurn?.state.question || localTurn?.state.permission || spendAsk)}>
           <StickToBottomContext.Provider value={thread}>
             <aside className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[7px] bg-[var(--dock-pane)]">
+              {completionNotice ? (
+                <div role="status" className="pointer-events-none fixed left-1/2 top-5 z-[10200] -translate-x-1/2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-5 py-3 text-[14px] font-medium text-[var(--text)] shadow-[var(--shadow-lg)]">
+                  项目 {completionNotice} 任务完成
+                </div>
+              ) : null}
               {banners}
               <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
                 <ConversationSessionBar
