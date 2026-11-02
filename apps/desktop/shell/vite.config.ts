@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
  */
 const STUDIO = join(dirname(createRequire(import.meta.url).resolve('openfilm/package.json')), 'studio/ui/src/');
 const CHAT = fileURLToPath(new URL('../chat/src/', import.meta.url));
+const isChatPath = (path: string) => path.replaceAll('\\', '/').startsWith(CHAT.replaceAll('\\', '/'));
 
 /** `@/…` is the importing file's own tree: Studio's files and the chat's each name their `src` so. */
 function twoTrees(): Plugin {
@@ -20,7 +21,7 @@ function twoTrees(): Plugin {
     enforce: 'pre',
     resolveId(source, importer, options) {
       if (!source.startsWith('@/') || !importer) return null;
-      const base = importer.startsWith(CHAT) ? CHAT : STUDIO;
+      const base = isChatPath(importer) ? CHAT : STUDIO;
       return this.resolve(join(base, source.slice(2)), importer, { ...options, skipSelf: true });
     },
   };
@@ -35,7 +36,7 @@ function twoTrees(): Plugin {
 const scopeChat: PostcssPlugin = {
   postcssPlugin: 'openfilm-scope-chat',
   Once(root, { result }) {
-    if (!result.opts.from?.startsWith(CHAT)) return;
+    if ((!result.opts.from || !isChatPath(result.opts.from))) return;
     root.walkRules((rule) => {
       if (rule.parent?.type === 'atrule' && /keyframes$/i.test((rule.parent as { name: string }).name)) return;
       const selectors = new Set<string>();
@@ -68,3 +69,4 @@ export default defineConfig({
     chunkSizeWarningLimit: 2500,
   },
 });
+
