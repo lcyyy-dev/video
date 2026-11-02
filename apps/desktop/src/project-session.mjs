@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { AgentSession, INSTRUCTIONS } from './agents.mjs';
 import { createCodexProvider } from './codex-provider.mjs';
@@ -13,10 +13,12 @@ export class ProjectSession extends AgentSession {
     if (!hosted) throw new Error('请先输入激活码完成 OpenFilm 激活。');
     const root = resolve(this.opts.cwd);
     let generating = null;
+    const bundledProbe=this.opts.fallbackDir?join(this.opts.fallbackDir,process.platform==='win32'?'ffprobe.exe':'ffprobe'):null;
+    const ffprobe=bundledProbe&&existsSync(bundledProbe)?bundledProbe:undefined;
     this.provider = await createCodexProvider({ ...hosted, narration: signal => {
       if (generating) throw new Error('旁白正在生成，请等待完成。');
       this.narrationAbort = new AbortController();
-      generating = generateNarration(root, hosted, { signal: AbortSignal.any([signal, this.narrationAbort.signal]), env: this.opts.env }).finally(() => { generating = null; this.narrationAbort = null; });
+      generating = generateNarration(root, hosted, { signal: AbortSignal.any([signal, this.narrationAbort.signal]), ffprobe, env: {...process.env,...this.opts.env} }).finally(() => { generating = null; this.narrationAbort = null; });
       return generating;
     } });
     const home = join(this.opts.dataDir, 'project-codex', createHash('sha256').update(root).digest('hex'));

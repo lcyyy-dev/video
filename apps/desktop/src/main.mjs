@@ -531,6 +531,7 @@ async function start() {
     skills: { dataDir: DATA, mine: mySkills },
     videoSecurity: {
       dataDir: DATA,
+      storage: sub2apiStorage(),
       protectedRoots: [app.getAppPath(), DATA, ...(app.isPackaged ? [dirname(process.execPath), process.resourcesPath] : []), join(app.getPath('home'), '.codex'), join(app.getPath('home'), '.ssh'), join(app.getPath('home'), '.aws'), ...(shellEnv.CODEX_HOME ? [shellEnv.CODEX_HOME] : [])],
       projects: async () => (await studioApi('/api/projects')).projects.filter(project => !project.missing).map(project => project.path),
       projectFor: async event => {
@@ -620,7 +621,6 @@ async function start() {
   /* updates (updates.mjs): Restart waits while an agent's turn runs or Studio exports, either would be lost */
   updates = startUpdates({
     dataDir: DATA,
-      storage: sub2apiStorage(),
     productName: PRODUCT_NAME,
     getWindow: () => win,
     onState: (next) => broadcast('desktop:update', next),

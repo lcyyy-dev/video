@@ -10,11 +10,11 @@ text and narration boundaries independently to serve the message. Reuse OpenFilm
 format and exporter.
 
 For a normal template generation request, keep the execution short: inspect the supplied media, read this skill, read
-the template's exact copy, use supplied audio without synthesizing narration, assemble the timeline, report the result immediately without an automatic preview or check. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
+the template's exact copy, run native narration when read-aloud is enabled or retain original video audio when disabled, assemble the timeline, report the result immediately without an automatic preview or check. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
 
 ### Optional narration
 
-Advertising uses one workflow, without advertising subcategories. The content field narration is an optional read-aloud checkbox, off by default. When off, retain original video audio and do not generate narration. When on, call the native narration capability supplied by the desktop session. It reads the saved advertising body text, speaker and speech rate, and calls seed-tts-2.0 through the Keygen gateway. Read .film/narration.json and place its real audio files as independent clips at the measured start times. Lower original source audio to 0.15 by default. Failures must be reported as incomplete narration, never silently skipped.
+Advertising uses one workflow, without advertising subcategories. The content field narration is an optional read-aloud checkbox, off by default. When off, retain original video audio and do not generate narration. When on, call the native narration capability supplied by the desktop session. It reads the saved advertising body text, speaker and speech rate, and calls seed-tts-2.0 through the Keygen gateway. Read .film/narration.json and place its real audio files as independent clips at the measured start times. Lower original source audio to 0.15 by default. Failures must be reported as incomplete narration, never silently skipped. Run `openfilm narrate` before deciding whether narration is available. Do not use `openfilm get` or Studio provider connection status to judge this separate native capability. Earlier conversation claims that TTS is unavailable do not override the saved read-aloud setting or current native command result. Never replace requested narration with on-screen text and claim completion.
 
 ## Reference text layout
 

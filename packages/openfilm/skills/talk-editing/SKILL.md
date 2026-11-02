@@ -36,7 +36,7 @@ Captions must come from the actual speech. Split them at natural phrases, keep l
 their position against faces, hands and platform-safe margins. Use `openfilm text-styles` and structured text pages
 for editable captions. When the template's `textStyleIds` is non-empty, choose only those IDs; with an empty list,
 use the element library's automatic combinations. A cover is optional and uses only supplied or project material; do not invent a person's name,
-role or credentials. TTS is not connected. Do not synthesize narration; use original video audio only.
+role or credentials. This talking-head workflow does not synthesize narration; use original video audio only. Native advertising narration follows its separate workflow.
 
 ## Check and deliver
 
@@ -50,7 +50,7 @@ Default workflow: receive the command, execute the command, and report the resul
 
 ## Copy and audio execution policy
 
-When TTS is unavailable, skip audio generation immediately, retain original video audio, and create no empty narration track. Do not stop to ask about narration.
+This talking-head workflow retains original video audio and creates no narration or empty audio track. Do not ask about missing narration. This template policy does not indicate that native advertising TTS is unavailable.
 Preserve every character of supplied final titles and body copy. Never ask whether to shorten, use only the title, or retain the full copy. For an authorized source rewrite, use the complete resulting script. Keep the requested duration and arrange all copy across text clips by adapting layout and timing. Missing TTS imposes no spoken-duration constraint. Complete the edit without asking the person to choose between shortened copy, title-only and a longer duration; report any readability limitation afterward.
 
 A frame may show two or more sentences simultaneously, grouped by meaning in multiple lines or text blocks. Do not enforce one sentence per screen or exclusive time intervals per sentence. For a short video with long copy, prefer related sentences together and allocate display time per group, preserving all copy and the requested duration while avoiding the subject. A single-line headline rule does not limit the number of body sentences on screen.

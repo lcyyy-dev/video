@@ -18,10 +18,10 @@
     "es": "Relaciona el material con el texto del anuncio, ajusta los planos a la narración y aplica estilos editables."
   },
   "details": {
-    "en": "For footage-based fitness, service and product promos. Uses local tools, packaged fonts and original video audio. TTS is not connected; no narration is generated. Records native versus rendered draft effects.",
-    "zh-CN": "适合健身、服务介绍和产品宣传。使用本地素材、内置字体和视频原声；TTS 暂未接入，不生成配音。记录原生可编辑与预渲染效果的区别。",
-    "ja": "フィットネス、サービス、商品の紹介に対応。ローカル素材、内蔵フォント、動画の元音声を使います。TTS は未接続で、ナレーションは生成しません。",
-    "ko": "피트니스, 서비스, 제품 홍보용입니다. 로컬 소재, 내장 글꼴, 원본 동영상 오디오을 사용합니다. TTS는 연결되지 않았으며 내레이션을 생성하지 않습니다.",
-    "es": "Para anuncios de fitness, servicios y productos con material local, fuentes incluidas y el audio original del vídeo. TTS no está conectado y no se genera narración."
+    "en": "For footage-based fitness, service and product promos. Uses local footage and packaged fonts. Advertising read-aloud uses the desktop native Doubao seed-tts-2.0 gateway when enabled; otherwise retain original video audio. Requested narration failures must be reported, never silently skipped.",
+    "zh-CN": "适合健身、服务介绍和产品宣传。使用本地素材和内置字体；勾选文案朗读时，通过桌面原生豆包 seed-tts-2.0 网关生成正文旁白，未勾选时保留视频原声。朗读失败必须明确报告，不得静默跳过。",
+    "ja": "素材、内蔵フォントを使う広告編集。読み上げを有効にするとデスクトップの豆包 seed-tts-2.0 接続で原稿を音声化し、無効時は元の音声を保持します。失敗時は省略せず報告します。",
+    "ko": "로컬 영상과 내장 글꼴을 사용하는 광고 편집입니다. 낭독을 켜면 데스크톱의 Doubao seed-tts-2.0 게이트웨이로 본문 음성을 생성하고, 끄면 원본 오디오를 유지합니다. 실패 시 생략하지 않고 보고합니다.",
+    "es": "Anuncios con material local y fuentes incluidas. Con la lectura activada, genera la narración mediante la pasarela nativa Doubao seed-tts-2.0; en caso contrario conserva el audio original. Informa los fallos sin omitir la narración solicitada."
   }
 }
