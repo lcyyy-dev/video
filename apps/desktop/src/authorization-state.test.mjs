@@ -28,11 +28,18 @@ test('a stale status check cannot revoke a newly activated session', async () =>
   assert.equal(state.get(), true);
 });
 
-test('network failures lock the workspace and failed replacement preserves the previous state', async () => {
-  const state = authorizationController(async () => { throw new Error('offline'); });
+test('unreadable local credentials lock the workspace and failed replacement preserves the previous state', async () => {
+  const state = authorizationController(async () => { throw new Error('unreadable credentials'); });
   await state.activate(async () => {});
   await assert.rejects(state.activate(async () => { throw new Error('invalid code'); }));
   assert.equal(state.get(), true);
   assert.equal((await state.status()).authorized, false);
   assert.throws(() => state.guard('desktop:tabs:new'), /激活/);
+});
+
+test('explicit revocation invalidates pending local checks immediately',async()=>{
+ let resolve;const changes=[];const state=authorizationController(()=>new Promise(done=>{resolve=done;}),value=>changes.push(value));
+ await state.activate(async()=>{});const checking=state.status();await Promise.resolve();state.invalidate();resolve({authorized:true});
+ assert.equal((await checking).authorized,false);assert.throws(()=>state.guard('desktop:chat:send'),/激活/);assert.deepEqual(changes,[true,false]);
+ assert.equal((await state.status()).authorized,false);await state.activate(async()=>{});assert.equal(state.get(),true);
 });

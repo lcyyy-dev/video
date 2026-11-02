@@ -1,3 +1,7 @@
+import { openLogStore } from './log-store.mjs';
+import { createEventLog, keyReference, errorCode } from './logs.mjs';
+import { Transform } from 'node:stream';
+import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { createHash, createPublicKey, createHmac, timingSafeEqual, verify } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -8,6 +12,7 @@ import { synthesizeTts } from './tts.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const fail = (status, message) => Object.assign(new Error(message), { status });
+const revoked = (code='LICENSE_REVOKED') => Object.assign(fail(403,'授权已停用、过期或设备已解绑，请重新激活。'),{authorizationCode:code});
 const equal = (a, b) => { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && timingSafeEqual(x, y); };
 async function bodyOf(req) {
   const chunks = []; let size = 0;
@@ -22,6 +27,7 @@ async function bodyOf(req) {
 export function createGateway(config) {
   if (!config.secret || config.secret.length < 32) throw new Error('GATEWAY_SECRET 至少需要 32 字符');
   const fetchImpl = config.fetchImpl ?? fetch;
+  const log = config.log ?? createEventLog({store:config.logStore, source:'gateway',stdout:config.logStdout ?? true});
   const nonces = new Map();
   const ttsLimits = new Map();
   const speakers = (config.ttsSpeakers ?? 'zh_female_vv_uranus_bigtts').split(',').map(s => s.trim()).filter(Boolean);
@@ -55,19 +61,27 @@ export function createGateway(config) {
     nonces.set(nonceKey, Date.now() + 120000);
     return fingerprint;
   }
-  async function keygen(path, body) {
+  async function keygen(path, body, context = {}) {
+    const started = performance.now();context.stage='keygen';
+    try {
     const response = await fetchImpl(`${config.keygenUrl.replace(/\/$/, '')}${path}`, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: { authorization: `Bearer ${config.keygenToken}`, 'content-type': 'application/vnd.api+json', accept: 'application/vnd.api+json', 'x-forwarded-proto': 'https' },
       body: JSON.stringify(body),
     });
+    log('upstream.keygen',{...context,upstreamStatus:response.status,durationMs:Math.round(performance.now()-started)},response.ok?'info':'error');
     const result = await response.json();
-    if (!response.ok) throw fail(response.status < 500 ? 403 : 503, '授权服务拒绝请求');
+    if (!response.ok) throw fail(context.path==='/auth/activate'&&response.status<500?403:503, '授权服务暂时无法完成校验，请稍后重试');
     return result;
+    }catch(error){log('upstream.keygen_error',{...context,errorCode:errorCode(error),durationMs:Math.round(performance.now()-started)},'error');throw error;}
   }
-  async function validate(license, fingerprint) {
-    const result = await keygen(`/licenses/${encodeURIComponent(license)}/actions/validate`, { meta: { scope: { fingerprint } } });
-    if (!result.meta?.valid) throw fail(403, '授权无效、已过期或设备已解绑');
+  async function validate(license, fingerprint, context) {
+    const result = await keygen(`/licenses/${encodeURIComponent(license)}/actions/validate`, { meta: { scope: { fingerprint } } }, context);
+    if(typeof result.meta?.valid!=='boolean')throw fail(503,'授权服务返回无效状态，请稍后重试');
+    if(!result.meta.valid){
+      const code=String(result.meta.code??'');context.keygenCode=code;
+      throw revoked(/SUSPENDED/.test(code)?'LICENSE_SUSPENDED':/EXPIRED/.test(code)?'LICENSE_EXPIRED':/NO_MACHINE|FINGERPRINT_SCOPE_MISMATCH|MACHINE_SCOPE_MISMATCH/.test(code)?'DEVICE_UNBOUND':'LICENSE_REVOKED');
+    }
     return result;
   }
   function access(license, fingerprint) {
@@ -75,8 +89,25 @@ export function createGateway(config) {
     return { accessToken: issue({ kind: 'access', license, fingerprint, exp: expiresAt }), expiresAt };
   }
   return createServer(async (req, res) => {
-    const abort = new AbortController();
-    res.on('close', () => { if (!res.writableEnded) abort.abort(); });
+    const started=performance.now(), requestId=randomUUID();
+    const knownPaths=new Set(['/auth/activate','/auth/refresh','/auth/status','/v1/responses','/v1/models','/tts/synthesize','/tts/voices','/healthz']);
+    const context={requestId,method:req.method,path:knownPaths.has(req.url)?req.url:'/unknown',peer:req.socket.remoteAddress,stage:'request'};
+    res.setHeader('x-request-id',requestId);
+    const abort = new AbortController();let recorded=false;
+    const complete = disconnected => {
+      if(recorded)return;recorded=true;
+      const status=res.statusCode;
+      log(context.path==='/auth/activate'?'auth.activate':'request.complete',{...context,status,durationMs:Math.round(performance.now()-started),outcome:disconnected?'disconnected':status>=400?'failed':context.streamOutcome==='incomplete'?'incomplete':context.streamOutcome==='failed'?'failed':'success'},disconnected||status>=500||['incomplete','failed'].includes(context.streamOutcome)?'error':status>=400?'warn':'info');
+    };
+    res.on('finish',()=>complete(false));
+    res.on('close', () => { if (!res.writableEnded) {context.errorCode??='CLIENT_CONNECTION_CLOSED';abort.abort();complete(true);} });
+    if(req.method==='GET'&&req.url==='/healthz'){res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify({service:'openfilm-gateway',ok:true}));return;}
+    log('request.start',context);
+    const requestFetch=async(url,options)=>{
+      const stage=context.stage,at=performance.now();
+      try{const response=await fetchImpl(url,options);log('upstream.response',{...context,stage,upstreamStatus:response.status,firstByteMs:Math.round(performance.now()-at)},response.ok?'info':'error');return response;}
+      catch(error){context.errorCode=errorCode(error);log('upstream.error',{...context,stage,durationMs:Math.round(performance.now()-at)},'error');throw error;}
+    };
     const json = (status, value) => { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
       const allowed = req.method === 'POST' && ['/auth/activate', '/auth/refresh', '/auth/status', '/v1/responses', '/tts/synthesize', '/tts/voices'].includes(req.url) || req.method === 'GET' && req.url === '/v1/models';
@@ -84,35 +115,39 @@ export function createGateway(config) {
       const raw = await bodyOf(req);
       if (req.url === '/auth/activate') {
         let input; try { input = JSON.parse(raw); } catch { throw fail(400, '请求格式无效'); }
-        const fingerprint = proof(req, raw, input.publicKey);
+        context.activationRef=keyReference(input.activationCode);
+        const fingerprint = proof(req, raw, input.publicKey);context.fingerprint=fingerprint;
         if (typeof input.activationCode !== 'string' || input.activationCode.length > 512) throw fail(400, '激活码无效');
-        const found = await keygen('/licenses/actions/validate-key', { meta: { key: input.activationCode, scope: { fingerprint } } });
-        const license = found.data?.id;
+        const found = await keygen('/licenses/actions/validate-key', { meta: { key: input.activationCode, scope: { fingerprint } } },context);
+        const license = found.data?.id;context.licenseId=license;
+        if(license)context.keyRef=keyReference(mappings()[license]?.apiKey);
         if (!license || !mappings()[license]) throw fail(403, '授权尚未关联模型服务');
         if (!found.meta?.valid) {
           if (!['NO_MACHINE', 'NO_MACHINES', 'FINGERPRINT_SCOPE_MISMATCH'].includes(found.meta?.code)) throw fail(403, '激活码不可用');
-          await keygen('/machines', { data: { type: 'machines', attributes: { fingerprint }, relationships: { license: { data: { type: 'licenses', id: license } } } } });
+          await keygen('/machines', { data: { type: 'machines', attributes: { fingerprint }, relationships: { license: { data: { type: 'licenses', id: license } } } } },context);
         }
-        await validate(license, fingerprint);
+        await validate(license, fingerprint,context);
         return json(200, { refreshToken: issue({ kind: 'refresh', license, fingerprint, exp: Date.now() + 365 * 86400000 }), ...access(license, fingerprint) });
       }
       if (req.url === '/auth/refresh') {
         let input; try { input = JSON.parse(raw); } catch { throw fail(400, '请求格式无效'); }
-        const claims = decode(input.refreshToken, 'refresh');
+        const claims = decode(input.refreshToken, 'refresh');context.licenseId=claims.license;context.keyRef=keyReference(mappings()[claims.license]?.apiKey);
         const fingerprint = proof(req, raw, input.publicKey);
-        if (fingerprint !== claims.fingerprint) throw fail(403, '设备不匹配');
-        if (!mappings()[claims.license]) throw fail(403, '授权已撤销');
-        await validate(claims.license, fingerprint);
+        if (fingerprint !== claims.fingerprint) throw revoked('DEVICE_UNBOUND');
+        if (!mappings()[claims.license]) throw revoked();
+        context.fingerprint=fingerprint;
+        await validate(claims.license, fingerprint,context);
         return json(200, access(claims.license, fingerprint));
       }
       const token = String(req.headers.authorization ?? '').replace(/^Bearer /, '');
-      const claims = decode(token, 'access');
+      const claims = decode(token, 'access');context.licenseId=claims.license;
       const publicKey = req.headers['x-openfilm-public-key'];
       let pem; try { pem = Buffer.from(publicKey ?? '', 'base64').toString(); } catch { throw fail(401, '设备信息无效'); }
-      if (proof(req, raw, pem, token) !== claims.fingerprint) throw fail(403, '设备不匹配');
-      const mapping = mappings()[claims.license];
-      if (!mapping) throw fail(403, '授权已撤销');
-      await validate(claims.license, claims.fingerprint);
+      if (proof(req, raw, pem, token) !== claims.fingerprint) throw revoked('DEVICE_UNBOUND');
+      context.fingerprint=claims.fingerprint;
+      const mapping = mappings()[claims.license];context.keyRef=keyReference(mapping?.apiKey);
+      if (!mapping) throw revoked();
+      await validate(claims.license, claims.fingerprint,context);
       if (req.url === '/auth/status') return json(200, { authorized: true });
       if (req.url === '/tts/voices') return json(200, { configured: Boolean(config.ttsKey), speakers });
       if (req.url === '/tts/synthesize') {
@@ -125,23 +160,41 @@ export function createGateway(config) {
         if (limit.active >= 2 || limit.count >= 30) throw fail(429, '配音请求过于频繁，请稍后重试');
         limit.count++; limit.active++; ttsLimits.set(claims.license, limit);
         try {
-          return json(200, await synthesizeTts({ input, speakers, key: config.ttsKey, fetchImpl, signal: abort.signal }));
+          context.stage='tts';
+          return json(200, await synthesizeTts({ input, speakers, key: config.ttsKey, fetchImpl:requestFetch, signal: abort.signal }));
         } finally { limit.active--; }
       }
       if (!mapping.apiKey) throw fail(403, '授权尚未关联模型服务');
       const headers = { authorization: `Bearer ${mapping.apiKey}`, 'content-type': req.headers['content-type'] ?? 'application/json', accept: req.headers.accept ?? 'text/event-stream' };
       for (const name of ['openai-beta', 'session_id', 'conversation_id', 'content-encoding']) if (req.headers[name]) headers[name] = req.headers[name];
-      const response = await fetchImpl(`${config.sub2apiUrl.replace(/\/$/, '')}${req.url.slice(3)}`, { method: req.method, headers, redirect: 'error', signal: abort.signal, ...(req.method === 'POST' ? { body: raw } : {}) });
+      context.stage='sub2api';
+      const response = await requestFetch(`${config.sub2apiUrl.replace(/\/$/, '')}${req.url.slice(3)}`, { method: req.method, headers, redirect: 'error', signal: abort.signal, ...(req.method === 'POST' ? { body: raw } : {}) });
       res.writeHead(response.status, { 'content-type': response.headers.get('content-type') ?? 'application/json', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
-      if (response.body) await pipeline(Readable.fromWeb(response.body), res); else res.end();
+      context.firstByteMs=Math.round(performance.now()-started);context.bytes=0;
+      const sse=response.ok&&response.headers.get('content-type')?.includes('text/event-stream');
+      let pending='',terminal=false,failed=false;
+      const observe=new Transform({transform(chunk,encoding,callback){
+        context.bytes+=chunk.length;
+        if(sse){pending+=chunk.toString('utf8');let newline;while((newline=pending.indexOf('\n'))>=0){const line=pending.slice(0,newline).trim();pending=pending.slice(newline+1);if(line.startsWith('data:')){const value=line.slice(5).trim();if(value==='[DONE]')terminal=true;else try{const item=JSON.parse(value);if(item.type==='response.completed')terminal=true;if(['response.failed','response.incomplete','error'].includes(item.type)){terminal=true;failed=true;}}catch{}}}if(pending.length>65536)pending=pending.slice(-1024);context.streamOutcome=failed?'failed':terminal?'completed':'incomplete';}
+        callback(null,chunk);
+      }});
+      if (response.body) await pipeline(Readable.fromWeb(response.body),observe,res); else res.end();
     } catch (error) {
+      context.errorCode=errorCode(error);if(error.status)context.reason=error.message;log('request.error',{...context,status:error.status??502},'error');
       if (res.headersSent) res.destroy();
-      else json(error.status ?? 502, { error: { message: error.status ? error.message : '服务连接失败，请重试' } });
+      else {
+        if(error.authorizationCode)res.setHeader('x-openfilm-authorization','revoked');
+        json(error.status??502,{error:{message:error.status?error.message:'服务连接失败，请重试',...(error.authorizationCode?{code:error.authorizationCode}:{})}});
+      }
     }
   });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const server = createGateway({ secret: process.env.GATEWAY_SECRET, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN, sub2apiUrl: process.env.SUB2API_URL, ttsKey: process.env.DOUBAO_TTS_API_KEY, ttsSpeakers: process.env.DOUBAO_TTS_SPEAKERS });
-  server.listen(Number(process.env.PORT ?? 8787), process.env.BIND ?? '0.0.0.0');
+  const logStore=await openLogStore(process.env.LOG_DATABASE_URL);
+  const server = createGateway({ logStore, secret: process.env.GATEWAY_SECRET, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN, sub2apiUrl: process.env.SUB2API_URL, ttsKey: process.env.DOUBAO_TTS_API_KEY, ttsSpeakers: process.env.DOUBAO_TTS_SPEAKERS });
+  let stopping=false;
+  const stop=async()=>{if(stopping)return;stopping=true;server.closeIdleConnections();server.close(async()=>{try{await logStore.close();process.exit(0);}catch{process.exit(1);}});setTimeout(()=>server.closeAllConnections(),5000).unref();};
+  process.on('SIGTERM',stop);process.on('SIGINT',stop);
+  server.listen(Number(process.env.PORT ?? 8787), process.env.BIND ?? '0.0.0.0',()=>createEventLog({store:logStore,source:'gateway'})('service.started',{stage:'listen'}));
 }

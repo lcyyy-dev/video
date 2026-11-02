@@ -1,0 +1,11 @@
+# Optional: provide EXTERNAL_LOG_HOST_DIR on each deployment machine.
+# The directory belongs to independently installed proxy/tunnel software.
+services:
+  monitor:
+    environment:
+      EXTERNAL_LOG_DIR: /external-logs
+    volumes:
+      - type: bind
+        source: ${EXTERNAL_LOG_HOST_DIR:?Set a directory containing external .log or .txt files}
+        target: /external-logs
+        read_only: true

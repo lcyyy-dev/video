@@ -1,7 +1,16 @@
 services:
   gateway:
+    image: ${GATEWAY_IMAGE:-openfilm-auth-gateway:local}
     build: .
+    depends_on:
+      log-init:
+        condition: service_completed_successfully
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "127.0.0.1:8188:8787"
     env_file: .env
@@ -10,8 +19,17 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
   admin:
+    image: ${GATEWAY_IMAGE:-openfilm-auth-gateway:local}
     build: .
+    depends_on:
+      log-init:
+        condition: service_completed_successfully
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: ["node", "admin.mjs"]
     env_file: .env
     environment:
@@ -20,5 +38,31 @@ services:
       - "127.0.0.1:8790:8790"
     volumes:
       - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  monitor:
+    image: ${GATEWAY_IMAGE:-openfilm-auth-gateway:local}
+    build: .
+    depends_on:
+      log-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    command: ["node", "monitor.mjs"]
+    environment:
+      LOG_DATABASE_URL: ${LOG_DATABASE_URL:?Set PostgreSQL log database URL}
+      MONITOR_LOCAL_URL: http://gateway:8787/healthz
+      MONITOR_PUBLIC_URL: ${MONITOR_PUBLIC_URL:-}
+      MONITOR_INTERVAL_MS: ${MONITOR_INTERVAL_MS:-30000}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  log-init:
+    image: ${GATEWAY_IMAGE:-openfilm-auth-gateway:local}
+    build: .
+    command: ["node", "log-db.mjs", "init"]
+    env_file: .env
+    restart: "no"
     extra_hosts:
       - "host.docker.internal:host-gateway"

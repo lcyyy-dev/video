@@ -203,8 +203,8 @@ const commands = {
       const presets = saved.textStyleLibrary().presets;
       data = o.compact ? presets.map(({ id, version, name, description }) => ({ id, version, name, description })) : presets;
     }
-    else if (args.length === 1 && args[0] === 'elements') data = styles.getTextElementLibrary();
-    else if (args.length === 1 && args[0] === 'sample') data = styles.sampleTextStyle(o.seed);
+    else if (args.length === 1 && args[0] === 'elements') data = saved.getTextElementLibrary();
+    else if (args.length === 1 && args[0] === 'sample') data = saved.sampleTextStyle(o.seed);
     else if (args.length === 1 && args[0] === 'rules') data = styles.getTextStyleCompatibility();
     else if (args.length === 1 && args[0] === 'generation-rules') data = styles.getTextStyleGenerationRules();
     else if (args.length === 2 && args[0] === 'show') {
@@ -232,7 +232,7 @@ const commands = {
       const output = textPageJson(page, { fontCss });
       mkdirSync(dirname(out), { recursive: true });
       writeFileSync(out, output, { flag: 'wx' });
-      data = { path: out, source, seed: seed ?? null, preset: source === 'elements' ? styles.sampleTextStyle(seed).id : saved.resolveTextStyle(source).id, texts: page.texts.length };
+      data = { path: out, source, seed: seed ?? null, preset: source === 'elements' ? saved.sampleTextStyle(seed).id : saved.resolveTextStyle(source).id, texts: page.texts.length };
     } else return { ok: false, usage: true, lines: [named(COMMAND_HELP['text-styles'])] };
     return { ok: true, lines: [JSON.stringify(data, null, 2)] };
   },

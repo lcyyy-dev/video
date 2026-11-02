@@ -38,17 +38,23 @@ export function signedHeaders(identity, method, path, body, token = '') {
   };
 }
 
-export function createGatewayFetch({ baseUrl, refreshToken, identity, fetchImpl = fetch }) {
+export function createGatewayFetch({ baseUrl, refreshToken, identity, fetchImpl = fetch, onAuthorizationInvalidated = () => {} }) {
   const origin = new URL(baseUrl).origin;
   let access = null;
   let refreshing = null;
+  async function inspectAuthorization(response){
+    if(response.status!==403||response.headers.get('x-openfilm-authorization')!=='revoked')return;
+    const result=await response.clone().json().catch(()=>null);const code=result?.error?.code;
+    if(['LICENSE_SUSPENDED','LICENSE_EXPIRED','DEVICE_UNBOUND','LICENSE_REVOKED'].includes(code)){onAuthorizationInvalidated(code);return code;}
+  }
   async function renew() {
     const body = JSON.stringify({ refreshToken, publicKey: identity.publicKey });
     const response = await fetchImpl(`${origin}/auth/refresh`, {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: { 'content-type': 'application/json', ...signedHeaders(identity, 'POST', '/auth/refresh', body) }, body,
     });
-    if (!response.ok) throw new Error('授权续期失败，请检查网络或重新激活。');
+    const invalidated=await inspectAuthorization(response);
+    if (!response.ok) throw Object.assign(new Error(invalidated?'授权已停用、过期或设备已解绑，请重新激活。':'授权续期失败，请检查网络或重新激活。'),{authorizationInvalidated:Boolean(invalidated)});
     access = await response.json();
   }
   return async (url, options = {}) => {
@@ -62,6 +68,7 @@ export function createGatewayFetch({ baseUrl, refreshToken, identity, fetchImpl 
     const headers = new Headers(options.headers);
     headers.set('authorization', `Bearer ${token}`);
     for (const [key, value] of Object.entries(signedHeaders(identity, options.method ?? 'GET', path, options.body, token))) headers.set(key, value);
-    return fetchImpl(url, { ...options, redirect: 'error', headers });
+    const response=await fetchImpl(url, { ...options, redirect: 'error', headers });
+    await inspectAuthorization(response);return response;
   };
 }

@@ -82,7 +82,7 @@ docker compose logs -f gateway
 
 Windows 上的 SakuraFrp 继续映射本机 `127.0.0.1:8188`，此端口由网关接管；sub2api 改为仅本机访问的 8189。sub2api 和 Keygen 管理端不得公开暴露。Compose 默认只把网关端口发布到宿主机回环地址。
 
-OpenFilm 只提供激活码入口，输入 Keygen 许可证 Key 后点击激活。服务地址和模型由主进程配置，默认使用固定公网入口；开发环境也必须激活。设备私钥及续期凭据优先使用 Electron 系统安全存储加密。Linux/WSL 没有可用密钥环时，使用 AES-256-GCM 和应用数据目录内仅当前用户可读写的随机密钥（gateway-storage.key，0600 权限）；不使用 Chromium basic_text。旧的系统加密凭据仍需原密钥环解锁，不会被静默覆盖。模型调用通过本地请求桥签名，sub2api Key 不传入客户端。
+OpenFilm 只提供激活码入口，输入 Keygen 许可证 Key 后点击激活。服务地址和模型由主进程配置，默认使用固定公网入口；开发环境也必须激活。首次激活需要联网；之后工作区先读取本机保存的加密激活凭据，离线可直接打开。启动和窗口重新获得焦点时做一次不阻塞工作区的后台核验，不再每 60 秒轮询。普通网络/服务错误不会锁定工作区；网关明确确认许可证停用、过期或设备解绑时，客户端保存失效状态、锁定工作区 IPC 并关闭本地 Agent，会在离线重启后保持锁定，直到成功重新激活。已有激活凭据直接兼容，无需重新激活。设备私钥及续期凭据优先使用 Electron 系统安全存储加密。Linux/WSL 没有可用密钥环时，使用 AES-256-GCM 和应用数据目录内仅当前用户可读写的随机密钥（gateway-storage.key，0600 权限）；不使用 Chromium basic_text。旧的系统加密凭据仍需原密钥环解锁，不会被静默覆盖。模型调用通过本地请求桥签名，sub2api Key 不传入客户端。
 
 ## 协议
 
@@ -93,7 +93,7 @@ OpenFilm 只提供激活码入口，输入 Keygen 许可证 Key 后点击激活�
 
 签名覆盖方法、原始路径、毫秒时间戳、随机 nonce、请求体 SHA256 和访问凭证 SHA256，以换行分隔。允许一分钟时钟偏差，nonce 在两分钟内不可复用。客户端和服务器必须自动校时。网关采用单进程、单实例；水平扩容前需要共享防重放存储。
 
-当前续期凭据最长一年，届时需要重新激活。设备绑定基于安装生成的密钥，不能保证抵挡控制设备后复制解密密钥的攻击；重装后须解绑旧设备。每个请求都校验 Keygen，授权服务不可用时拒绝调用。
+当前续期凭据最长一年，届时云端调用需要重新激活，本地工作区仍可打开。设备绑定基于安装生成的密钥，不能保证抵挡控制设备后复制解密密钥的攻击；重装后须解绑旧设备。每个云端请求都校验 Keygen。授权服务暂时不可用时拒绝该次调用但不锁定客户端。只有服务端自己的 403 响应同时包含 x-openfilm-authorization: revoked 及 LICENSE_SUSPENDED / LICENSE_EXPIRED / DEVICE_UNBOUND / LICENSE_REVOKED 代码时，客户端才执行锁定；模型上游 403、Keygen 服务账号错误、超时或 5xx 都不触发永久失效。旧安装包需更新客户端才能执行此逻辑；离线设备在再次联网核验前无法获知新的撤销操作。
 
 ## 验证
 
@@ -106,4 +106,98 @@ OpenFilm 只提供激活码入口，输入 Keygen 许可证 Key 后点击激活�
 ```sh
 # KEYGEN_URL、MAPPING_FILE 使用宿主机可访问的值；GATEWAY_TEST_URL 指向已启动的 Docker 网关
 node --env-file=.env verify-live.mjs data/test-activation.json --reset-test-devices
+```
+
+## PostgreSQL 日志与独立管理页面
+
+网关日志使用 PostgreSQL，不再以 JSONL 文件作为运行时存储或查询来源。当前服务器复用现有 PostgreSQL 18 实例，使用独立数据库 `openfilm_gateway_logs`，不修改 Keygen/sub2api 业务表。其他服务器可通过连接串接入自己的 PostgreSQL，功能不捆绑任何代理或穿透软件。
+
+### 存储配置
+
+在部署用 `.env` 中配置：
+
+```dotenv
+LOG_DATABASE_URL=postgresql://log_writer:YOUR_PASSWORD@host.docker.internal:5432/openfilm_gateway_logs
+# 可选：管理页使用独立只读账号；省略时沿用上面的连接串。
+LOG_DATABASE_READ_URL=postgresql://log_reader:YOUR_PASSWORD@host.docker.internal:5432/openfilm_gateway_logs
+MONITOR_PUBLIC_URL=https://your-gateway.example:12345/healthz
+MONITOR_INTERVAL_MS=30000
+```
+
+数据库和登录角色由该服务器管理员预先创建，写入账号需要在**独立日志库**中创建 schema/table 的权限；不要使用 Keygen/sub2api 业务库。`log-init` 是一次性初始化进程，创建 `gateway_logs.events`、`gateway_logs.collector_state` 和时间、来源、许可证、请求 ID、Key 指纹、异常记录索引。三个应用进程等待初始化成功后再启动，初始化失败不会静默回退到文件日志。
+
+使用只读账号时，在日志表初始化之后由数据库管理员执行相应授权（替换角色名）：
+
+```sql
+GRANT CONNECT ON DATABASE openfilm_gateway_logs TO log_reader;
+GRANT USAGE ON SCHEMA gateway_logs TO log_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA gateway_logs TO log_reader;
+ALTER DEFAULT PRIVILEGES FOR ROLE log_writer IN SCHEMA gateway_logs
+  GRANT SELECT ON TABLES TO log_reader;
+```
+
+独立运行开发命令：
+
+```sh
+npm ci --ignore-scripts
+node --env-file=.env log-db.mjs init
+node --env-file=.env log-db.mjs status
+```
+
+`events` 保存时间、来源、级别、事件、许可证 ID、请求 ID 和经过字段白名单处理的 JSONB 数据。日志同时输出标准输出供运维查看，但后台查询只使用 PostgreSQL；默认数据库保留 30 天。SQL 使用参数化查询、稳定游标分页和每页最多 200 条，不再受旧文件扫描大小限制。
+
+写入采用短批次异步队列，不阻塞用户的模型流。数据库暂时不可用时保留待写事件并重试，恢复后按事件 ID 去重；进程正常停止会等待写入。每个写入进程最多暂存 5000 条，队列满或写入失败会输出明确运维错误。数据库故障期间强制杀进程仍可能丢失尚未入库的内存队列；标准输出可用于故障对照。管理页在数据库不可用时报告读取失败，不伪装成空历史。
+
+### 迁移旧文件日志
+
+旧文件仅作为一次性导入源。初始化数据库后执行：
+
+```sh
+node --env-file=.env log-db.mjs migrate ./logs
+```
+
+迁移保留原时间和事件 ID，以主键去重，可以重复执行；旧文件不删除。旧的 `external-cursor.json` 也会迁入 `collector_state`，后续采集进度仅写数据库。切换时先迁移，再短暂停止旧写入进程，补迁最后一批记录，再启动新版本，可避免漏掉停止前的日志。当前服务器的 305 条旧记录已按 ID 逐条核对入库。
+
+### 三个独立页面
+
+- `http://127.0.0.1:8790/licenses`：授权管理、发码、Key 映射和设备。
+- `http://127.0.0.1:8790/logs`：激活、续期、模型/配音调用记录，支持用户、时间、搜索、异常筛选和分页。
+- `http://127.0.0.1:8790/diagnostics`：当前连接状态、数据库状态、探测历史及外部代理/穿透日志。
+
+根地址进入授权管理。每页有独立 URL，刷新和浏览器返回保留页面，三个页面共用原管理员登录。只有当前页面自动刷新，不把授权表、调用历史和连接诊断堆在一起。数据库读取复用管理员会话，后台与只读查询端口仍限本机访问。
+
+每次网关请求返回 `x-request-id`，串联请求开始、Keygen 校验、上游响应、错误和请求结束。记录 UTC 时间、许可证 ID、设备指纹、用户 Key/激活码哈希指纹、状态码、耗时、字节数和失败阶段；不记录完整 Key、Token、签名、公私钥、提示词、配音文本或回复正文。
+
+SSE 的 HTTP 200 不一定代表成功：没有 `[DONE]` 或 `response.completed` 标记记为 `incomplete`；`response.failed`/`response.incomplete`/`error` 事件记为失败。下游提前断开记为 `disconnected`，不能单凭该项判断是用户取消还是穿透断链。历史上未记录的激活行为无法凭空补回。
+
+### 链路监测与自行安装的软件
+
+`GET /healthz` 是无凭据的网关存活接口，不调用模型或 Keygen。监测器约每 30 秒并行探测本机和管理员配置的公网入口，每次超时 8 秒，核对返回的网关标识。超过两分钟没有探测数据时页面提示过期。
+
+- 本机正常、公网失败：检查服务器出口、穿透/代理、DNS 和证书。
+- 本机失败：检查网关、容器和宿主机网络。
+- 两端正常：只说明该探测时刻服务器所在网络可达，不能排除个别用户路径或长连接问题。
+- 网关可达但业务出错：用请求 ID 对照 Keygen/sub2api 阶段的耗时及错误。
+
+代理和穿透软件由你自行安装。可选地设置 `EXTERNAL_LOG_HOST_DIR` 为该软件的 UTF-8 文本日志目录，在原 Compose 文件组合后追加 `-f compose.external-logs.yaml`，以只读目录接入；不挂载则不采集。采集器支持 `.log`/`.txt` 和常见重命名轮转、半行等待、增量读取，读取进度存 PostgreSQL，只有事件入库成功后才推进游标。每个来源每次最多读取 20 个文件、每个文件 1 MiB；重试通过稳定事件 ID 避免重复。
+
+导入记录按采集时间筛选，并展示能识别的原始时间。未标时区的外部时间不擅自换算。常见凭据字段会脱敏，但第三方软件仍应关闭凭据和业务正文输出。本程序无法读取未提供的远程第三方穿透节点内部日志。
+
+### 使用现有镜像运行源码，不构建镜像
+
+在本目录完成 `npm ci --ignore-scripts` 后，可用 `compose.source.yaml` 只读挂载源码和依赖。`GATEWAY_IMAGE` 必须指向已存在的兼容 Node 镜像。当前 Linux/WSL 本机部署执行：
+
+```sh
+docker compose -f compose.yaml -f compose.host.yaml -f compose.source.yaml -f compose.external-logs.yaml up -d --no-build --pull never gateway admin monitor
+```
+
+`compose.host.yaml` 用于本机回环地址部署；其他服务器按网络配置选择覆盖文件。不采集外部日志时省略最后一个覆盖文件。该操作保留独立 Portal、Keygen、sub2api 和穿透软件，不构建新镜像。
+
+### 测试
+
+数据库测试仅使用指定日志数据库内随机命名的临时 schema，结束后删除；不读写正式事件表。无数据库环境时相应集成测试明确跳过。
+
+```sh
+node --env-file=.env --test server.test.mjs admin.test.mjs observability.test.mjs gateway-logging.test.mjs log-store.test.mjs tts.test.mjs
+AUTH_UI_BROWSER=/path/to/chromium node --env-file=.env --test admin-ui.browser.test.mjs
 ```

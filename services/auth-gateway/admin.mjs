@@ -1,3 +1,5 @@
+import { openLogStore } from './log-store.mjs';
+import { keyReference } from './logs.mjs';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
@@ -39,9 +41,9 @@ export function createAdmin(config) {
     const json = (status, value) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(value)); };
     try {
       const url = new URL(req.url, 'http://localhost');
-      if (req.method === 'GET' && ['/', '/admin.js'].includes(url.pathname)) {
-        res.setHeader('content-type', url.pathname === '/' ? 'text/html; charset=utf-8' : 'text/javascript; charset=utf-8');
-        return res.end(readFileSync(new URL(url.pathname === '/' ? './admin.html' : './admin-ui.js', import.meta.url)));
+      if (req.method === 'GET' && ['/', '/licenses', '/logs', '/diagnostics', '/admin.js'].includes(url.pathname)) {
+        res.setHeader('content-type', url.pathname === '/admin.js' ? 'text/javascript; charset=utf-8' : 'text/html; charset=utf-8');
+        return res.end(readFileSync(new URL(url.pathname === '/admin.js' ? './admin-ui.js' : './admin.html', import.meta.url)));
       }
       if (!url.pathname.startsWith('/admin/')) return json(404, { error: '接口不存在' });
       const expectedOrigin = `http://${req.headers.host}`;
@@ -74,11 +76,22 @@ export function createAdmin(config) {
       if (req.method !== 'GET' && req.headers['x-csrf-token'] !== session.csrf) return json(403, { error: '请求校验失败' });
       if (url.pathname === '/admin/session' && req.method === 'GET') return json(200, { csrf: session.csrf });
       if (url.pathname === '/admin/logout' && req.method === 'POST') { sessions.delete(id); return json(200, { ok: true }); }
+      if (url.pathname === '/admin/logs' && req.method === 'GET') {
+        if(!config.logStore)return json(503,{error:'日志数据库未配置'});
+        const result=await config.logStore.queryEvents(url.searchParams);let mappings={};try{mappings=readMappings();}catch{/* Log access remains available when mapping storage is broken. */}
+        return json(200,{...result,configured:true,events:result.events.map(event=>({...event,userName:mappings[event.licenseId]?.name??''}))});
+      }
+      if (url.pathname === '/admin/diagnostics' && req.method === 'GET') {
+        if(!config.logStore)return json(503,{error:'日志数据库未配置'});
+        const result=await config.logStore.queryEvents(new URLSearchParams({source:'monitor',limit:'100',from:new Date(Date.now()-3600000).toISOString()}));
+        const latest=result.events.find(event=>event.event==='link.summary');
+        return json(200,{configured:true,storage:await config.logStore.status(),latest:latest??null,probes:result.events.filter(event=>event.event==='link.probe'&&event.probeId===latest?.probeId)});
+      }
       if (url.pathname === '/admin/state' && req.method === 'GET') {
         const [licenses, policies] = await Promise.all([list('/licenses'), list('/policies')]);
         const mappings = readMappings();
         return json(200, {
-          licenses: licenses.map(item => ({ id: item.id, key: item.attributes.key, name: mappings[item.id]?.name ?? '', suspended: item.attributes.suspended, expiry: item.attributes.expiry, mapped: Boolean(mappings[item.id]?.apiKey), policyId: item.relationships?.policy?.data?.id })),
+          licenses: licenses.map(item => ({ id: item.id, key: item.attributes.key, name: mappings[item.id]?.name ?? '', suspended: item.attributes.suspended, expiry: item.attributes.expiry, mapped: Boolean(mappings[item.id]?.apiKey), keyRef:keyReference(mappings[item.id]?.apiKey), policyId: item.relationships?.policy?.data?.id })),
           policies: policies.map(item => ({ id: item.id, name: item.attributes.name, maxMachines: item.attributes.maxMachines })),
         });
       }
@@ -118,9 +131,16 @@ export function createAdmin(config) {
         await keygen(`/licenses/${licenseId}/actions/${action}`, 'POST'); return json(200, { ok: true });
       }
       return json(404, { error: '接口不存在' });
-    } catch (error) { json(error.status ?? 502, { error: error.status ? error.message : '管理操作失败，请检查服务日志及配置' }); }
+    } catch (error) {
+      const logQuery=req.url?.startsWith('/admin/logs')||req.url?.startsWith('/admin/diagnostics');
+      json(error.status??(logQuery?503:502),{error:error.status?error.message:logQuery?'日志数据库连接或查询失败，请检查 PostgreSQL':'管理操作失败，请检查服务日志及配置'});
+    }
   });
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  createAdmin({ mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN }).listen(Number(process.env.ADMIN_PORT ?? 8790), process.env.ADMIN_BIND ?? '127.0.0.1');
+  const logStore=await openLogStore(process.env.LOG_DATABASE_READ_URL||process.env.LOG_DATABASE_URL);
+  const server=createAdmin({ logStore, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN });
+  server.listen(Number(process.env.ADMIN_PORT??8790),process.env.ADMIN_BIND??'127.0.0.1');
+  const stop=()=>{server.closeIdleConnections();server.close(async()=>{await logStore.close();process.exit(0);});setTimeout(()=>server.closeAllConnections(),5000).unref();};
+  process.on('SIGTERM',stop);process.on('SIGINT',stop);
 }

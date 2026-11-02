@@ -10,7 +10,8 @@
   },
   "selection": {
     "source": "src/text-elements.json",
-    "mode": "independent-element-combination",
+    "mode": "weighted-contrast-filtered-combination",
+    "fillStrokeContrast": "Automatic generation requires fill/stroke luminance contrast >= 3:1. Reject similar colors. Weight valid pairs by fill weight * stroke weight and normalize; never relax the constraint when weights leave no valid pair.",
     "presetIdRequired": false,
     "allowAdHocAppearance": false,
     "rangeBounds": "inclusive",
@@ -33,7 +34,7 @@
   },
   "fill": {
     "mode": "scene-adaptive",
-    "palette": ["#FFFFFF", "#000000", "#FFFAFA", "#F2DA2D", "#FFBD29", "#FF6B8A", "#3B82F6", "#4CAF50", "#007AFF", "#EE7FFB", "#F55757", "#F8AF72"],
+    "palette": ["#FFFFFF", "#000000", "#F2DA2D", "#FFBD29", "#FF6B8A", "#1E40AF", "#4CAF50", "#EE7FFB", "#FF0000", "#F8AF72"],
     "selection": "Sample a color from the element pool, inspect the footage behind the intended text placement across its visible interval, and replace the seed if the composed result is not readable."
   },
   "stroke": {

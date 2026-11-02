@@ -72,13 +72,13 @@ test('agents can read scene-adaptive ranges without confusing them with renderab
   assert.deepEqual(policy.font.candidates, ['黑体', '方糖体', '新青年体']);
   assert.equal(policy.rangePolicy.strength, 'advisory');
   assert.equal(policy.rangePolicy.reference, 'native-text-elements');
-  assert.equal(policy.selection.mode, 'independent-element-combination');
+  assert.equal(policy.selection.mode, 'weighted-contrast-filtered-combination');
   assert.equal(policy.selection.presetIdRequired, false);
   assert.equal(policy.selection.allowAdHocAppearance, false);
   assert.equal(policy.selection.randomizePerCaption, true);
   assert.equal(policy.stroke.width.value, 14);
   assert.equal(policy.stroke.width.unit, 'preview-px');
-  assert.deepEqual(policy.fill.palette.slice(0, 3), ['#FFFFFF', '#000000', '#FFFAFA']);
+  assert.deepEqual(policy.fill.palette.slice(0, 3), ['#FFFFFF', '#000000', '#F2DA2D']);
   assert.equal(policy.background.enabled, false);
   assert.equal(policy.shadow.enabled, false);
   assert.ok(policy.implementation.notYetSupportedInStructuredText.includes('background'));

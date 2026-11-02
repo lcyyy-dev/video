@@ -35,7 +35,7 @@ import { startUpdates } from './updates.mjs';
 import { ensureFfmpeg, ffmpegDir, ffmpegDownloadable, ffmpegIn, ffmpegOnPath } from './ffmpeg-runtime.mjs';
 import { PATH_SEP } from './environment.mjs';
 import { createTabs } from './tabs.mjs';
-import { gatewayConfig, activateGateway, checkGatewayAuthorization, checkSub2ApiConfig, publicSub2ApiConfig, gatewayEndpoint } from './sub2api-config.mjs';
+import { gatewayConfig, activateGateway, checkGatewayAuthorization, checkSub2ApiConfig, publicSub2ApiConfig, gatewayEndpoint, probeGatewayAuthorization } from './sub2api-config.mjs';
 import { authorizationController } from './authorization-state.mjs';
 import { precomputeUploadFrames } from './source-analysis.mjs';
 
@@ -63,7 +63,7 @@ const DATA = app.getPath('userData');
 const LOGS = join(DATA, 'logs');
 mkdirSync(LOGS, { recursive: true });
 const log = (line) => { try { appendFileSync(join(LOGS, 'studio.log'), line); } catch { /* no log */ } };
-const sub2apiStorage = () => credentialStorage({ safeStorage, dataDir: DATA });
+const sub2apiStorage = () => ({...credentialStorage({safeStorage,dataDir:DATA}),onAuthorizationInvalidated:()=>authorization.invalidate()});
 
 if (!app.requestSingleInstanceLock()) {
   if (!app.isPackaged) console.log(`${PRODUCT_NAME} is already running; requesting its existing window.`);
@@ -126,7 +126,14 @@ const ipc = {
     });
   },
 };
-const authorizationStatus = () => authorization.status();
+let onlineAuthorizationCheck=null;
+const authorizationStatus = async () => {
+  const result=await authorization.status();
+  if(result.authorized&&!onlineAuthorizationCheck){
+    onlineAuthorizationCheck=probeGatewayAuthorization(DATA,sub2apiStorage()).finally(()=>{onlineAuthorizationCheck=null;});
+  }
+  return result;
+};
 
 
 /** the board Studio's panes sit on (its --dock-shell), so the window never flashes another color */
@@ -667,7 +674,6 @@ async function start() {
     } : null,
   });
   Menu.setApplicationMenu(authorization.get() ? fullMenu : lockedMenu());
-  setInterval(() => { void authorizationStatus(); }, 60_000).unref();
 
   win.show();
   if (needFfmpeg) {

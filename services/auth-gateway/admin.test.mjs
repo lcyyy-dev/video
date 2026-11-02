@@ -3,13 +3,20 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createEventLog, keyReference } from './logs.mjs';
+import {testLogStore,hasTestDatabase} from './test-log-store.mjs';
 import { createAdmin } from './admin.mjs';
 
-test('admin requires login and CSRF, hides mapped keys, creates and replaces mappings', async () => {
+test('admin requires login and CSRF, hides mapped keys, creates and replaces mappings', {skip:!hasTestDatabase}, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'openfilm-admin-'));
   const file = join(dir, 'mappings.json'); writeFileSync(file, '{}');
+  const logStore=await testLogStore(t);const log=createEventLog({store:logStore,stdout:false});
+  log('auth.activate',{licenseId:'license',keyRef:keyReference('first-private-key'),status:200});
+  log('request.complete',{licenseId:'license',status:502,stage:'keygen'},'error');
+  createEventLog({store:logStore,source:'monitor',stdout:false})('link.summary',{localOk:true,publicOk:false,diagnosis:'public_path_unavailable',probeId:'probe'},'error');
+  await logStore.flush();
   let role = 'admin'; let valid = true; const calls = [];
-  const server = createAdmin({ mappingFile: file, keygenUrl: 'http://keygen/v1', keygenToken: 'server-token', fetchImpl: async (url, options) => {
+  const server = createAdmin({ logStore, mappingFile: file, keygenUrl: 'http://keygen/v1', keygenToken: 'server-token', fetchImpl: async (url, options) => {
     calls.push({ url, options });
     if (url.endsWith('/tokens')) return Response.json({ data: { attributes: { token: 'admin-session-token' } } }, { status: valid ? 201 : 401 });
     if (url.endsWith('/me')) return Response.json({ data: { attributes: { role } } });
@@ -24,6 +31,8 @@ test('admin requires login and CSRF, hides mapped keys, creates and replaces map
   const login = () => fetch(`${origin}/admin/login`, { method: 'POST', headers: { origin }, body: JSON.stringify({ email: 'admin@example.com', password: 'test' }) });
   try {
     assert.equal((await fetch(`${origin}/admin/state`)).status, 401);
+    assert.equal((await fetch(`${origin}/admin/logs`)).status,401);
+    assert.equal((await fetch(`${origin}/admin/diagnostics`)).status,401);
     assert.equal((await fetch(`${origin}/admin/login`, { method: 'POST', body: '{}' })).status, 403);
     role = 'user'; assert.equal((await login()).status, 403);
     role = 'admin'; valid = false; assert.equal((await login()).status, 400); valid = true;
@@ -36,6 +45,13 @@ test('admin requires login and CSRF, hides mapped keys, creates and replaces map
     assert.equal(JSON.parse(readFileSync(file)).license.apiKey, 'first-private-key');
     const state = await (await request('state', 'GET')).json();
     assert.equal(state.licenses[0].mapped, true);
+    assert.equal(state.licenses[0].keyRef,keyReference('first-private-key'));
+    const logs=await(await request('logs?license=license','GET')).json();
+    assert.equal(logs.events.length,2);assert.ok(logs.events.every(row=>row.userName==='<b>User</b>'));
+    assert.equal((await(await request('logs?errors=true&source=gateway','GET')).json()).events.length,1);
+    assert.equal((await request('logs?from=invalid','GET')).status,400);
+    assert.ok(!JSON.stringify(logs).includes('first-private-key'));
+    assert.equal((await(await request('diagnostics','GET')).json()).latest.diagnosis,'public_path_unavailable');
     assert.ok(!JSON.stringify(state).includes('first-private-key'));
     await request('licenses/license/mapping', 'POST', { apiKey: '', name: 'updated' });
     assert.equal(JSON.parse(readFileSync(file)).license.apiKey, 'first-private-key');
@@ -47,6 +63,8 @@ test('admin requires login and CSRF, hides mapped keys, creates and replaces map
     assert.ok(calls.some(call => call.url.endsWith('/actions/suspend')));
     await request('licenses/license/mapping', 'DELETE', {});
     assert.deepEqual(JSON.parse(readFileSync(file)), {});
+    const queryEvents=logStore.queryEvents;logStore.queryEvents=async()=>{throw new Error('private database details');};
+    const unavailable=await request('logs','GET');assert.equal(unavailable.status,503);assert.match((await unavailable.json()).error,/PostgreSQL/);logStore.queryEvents=queryEvents;
     await request('logout', 'POST', {});
     assert.equal((await request('state', 'GET')).status, 401);
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); rmSync(dir, { recursive: true, force: true }); }

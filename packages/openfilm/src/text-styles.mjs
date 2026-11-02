@@ -1,5 +1,6 @@
 // @ts-check
 /** Local appearance presets; placement and timing remain properties of the text page and its clip. */
+import { weightedElementIndex, contrastingTextPairs } from './text-element-weights.mjs';
 import legacy from './text-styles.json' with { type: 'json' };
 import elements from './text-elements.json' with { type: 'json' };
 import compatibility from './text-style-compatibility.json' with { type: 'json' };
@@ -52,25 +53,17 @@ const generated = elements.elements.fonts.flatMap((font) => elements.elements.co
 /** The generated library is first; legacy IDs remain addressable for existing projects and scripts. */
 const BUILTIN = validateTextStyleLibrary({ version: 1, presets: [...generated, ...legacy.presets] });
 
-const hash = (/** @type {unknown} */ value) => {
-  let h = 2166136261;
-  for (const char of String(value)) { h ^= char.codePointAt(0) ?? 0; h = Math.imul(h, 16777619); }
-  return h >>> 0;
-};
-/** @template T @param {T[]} list @param {unknown} seed @param {string} key @returns {T} */
-const pick = (list, seed, key) => {
-  if (!list.length) throw new Error(`No text elements available for ${key}`);
-  return list[hash(`${seed}:${key}`) % list.length] ?? list[0];
-};
+/** @template T @param {T[]} list @param {Record<string, number>} weights @param {(item: T) => string} key @param {unknown} seed @returns {T} */
+const pick = (list, weights, key, seed) => list[weightedElementIndex(list.map(item => weights[key(item)] ?? 1), seed)];
 
 /**
- * Choose one value independently from every element pool and return a complete preset.
+ * Choose a weighted font and a weighted fill/outline pair with at least 3:1 contrast.
  * A seed makes generation reproducible; omitting it creates a fresh combination each time.
  */
-export function sampleTextStyle(seed = `${Date.now()}-${Math.random()}`) {
-  const font = pick(elements.elements.fonts, seed, 'font');
-  const color = pick(elements.elements.colors, seed, 'color');
-  const stroke = pick(elements.elements.strokes, seed, 'stroke');
+export function sampleTextStyle(seed = `${Date.now()}-${Math.random()}`, weights = getTextElementLibrary().weights) {
+  const font = pick(elements.elements.fonts, weights.fonts, font => font.id, `${seed}:font`);
+  const pairs = contrastingTextPairs(elements.elements.colors, elements.elements.strokes, weights.colors, weights.strokes);
+  const { color, stroke } = pairs[weightedElementIndex(pairs.map(pair => pair.weight), `${seed}:pair`)];
   return elementPreset(font, color, stroke);
 }
 

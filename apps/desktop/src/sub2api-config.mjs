@@ -1,5 +1,6 @@
 import { VideoPolicyError } from './video-policy.mjs';
-import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { deviceIdentity, createGatewayFetch, signedHeaders } from './gateway-auth.mjs';
 
@@ -30,7 +31,7 @@ export async function activateGateway(dataDir, input, storage = {}, fetchImpl = 
   if (typeof result.refreshToken !== 'string') throw new VideoPolicyError('激活服务返回无效凭证。');
   const encrypted = storage.encrypt(result.refreshToken);
   if (!encrypted) throw new VideoPolicyError('系统安全存储不可用。');
-  writeFileSync(join(dataDir, 'gateway-session.json'), JSON.stringify({ baseUrl: config.baseUrl, model: config.model, refreshTokenEncrypted: encrypted }), { mode: 0o600 });
+  writeFileSync(join(dataDir, 'gateway-session.json'), JSON.stringify({ sessionId:randomUUID(), baseUrl: config.baseUrl, model: config.model, refreshTokenEncrypted: encrypted }), { mode: 0o600 });
   const directFile = join(dataDir, 'sub2api.json');
   if (existsSync(directFile)) unlinkSync(directFile);
   return { baseUrl: config.baseUrl, model: config.model, configured: true };
@@ -38,11 +39,18 @@ export async function activateGateway(dataDir, input, storage = {}, fetchImpl = 
 
 export function gatewayConfig(dataDir, storage = {}, fetchImpl = fetch) {
   if (!dataDir || !existsSync(join(dataDir, 'gateway-session.json'))) return null;
-  const saved = JSON.parse(readFileSync(join(dataDir, 'gateway-session.json'), 'utf8'));
+  const sessionFile=join(dataDir,'gateway-session.json');
+  const snapshot=readFileSync(sessionFile,'utf8'),saved=JSON.parse(snapshot);
+  if(saved.authorizationInvalidated)throw new VideoPolicyError('授权已停用、过期或设备已解绑，请重新激活。');
   const identity = deviceIdentity(dataDir, storage);
   const refreshToken = storage.decrypt(saved.refreshTokenEncrypted);
   const endpoint = gatewayEndpoint({ OPENFILM_GATEWAY_BASE_URL: saved.baseUrl, OPENFILM_GATEWAY_MODEL: saved.model });
-  return { ...endpoint, apiKey: 'device-session', fetchImpl: createGatewayFetch({ baseUrl: saved.baseUrl, refreshToken, identity, fetchImpl }) };
+  return { ...endpoint, apiKey: 'device-session', fetchImpl: createGatewayFetch({ baseUrl: saved.baseUrl, refreshToken, identity, fetchImpl, onAuthorizationInvalidated:code=>{
+    if(readFileSync(sessionFile,'utf8')!==snapshot)return;
+    const revoked={...saved,authorizationInvalidated:code};
+    try{writeFileSync(sessionFile+'.tmp',JSON.stringify(revoked),{mode:0o600});renameSync(sessionFile+'.tmp',sessionFile);}
+    finally{storage.onAuthorizationInvalidated?.(code);}
+  } }) };
 }
 
 export function publicSub2ApiConfig(dataDir, storage = {}) {
@@ -52,17 +60,19 @@ export function publicSub2ApiConfig(dataDir, storage = {}) {
   return { baseUrl: endpoint.baseUrl, model: endpoint.model, configured: Boolean(gateway) };
 }
 
-/** Validate authorization without generating model tokens. Fail closed on network/storage errors. */
-export async function checkGatewayAuthorization(dataDir, storage = {}, fetchImpl = fetch) {
+/** Workspace access depends only on saved activation. Cloud requests validate authorization separately. */
+export async function checkGatewayAuthorization(dataDir, storage = {}) {
   try {
-    const config = gatewayConfig(dataDir, storage, fetchImpl);
-    if (!config) return { authorized: false, message: '请输入激活码以使用 OpenFilm。' };
-    const response = await config.fetchImpl(`${new URL(config.baseUrl).origin}/auth/status`, {
-      method: 'POST', body: '{}', headers: { 'content-type': 'application/json' }, signal: AbortSignal.timeout(20000),
-    });
-    if (!response.ok || (await response.json()).authorized !== true) return { authorized: false, message: '授权无效或设备已解绑，请重新激活。' };
+    if (!gatewayConfig(dataDir, storage)) return { authorized: false, message: '请输入激活码以使用 OpenFilm。' };
     return { authorized: true, message: '' };
-  } catch { return { authorized: false, message: '无法验证授权，请检查网络后重试。' }; }
+  } catch(error) { return { authorized: false, message:error instanceof VideoPolicyError?error.message:'无法读取本机激活凭据，请恢复应用数据或重新激活。' }; }
+}
+
+/** Network failures never revoke local activation. Only the gateway's explicit authorization code can do so. */
+export async function probeGatewayAuthorization(dataDir,storage={},fetchImpl=fetch){
+  let config;try{config=gatewayConfig(dataDir,storage,fetchImpl);}catch{return;}
+  if(!config)return;
+  try{await config.fetchImpl(`${new URL(config.baseUrl).origin}/auth/status`,{method:'POST',body:'{}',headers:{'content-type':'application/json'},signal:AbortSignal.timeout(20000)});}catch{/* Offline and service outages preserve local activation. */}
 }
 
 export async function checkSub2ApiConfig(dataDir, fetchImpl = fetch, storage = {}) {
@@ -83,6 +93,7 @@ export async function checkSub2ApiConfig(dataDir, fetchImpl = fetch, storage = {
       if (response.ok || ![502, 503, 504].includes(response.status) || attempt === 2) break;
     } catch (error) {
       lastError = error;
+      if(error.authorizationInvalidated)throw new VideoPolicyError(error.message);
       if (attempt === 2) throw new VideoPolicyError(`模型连接失败：${error.message || error}`);
     }
     await new Promise(resolve => setTimeout(resolve, 400 * (attempt + 1)));

@@ -15,12 +15,15 @@ export function authorizationController(verify, onChange) {
   const state = authorizationState(onChange);
   let revision = 0;
   let pending = null;
+  let invalidated=false;
   return {
     ...state,
+    invalidate(){invalidated=true;revision++;pending=null;state.set(false);},
     status() {
+      if(invalidated)return Promise.resolve({authorized:false,message:'授权已停用、过期或设备已解绑，请重新激活。'});
       if (pending) return pending;
       const current = revision;
-      const request = Promise.resolve().then(verify).catch(() => ({ authorized: false, message: '无法验证授权，请检查网络后重试。' })).then(result => {
+      const request = Promise.resolve().then(verify).catch(() => ({ authorized: false, message: '无法读取本机激活凭据，请恢复应用数据或重新激活。' })).then(result => {
         if (current !== revision) return { authorized: state.get() };
         state.set(result.authorized === true);
         return result;
@@ -33,6 +36,7 @@ export function authorizationController(verify, onChange) {
       pending = null;
       try {
         const result = await action();
+        invalidated=false;
         state.set(true);
         return result;
       } finally { revision++; pending = null; }

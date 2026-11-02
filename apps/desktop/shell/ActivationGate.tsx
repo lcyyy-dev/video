@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { native } from './bridge';
 
-/** Nothing in the workspace is mounted until the server accepts the device authorization. */
+/** Mount the workspace once saved activation credentials are available. */
 export function ActivationGate({ children }: { children: ReactNode }) {
   const [authorized, setAuthorized] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -18,7 +18,7 @@ export function ActivationGate({ children }: { children: ReactNode }) {
       if (current !== revision.current) return;
       setAuthorized(result.authorized);
       setMessage(result.message || (result.authorized ? '' : '请输入激活码以使用 OpenFilm。'));
-    } catch { if (current === revision.current) { setAuthorized(false); setMessage('无法验证授权，请检查网络后重试。'); } }
+    } catch { if (current === revision.current) { setAuthorized(false); setMessage('无法读取本机激活凭据，请恢复应用数据或重新激活。'); } }
     finally { if (current === revision.current) setChecking(false); }
   }, []);
   useEffect(() => {
@@ -29,10 +29,9 @@ export function ActivationGate({ children }: { children: ReactNode }) {
       setChecking(false);
       if (!value) setMessage('授权已失效，请重新激活。');
     });
-    const timer = setInterval(() => { void check(); }, 60_000);
-    const focus = () => { void check(); };
-    window.addEventListener('focus', focus);
-    return () => { revision.current++; stop(); clearInterval(timer); window.removeEventListener('focus', focus); };
+    const focus=()=>{void check();};
+    window.addEventListener('focus',focus);
+    return () => { revision.current++; stop();window.removeEventListener('focus',focus); };
   }, [check]);
   useEffect(() => {
     document.body.dataset.authorized = String(authorized);

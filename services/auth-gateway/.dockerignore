@@ -6,3 +6,13 @@
 !admin.html
 !admin-ui.js
 !portal-server.mjs
+
+!logs.mjs
+!monitor.mjs
+
+!log-fields.mjs
+!log-store.mjs
+!log-db.mjs
+!legacy-logs.mjs
+!package.json
+!package-lock.json

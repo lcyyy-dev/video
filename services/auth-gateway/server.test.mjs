@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { generateKeyPairSync } from 'node:crypto';
+import { createEventLog, keyReference } from './logs.mjs';
 import { createGateway } from './server.mjs';
 import { createGatewayFetch, signedHeaders } from '../../apps/desktop/src/gateway-auth.mjs';
 
@@ -36,7 +37,8 @@ test('activation, refresh, per-user key substitution, streaming, replay and revo
     calls.push({ url, key: options.headers.authorization, body: options.body.toString() });
     return new Response('data: {"text":"OK"}\n\ndata: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } });
   };
-  const server = createGateway({ secret: 'a'.repeat(64), mappingFile, keygenUrl: 'http://keygen/v1', keygenToken: 'admin', sub2apiUrl: 'http://sub2api/v1', fetchImpl: upstream, ttsKey: 'speech-private' });
+  const loggedEvents=[];const logStore={enqueue:row=>loggedEvents.push(row)};
+  const server = createGateway({ log:createEventLog({store:logStore,stdout:false}), secret: 'a'.repeat(64), mappingFile, keygenUrl: 'http://keygen/v1', keygenToken: 'admin', sub2apiUrl: 'http://sub2api/v1', fetchImpl: upstream, ttsKey: 'speech-private' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const identity = () => generateKeyPairSync('ed25519', { publicKeyEncoding: { type: 'spki', format: 'pem' }, privateKeyEncoding: { type: 'pkcs8', format: 'pem' } });
@@ -89,6 +91,18 @@ test('activation, refresh, per-user key substitution, streaming, replay and revo
     }
     assert.equal((await fetch(`${origin}/v1/responses`, { method: 'POST', body: '{}' })).status, 401);
     assert.equal((await fetch(`${origin}/v1/anything`)).status, 404);
+    const events=loggedEvents;
+    for(const name of ['alice','bob']){
+      assert.ok(events.some(row=>row.event==='auth.activate'&&row.licenseId===name&&row.status===200&&row.keyRef===keyReference(`${name}-private`)));
+      assert.ok(events.some(row=>row.event==='request.complete'&&row.path==='/v1/responses'&&row.licenseId===name&&row.streamOutcome==='completed'&&row.bytes>0));
+      assert.ok(events.some(row=>row.event==='request.complete'&&row.path==='/v1/responses'&&row.licenseId===name&&row.status===403));
+      assert.ok(events.some(row=>row.event==='upstream.keygen'&&row.licenseId===name&&row.durationMs>=0));
+    }
+    const serialized=JSON.stringify(events);
+    for(const secret of ['alice-private','bob-private','speech-private','欢迎光临','BEGIN PUBLIC KEY'])assert.ok(!serialized.includes(secret));
+    assert.ok(events.every(row=>row.requestId));
+    const health=await fetch(`${origin}/healthz`);assert.deepEqual(await health.json(),{service:'openfilm-gateway',ok:true});
+
     assert.equal((await fetch(`${origin}/tts/synthesize`, { method: 'POST', body: '{}' })).status, 401);
   } finally {
     server.closeAllConnections();

@@ -40,7 +40,7 @@ test('native draft fallback decisions and report reasons follow the machine-read
 
 test('built-in JSON presets are discoverable, independent snapshots', () => {
   const presets = listTextStyles();
-  assert.equal(presets.length, 282);
+  assert.equal(presets.length, 240);
   assert.match(presets[0].id, /^element-/);
   assert.ok(presets.some((preset) => preset.id === 'white-outline'), 'legacy IDs remain addressable');
   assert.equal(new Set(presets.map((preset) => preset.id)).size, presets.length);
@@ -53,7 +53,7 @@ test('built-in JSON presets are discoverable, independent snapshots', () => {
 test('element pools generate reproducible independent combinations', () => {
   const library = getTextElementLibrary();
   assert.deepEqual(library.elements.fonts.map((font) => font.name), ['黑体', '方糖体', '新青年体']);
-  assert.equal(library.elements.colors.length, 12);
+  assert.equal(library.elements.colors.length, 10);
   assert.equal(library.elements.strokes.length, 7);
   const a = sampleTextStyle('same-seed');
   const b = sampleTextStyle('same-seed');
