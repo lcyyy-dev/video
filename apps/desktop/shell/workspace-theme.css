@@ -534,3 +534,27 @@
   mask-image: radial-gradient(230px circle at calc(var(--chroma-x) - 14px) calc(var(--chroma-y) - 16px), #000 12%, transparent 85%);
 }
 .project-chroma-list-item:focus-within:not(:hover) .project-chroma-color { mask-image: none; }
+
+/* Keep the complete focus halo inside the card so scroll containers cannot clip it. */
+.project-chroma-card:focus-within,
+.project-chroma-card:has([aria-pressed='true']) { outline: none; }
+.project-chroma-card:focus-within::after,
+.project-chroma-card:has([aria-pressed='true'])::after {
+  inset: 0;
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: inherit;
+  background: transparent;
+  mask: none;
+  -webkit-mask: none;
+  opacity: 1;
+  animation: project-selection-breathe 3.6s ease-in-out infinite;
+}
+@keyframes project-selection-breathe {
+  0%, 100% { border-color: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 0 0 2px color-mix(in srgb, var(--accent) 5%, transparent); }
+  50% { border-color: color-mix(in srgb, var(--accent) 75%, white); box-shadow: inset 0 0 4px color-mix(in srgb, var(--accent) 75%, transparent), inset 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .project-chroma-card:focus-within::after,
+  .project-chroma-card:has([aria-pressed='true'])::after { animation: none; }
+}
