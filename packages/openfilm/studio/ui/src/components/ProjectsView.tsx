@@ -269,7 +269,7 @@ export function ProjectsView({
               {folderId && !query.trim() ? t('projects.folderEmpty') : t('library.noMatches')}
             </div>
           ) : view === 'cards' ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
+            <div className="project-chroma-grid grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
               {showNew ? <NewProjectCard creating={creating} onNewProject={onNewProject} /> : null}
               {showFolders ? levelFolders.map((folder) => <FolderCard key={`folder:${folder.id}`} {...folderProps(folder)} />) : null}
               {visible.map((project) => <ProjectCard key={project.id} {...itemProps(project)} />)}
@@ -493,7 +493,11 @@ type NewProjectProps = {
 function NewProjectCard({ creating, onNewProject }: NewProjectProps) {
   const t = useT();
   return (
-    <article className="group min-w-0">
+    <article className="group min-w-0 project-chroma-card" onPointerMove={event => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      event.currentTarget.style.setProperty('--chroma-x', `${event.clientX - rect.left}px`);
+      event.currentTarget.style.setProperty('--chroma-y', `${event.clientY - rect.top}px`);
+    }}>
       <button
         type="button"
         onClick={() => onNewProject()}
@@ -532,14 +536,6 @@ function NewProjectListRow({ creating, onNewProject }: NewProjectProps) {
         </span>
       </button>
       <div className="min-w-0 flex-1">
-        <button
-          type="button"
-          onClick={() => onNewProject()}
-          disabled={creating}
-          className="text-left text-[14px] font-medium text-[var(--text)] hover:underline disabled:opacity-60"
-        >
-          {t('projects.newProject')}
-        </button>
         <input aria-label="项目名称" placeholder="项目名称（可选）" disabled={creating}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onNewProject(e.currentTarget.value); } }}
           className="mt-2 box-border h-8 w-full max-w-[240px] rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-[12px] text-[var(--text)] outline-none focus:border-[var(--accent)]" />
@@ -570,7 +566,11 @@ function ProjectCard({
   const language = useLanguage();
   const open = selecting ? onToggleSelect : onOpen;
   return (
-    <article className="group min-w-0">
+    <article className="group min-w-0 project-chroma-card" onPointerMove={event => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      event.currentTarget.style.setProperty('--chroma-x', `${event.clientX - rect.left}px`);
+      event.currentTarget.style.setProperty('--chroma-y', `${event.clientY - rect.top}px`);
+    }}>
       <div className="relative">
         <button
           type="button"
@@ -581,7 +581,8 @@ function ProjectCard({
           aria-label={title}
           aria-pressed={selecting ? selected : undefined}
         >
-          <PosterMedia project={project} shade />
+          <span className="project-chroma-mono"><PosterMedia project={project} shade /></span>
+          <span className="project-chroma-color" aria-hidden="true"><PosterMedia project={project} shade /></span>
           {project.missing ? <span aria-hidden className="absolute inset-0 bg-black/45" /> : null}
           {project.duration && !project.missing ? (
             <div className="absolute bottom-2 right-2 text-[10.5px] font-medium text-white/80">
@@ -693,7 +694,11 @@ function ProjectListRow({
   const language = useLanguage();
   const open = selecting ? onToggleSelect : onOpen;
   return (
-    <article className={`group flex min-w-0 items-center gap-3 py-4 sm:gap-4 ${selected ? 'bg-[var(--bg-hover)]/40' : ''}`}>
+    <article className={`project-chroma-card project-chroma-list-item group flex min-w-0 items-center gap-3 py-4 sm:gap-4 ${selected ? 'bg-[var(--bg-hover)]/40' : ''}`} onPointerMove={event => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      event.currentTarget.style.setProperty('--chroma-x', `${event.clientX - rect.left}px`);
+      event.currentTarget.style.setProperty('--chroma-y', `${event.clientY - rect.top}px`);
+    }}>
       <div className="relative shrink-0">
         <button
           type="button"
@@ -703,7 +708,7 @@ function ProjectListRow({
           }`}
           aria-label={title}
         >
-          <PosterMedia project={project} />
+          <span className="project-chroma-mono"><PosterMedia project={project} /></span><span className="project-chroma-color" aria-hidden="true"><PosterMedia project={project} /></span>
         </button>
         <SelectToggle selecting={selecting} selected={selected} onToggle={onToggleSelect} label={t('library.toggleSelect')} />
       </div>
@@ -816,7 +821,11 @@ function FolderCard({
   const t = useT();
   const language = useLanguage();
   return (
-    <article className="group min-w-0">
+    <article className="group min-w-0 project-chroma-card" onPointerMove={event => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      event.currentTarget.style.setProperty('--chroma-x', `${event.clientX - rect.left}px`);
+      event.currentTarget.style.setProperty('--chroma-y', `${event.clientY - rect.top}px`);
+    }}>
       <button
         type="button"
         onClick={onOpen}

@@ -486,3 +486,51 @@
 .quota-dial-copy small { color: var(--text-faint); font-size: 10px; }
 
 
+
+/* Project library: Chroma-inspired grayscale reveal and pointer spotlight. */
+.project-chroma-grid { gap: 20px; padding: 3px; }
+.project-chroma-card {
+  --chroma-x: -999px; --chroma-y: -999px; --chroma-accent: #89a8ff;
+  position: relative; isolation: isolate; padding: 9px; border-radius: 20px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--border); box-shadow: inset 0 1px 0 #ffffff0a, 0 8px 22px #00000020;
+  transition: box-shadow 250ms ease;
+}
+.project-chroma-card:nth-child(3n + 2) { --chroma-accent: #f5a86c; }
+.project-chroma-card:nth-child(3n) { --chroma-accent: #70d6cb; }
+.project-chroma-card::after {
+  content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 3;
+  background: radial-gradient(240px circle at var(--chroma-x) var(--chroma-y), var(--chroma-accent), transparent 75%);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude;
+  opacity: 0; transition: opacity 400ms ease;
+}
+.project-chroma-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2;
+  background: radial-gradient(230px circle at var(--chroma-x) var(--chroma-y), #ffffff12, transparent 75%);
+  opacity: 0; transition: opacity 400ms ease;
+}
+.project-chroma-card:hover::before, .project-chroma-card:hover::after { opacity: 1; }
+.project-chroma-card > div:first-child > button { border-radius: 13px; }
+.project-chroma-card > div:last-child { padding: 3px 5px 6px; }
+.project-chroma-mono, .project-chroma-color { position: absolute; inset: 0; pointer-events: none; }
+.project-chroma-mono { filter: grayscale(1) brightness(0.8); }
+.project-chroma-color {
+  mask-image: radial-gradient(230px circle at calc(var(--chroma-x) - 9px) calc(var(--chroma-y) - 9px), #000 12%, transparent 85%);
+  opacity: 0; transition: opacity 450ms ease;
+}
+.project-chroma-card:hover .project-chroma-color, .project-chroma-card:focus-within .project-chroma-color { opacity: 1; }
+.project-chroma-card:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+.project-chroma-card:focus-within:not(:hover) .project-chroma-color { mask-image: none; }
+@media (prefers-reduced-motion: reduce) {
+  .project-chroma-card, .project-chroma-card::before, .project-chroma-card::after, .project-chroma-color { transition: none; }
+}
+/* Share Chroma interaction while retaining the list's original geometry. */
+.project-chroma-card.project-chroma-list-item {
+  padding: 16px 14px; border: 0; border-radius: 12px; background: transparent; box-shadow: none;
+}
+.project-chroma-list-item > div:first-child > button { border-radius: 6px; }
+.project-chroma-list-item > div:last-child { padding: 0; }
+.project-chroma-list-item .project-chroma-color {
+  mask-image: radial-gradient(230px circle at calc(var(--chroma-x) - 14px) calc(var(--chroma-y) - 16px), #000 12%, transparent 85%);
+}
+.project-chroma-list-item:focus-within:not(:hover) .project-chroma-color { mask-image: none; }
