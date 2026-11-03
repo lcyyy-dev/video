@@ -433,3 +433,56 @@
 @media (prefers-reduced-motion: reduce) {
   .of-chat .edit-template-trigger::before { animation: none; }
 }
+
+.openfilm-mine-button {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px;
+  border: 1px solid #a8caff44; border-radius: 9px; cursor: pointer;
+  color: var(--text); font-size: 12px; font-weight: 600;
+  background: radial-gradient(ellipse at 50% 0%, #ffffff30, transparent 70%), linear-gradient(180deg, #7795c32b, #43516a18);
+  box-shadow: inset 0 1px 0 #ffffff45, inset 0 -1px 0 #00000020, 0 3px 10px #00000022;
+  transition: background 180ms, box-shadow 180ms, transform 180ms;
+}
+.openfilm-mine-button:hover { background-color: #93baff24; box-shadow: inset 0 1px 0 #ffffff70, 0 0 15px #79b5ff30; }
+.openfilm-mine-button:active { transform: translateY(1px); }
+.openfilm-mine-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Freeze only Mine's existing border; preserve its static finish. */
+.openfilm-mine-button.upload-star-border::before { animation: none !important; }
+.openfilm-mine-button { transition: none; }
+.openfilm-mine-button:active { transform: none; }
+.mine-reflective-card {
+  position: fixed; margin: auto; width: min(380px, calc(100vw - 32px));
+  padding: 26px; border-radius: 22px; color: var(--text);
+  border: 1px solid #c4d9ff55; overflow: hidden;
+  background: radial-gradient(ellipse at var(--reflect-x, 30%) var(--reflect-y, 10%), #b4ceff28, transparent 65%), linear-gradient(135deg, #303846, #181d27 50%, #2c3443);
+  box-shadow: inset 0 1px 0 #ffffff45, inset 0 -1px 0 #ffffff12, 0 24px 80px #00000080;
+}
+.mine-reflective-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(125deg, transparent 20%, #ffffff04 35%, #dceaff20 45%, #ffffff05 52%, transparent 65%);
+  background-size: 220% 220%; background-position: var(--reflect-x, 30%) var(--reflect-y, 10%);
+}
+.mine-reflective-card > * { position: relative; }
+.mine-reflective-card::backdrop { background: #05081099; backdrop-filter: blur(7px); }
+
+/* Keep the reflected light continuous, including when the pointer leaves. */
+@property --reflect-x { syntax: '<percentage>'; initial-value: 30%; inherits: true; }
+@property --reflect-y { syntax: '<percentage>'; initial-value: 10%; inherits: true; }
+.mine-reflective-card {
+  background-repeat: no-repeat;
+  transition: --reflect-x 280ms ease-out, --reflect-y 280ms ease-out;
+}
+.mine-reflective-card::before {
+  background-repeat: no-repeat;
+  background-image: linear-gradient(125deg, transparent 15%, #ffffff03 30%, #dceaff16 45%, #ffffff03 60%, transparent 78%);
+}
+
+.quota-dial { position: relative; width: 200px; height: 200px; flex-shrink: 0; pointer-events: none; }
+.quota-dial svg { width: 100%; height: 100%; }
+.quota-dial-head { filter: drop-shadow(0 0 5px currentColor); }
+.quota-dial-copy { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+.quota-dial-copy strong { font-size: 34px; font-weight: 600; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.quota-dial-copy span { color: var(--text-muted); font-size: 12px; }
+.quota-dial-copy small { color: var(--text-faint); font-size: 10px; }
+
+

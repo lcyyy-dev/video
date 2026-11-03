@@ -13,6 +13,7 @@ import { SettingsSelect } from './SettingsSelect';
 import { SettingsButton, SettingsGroup, SettingsItem, SettingsPage, SettingsSegmented, SettingsSwitch } from './ui';
 import { useThemeMode, type ThemeMode } from './theme';
 import { StorageGroup } from './StorageGroup';
+import { ActivationSettings } from './ActivationSettings';
 import { TextStylesSection } from './TextStylesSection';
 
 export type SettingsSection = 'general' | 'textStyles' | 'developer' | 'shortcuts';
@@ -212,6 +213,7 @@ function GeneralSection() {
           )}
         />
       </SettingsGroup>
+      <ActivationSettings />
       <StorageGroup />
       <PlaybackGroup />
     </SettingsPage>

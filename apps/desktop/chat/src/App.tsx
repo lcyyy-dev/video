@@ -1,3 +1,4 @@
+import { Sub2ApiSettings } from './components/Sub2ApiSettings';
 /**
  * The chat beside Studio: a conversation with an agent (the app's own, or the person's own Claude Code or Codex) about
  * the project Studio shows; switching projects there switches the conversations here.
@@ -55,7 +56,6 @@ import { referencePictures } from '@/lib/ref-pictures';
 import type { TurnFileChanges } from '@/lib/file-changes';
 import { readBalance, type TurnBalance } from '@/lib/balance';
 import { BalanceNotice } from '@/components/BalanceNotice';
-import { Sub2ApiSettings } from '@/components/Sub2ApiSettings';
 import { readStudioFilm } from '@/lib/studio-film';
 import { studioRefsFromTransfer, transferHasStudioRefs } from '@/lib/studio-transfer';
 import { agentModelSummary, agentOptions, currentAgent, effectivePrefs, offeredOption, useLocalAgents } from '@/state/local-agent-store';
@@ -89,6 +89,7 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
   initialFfmpeg: FfmpegState;
 }) {
   const t = useT();
+
   const [project, setProject] = React.useState<Project | null>(initialProject);
   const [ffmpeg, setFfmpeg] = React.useState<FfmpegState>(initialFfmpeg);
   const [browser, setBrowser] = React.useState<{ state: string; message?: string } | null>(null);
@@ -137,9 +138,9 @@ export function App({ initialProject, initialSelection, initialFfmpeg }: {
  * the person's agent (start a turn, put back a turn a reload interrupted, settle and keep it).
  */
 function ChatPane({ project, banners, selection }: { project: Project; banners: React.ReactNode; selection: StudioSelection | null }) {
+  const [mineOpen, setMineOpen] = React.useState(false);
   const t = useT();
   const projectKey = project.path;
-  const [sub2apiOpen, setSub2apiOpen] = React.useState(false);
 
   /* ── sessions ── */
   const [sessions, setSessions] = React.useState<ProjectSessionItem[]>(() => loadSessions(projectKey));
@@ -794,11 +795,11 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
       <div className="flex items-center gap-0.5 px-0.5">
         <ModelDisplay />
         <div className="min-w-0 flex-1" />
-        <Tooltip label="OpenFilm 激活">
-          <button type="button" onClick={() => setSub2apiOpen(open => !open)} className="openfilm-composer-tool" aria-label="OpenFilm 激活"><KeyRound size={16} strokeWidth={1.75} /></button>
+        {mineOpen ? <Sub2ApiSettings onClose={() => setMineOpen(false)} /> : null}
+        <Tooltip label="我的设置">
+          <button type="button" onClick={() => setMineOpen(true)} className="openfilm-mine-button upload-star-border" aria-label="我的"><KeyRound size={14} strokeWidth={1.75} /><span>我的</span></button>
         </Tooltip>
       </div>
-      {sub2apiOpen ? <Sub2ApiSettings onClose={() => setSub2apiOpen(false)} /> : null}
     </AnimatedContent>
   );
 

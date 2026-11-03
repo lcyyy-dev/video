@@ -1,37 +1,42 @@
+import { QuotaDial } from './QuotaDial';
 import React from 'react';
-import { KeyRound, X } from 'lucide-react';
-import { app } from '../app-bridge';
+import { createPortal } from 'react-dom';
+import { BadgeCheck, Fingerprint } from 'lucide-react';
+
 
 export function Sub2ApiSettings({ onClose }: { onClose: () => void }) {
-  const [activationCode, setActivationCode] = React.useState('');
-  const [message, setMessage] = React.useState('');
-  const [configured, setConfigured] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
+  const dialog = React.useRef<HTMLDialogElement>(null);
+  const entrance = React.useRef<Animation | null>(null);
+  const entering = React.useRef(false);
   React.useEffect(() => {
-    void app.sub2api.get().then(value => setConfigured(value.configured))
-      .catch(error => setMessage(error instanceof Error ? error.message : '无法读取激活状态。'));
+    const card = dialog.current;
+    if (!card) return;
+    card.showModal();
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    entering.current = true;
+    entrance.current = card.animate([
+      { '--reflect-x': '0%', '--reflect-y': '5%', offset: 0 },
+      { '--reflect-x': '100%', '--reflect-y': '85%', offset: 0.65 },
+      { '--reflect-x': '30%', '--reflect-y': '10%', offset: 1 },
+    ], { duration: 1400, easing: 'ease-in-out' });
+    entrance.current.onfinish = () => { entering.current = false; };
+    return () => { entering.current = false; entrance.current?.cancel(); };
   }, []);
-  async function activate() {
-    setBusy(true); setMessage('正在激活…');
-    try {
-      await app.sub2api.set({ activationCode: activationCode.trim() });
-      setActivationCode(''); setConfigured(true); setMessage('激活成功，后续使用自动续期。');
-    } catch (error) { setMessage(error instanceof Error ? error.message : '激活失败。'); }
-    finally { setBusy(false); }
-  }
-  async function test() {
-    setBusy(true); setMessage('正在测试模型连接…');
-    try { await app.sub2api.test(); setMessage('授权有效，模型连接成功。'); }
-    catch (error) { setMessage(error instanceof Error ? error.message : '连接失败。'); }
-    finally { setBusy(false); }
-  }
-  return <div role="dialog" aria-label="OpenFilm 激活" className="fixed bottom-[72px] right-3 z-[10000] w-[320px] rounded-[12px] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-2xl">
-    <div className="mb-3 flex items-center gap-2 text-[13px] font-medium text-[var(--text)]"><KeyRound size={14} />OpenFilm 激活<button className="ml-auto text-[var(--text-faint)]" onClick={onClose} aria-label="关闭"><X size={14} /></button></div>
-    <p className="mb-3 text-[12px] text-[var(--text-muted)]">{configured ? '此设备已激活，日常使用无需再次输入激活码。' : '首次使用请输入激活码，将授权绑定到此设备。'}</p>
-    <form onSubmit={event => { event.preventDefault(); void activate(); }}>
-      <label className="mb-3 block text-[12px] text-[var(--text-muted)]">激活码<input type="password" autoComplete="off" value={activationCode} onChange={event => setActivationCode(event.target.value)} placeholder={configured ? '输入新激活码可更换授权' : '输入你的激活码'} disabled={busy} className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 text-[12px] text-[var(--text)]" /></label>
-      <div className="flex items-center gap-2"><button type="submit" disabled={busy || !activationCode.trim()} className="h-8 rounded bg-[var(--accent)] px-3 text-[12px] text-white disabled:opacity-50">激活</button><button type="button" disabled={busy || !configured} onClick={() => void test()} className="h-8 rounded border border-[var(--border)] px-2 text-[12px] text-[var(--text)] disabled:opacity-50">测试连接</button></div>
-    </form>
-    <div role="status" className="mt-2 text-[12px] text-[var(--text-muted)]">{message || (configured ? '已激活' : '尚未激活')}</div>
-  </div>;
+  return createPortal(<dialog ref={dialog} className="mine-reflective-card" aria-label="我的授权" onCancel={event => { event.preventDefault(); onClose(); }} onClick={event => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) onClose(); } }} onPointerLeave={event => { if (entering.current) return; event.currentTarget.style.setProperty('--reflect-x', '30%'); event.currentTarget.style.setProperty('--reflect-y', '10%'); }} onPointerMove={event => { if (entering.current) return; const rect = event.currentTarget.getBoundingClientRect(); event.currentTarget.style.setProperty('--reflect-x', `${Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100))}%`); event.currentTarget.style.setProperty('--reflect-y', `${Math.max(0, Math.min(100, (event.clientY - rect.top) / rect.height * 100))}%`); }}>
+    <div className="flex min-h-[440px] flex-col">
+      <div className="flex items-center justify-between text-[13px] font-medium">
+        <span className="flex items-center gap-2"><BadgeCheck size={16} />已验证</span>
+        <span className="flex items-center gap-2 text-[var(--text-muted)]"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Action</span>
+      </div>
+      <div className="flex flex-1 items-center justify-center py-4"><QuotaDial /></div>
+      <div className="mb-7">
+        <h2 className="text-[26px] font-semibold leading-tight">xxx</h2>
+        <p className="mt-1 text-[14px] text-[var(--text-muted)]">高级会员</p>
+      </div>
+      <div className="flex items-end justify-between gap-4">
+        <div><p className="mb-1 text-[12px] text-[var(--text-muted)]">ID</p><p className="text-[14px] font-medium tracking-[0.08em]">0406 2003 0001</p></div>
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)]" aria-hidden="true"><Fingerprint size={23} strokeWidth={1.5} /></span>
+      </div>
+    </div>
+  </dialog>, document.body);
 }
