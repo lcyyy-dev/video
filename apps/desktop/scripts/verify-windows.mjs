@@ -5,10 +5,10 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { CODEX_BUILD, verifyCodexBundle } from './codex-bundle.mjs';
 
-export function verifyWindowsApp(dir, { run = process.platform === 'win32' } = {}) {
+export function verifyWindowsApp(dir, { run = process.platform === 'win32', executable = 'GainingCut.exe' } = {}) {
   const runtime = join(dir, 'resources/runtime');
   const codex = verifyCodexBundle(join(runtime, 'codex'));
-  const required = ['OpenFilm.exe', 'resources/app.asar',
+  const required = [executable, 'resources/app.asar',
     'resources/app.asar.unpacked/node_modules/@agentclientprotocol/codex-acp/dist/index.js',
     'resources/app.asar.unpacked/node_modules/openfilm/skills/ad-editing/SKILL.md',
     'resources/app.asar.unpacked/node_modules/openfilm/skills/talk-editing/SKILL.md',
@@ -20,7 +20,7 @@ export function verifyWindowsApp(dir, { run = process.platform === 'win32' } = {
   const browserDir = readdirSync(browsers).find((name) => name.startsWith('chromium_headless_shell-'));
   const browser = browserDir && join(browsers, browserDir, 'chrome-headless-shell-win64/chrome-headless-shell.exe');
   if (!browser || !existsSync(browser)) throw new Error('The Windows headless browser is missing.');
-  for (const file of [join(dir, 'OpenFilm.exe'), join(runtime, 'codex/bin/codex.exe'), browser]) {
+  for (const file of [join(dir, executable), join(runtime, 'codex/bin/codex.exe'), browser]) {
     const bytes = readFileSync(file);
     const pe = bytes.readUInt32LE(0x3c);
     if (bytes.toString('ascii', 0, 2) !== 'MZ' || bytes.readUInt32LE(pe) !== 0x4550 || bytes.readUInt16LE(pe + 4) !== 0x8664) {

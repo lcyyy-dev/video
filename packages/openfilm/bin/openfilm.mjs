@@ -19,9 +19,10 @@ const USAGE = `openfilm — a film is a function of time: given t, it draws that
 
 /* one command's help: what it does, what it takes, where its output goes */
 const COMMAND_HELP = {
-  narrate: `openfilm narrate
+  narrate: `openfilm narrate [--duration seconds]
 
   Desktop advertising only. Generate the saved body copy through the native authorized TTS gateway.
+  --duration estimates a speaking rate for an approximate target of 1–1800 seconds.
   No text, URL or output-path arguments. Prints measured sentence timing and project-relative audio paths.
   Unchanged sentence audio is reused. Requires an active OpenFilm desktop project session.`,
   'text-styles': `openfilm text-styles [list | elements | sample | rules | generation-rules | show <id> | default [id]]
@@ -185,12 +186,12 @@ for (const [name, [lo, hi, whole]] of Object.entries(RANGES)) {
 }
 const commands = {
   narrate: async () => {
-    if (args.length || Object.keys(o).length) return { ok: false, usage: true, lines: [COMMAND_HELP.narrate] };
+    if (args.length || Object.keys(o).some(key => key !== 'duration') || (o.duration !== undefined && (!Number.isFinite(Number(o.duration)) || Number(o.duration) < 1 || Number(o.duration) > 1800))) return { ok: false, usage: true, lines: [COMMAND_HELP.narrate] };
     const endpoint = process.env.OPENFILM_NARRATION_URL;
     const token = process.env.OPENFILM_NARRATION_CAPABILITY;
     let url; try { url = new URL(endpoint); } catch { throw new Error('广告旁白需要在 OpenFilm 客户端会话内生成。'); }
     if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.pathname !== '/tts/generate' || url.search || url.hash || url.username || url.password || !token) throw new Error('旁白会话地址无效。');
-    const response = await fetch(url, { method: 'POST', redirect: 'error', headers: { authorization: `Bearer ${token}` } });
+    const response = await fetch(url, { method: 'POST', redirect: 'error', headers: { authorization: `Bearer ${token}`, ...(o.duration !== undefined ? { 'x-openfilm-target-seconds': String(Number(o.duration)) } : {}) } });
     const result = await response.json();
     if (!response.ok) throw new Error(result?.error?.message ?? '旁白生成失败。');
     return { ok: true, lines: [JSON.stringify(result, null, 2)] };

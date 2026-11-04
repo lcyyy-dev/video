@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 /**
  * The chat's IPC for its agents (the sessions themselves: agents.mjs), as the chat's lib/local-agent-run.ts talks to
  * them:
@@ -52,7 +53,7 @@ import { join } from 'node:path';
 import { RECORDED_AGENTS, agentRecordCalls, compactCalls } from './agent-records.mjs';
 import { AgentSession, isAgentId, isChatAgent, listAgents, openAgentSignIn } from './agents.mjs';
 import { ProjectSession } from './project-session.mjs';
-import { loggedBlocks, openLog, writeModelLog } from './chat-store.mjs';
+import { diagnosticLoggingEnabled, loggedBlocks, openLog, writeModelLog } from './chat-store.mjs';
 import { loginShellVariables } from './environment.mjs';
 import { codexEnvironment } from './codex-runtime.mjs';
 import { assertVideoStorage, videoProjectRoot, VideoPolicyError } from './video-policy.mjs';
@@ -78,6 +79,7 @@ const RECORD_SETTLE_MS = 800;
  * started with) into the turn's model log. Never throws: a record that cannot be read leaves the turn without one.
  */
 export async function keepAgentRecord({ agent, sessionId, cwd, turnId, from, to, agentLog = null, log = () => {}, settleMs = RECORD_SETTLE_MS }) {
+  if (!diagnosticLoggingEnabled()) return;
   if (!RECORDED_AGENTS.includes(agent) || !sessionId || !turnId) return;
   try {
     await new Promise((done) => setTimeout(done, settleMs));
@@ -108,7 +110,7 @@ function imageBlocks(images) {
  *           onWorking?: (folders: string[]) => void, onAsking?: (folders: string[]) => void,
  *           skills?: { dataDir: string, mine: string } | null }} opts
  */
-export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbackDir = null, env = {}, log = () => {}, onWorking = () => {}, onAsking = () => {}, skills = null, videoSecurity = null }) {
+export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbackDir = null, env = {}, diagnostics = true, log = () => {}, onWorking = () => {}, onAsking = () => {}, skills = null, videoSecurity = null }) {
   /** @type {Map<string, { session: AgentSession, sender: import('electron').WebContents, pending: Map<string, (answer: any) => void>, agent: string, cwd: string, turn: any }>} */
   const sessions = new Map();
   let activePrompts = 0;
@@ -153,9 +155,10 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     const entry = sessions.get(key);
     if (!entry) return;
     for (const answer of entry.pending.values()) answer(null);
-    void Promise.resolve(entry.session.close()).catch(() => log('video session cleanup failed\n'));
+    const closing = Promise.resolve(entry.session.close()).catch(() => log('video session cleanup failed\n'));
     sessions.delete(key);
     if (entry.running > 0) onWorking(working());
+    return closing;
   };
 
   handle('desktop:local-agents:list', () => listAgents(CLIENT_AGENTS));
@@ -213,6 +216,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
     const entry = { sender: event.sender, pending, session: null, agent, cwd, turn: null, lastUsed: Date.now() };
     try {
       entry.session = new ProjectSession({
+        diagnostics,
         agent,
         cwd,
         resume,
@@ -403,6 +407,7 @@ export function registerLocalAgentIpc(ipcMain, { trusted, binDir = null, fallbac
   return {
     isBusy: () => activePrompts > 0,
     working,
+    closeProject: async project => { await Promise.all([...sessions].filter(([, entry]) => resolve(entry.cwd) === resolve(project)).map(([key]) => close(key))); },
     closeAll: () => [...sessions.keys()].forEach(close),
     /** an agent disconnected in Settings: its sessions close */
     closeAgent: (agent) => { for (const [key, entry] of [...sessions]) if (entry.agent === agent) close(key); },

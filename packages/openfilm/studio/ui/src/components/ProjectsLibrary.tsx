@@ -238,7 +238,7 @@ export function ProjectsPopover({
    * Open a dropped folder or ask through the desktop system folder picker.
    */
   async function openFolder(path?: string) {
-    if (!path && !studioHost?.folders) { lib.flash('请在 OpenFilm 客户端中打开文件夹。'); return; }
+    if (!path && !studioHost?.folders) { lib.flash('请在 GainingCut 客户端中打开文件夹。'); return; }
     const folder = path ?? await studioHost?.folders?.pick();
     if (!folder) return;
     try {
@@ -268,7 +268,7 @@ export function ProjectsPopover({
 
   /** Relocate a missing project through the desktop system folder picker. */
   async function locate(project: LibraryProject) {
-    if (!studioHost?.folders) { lib.flash('请在 OpenFilm 客户端中定位文件夹。'); return; }
+    if (!studioHost?.folders) { lib.flash('请在 GainingCut 客户端中定位文件夹。'); return; }
     const folder = await studioHost.folders.pick();
     if (!folder) return;
     try {

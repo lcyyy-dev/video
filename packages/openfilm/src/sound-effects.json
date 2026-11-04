@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "name": "音效库",
+  "items": [
+    {
+      "id": "sfx-001",
+      "name": "buling",
+      "file": "sounds/buling.mp3",
+      "duration": 2.808,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 112370,
+      "sha256": "43704698032f185fbdae7e5eae57951448dcb205e7224cebdfb11254856d428b"
+    },
+    {
+      "id": "sfx-002",
+      "name": "一滴水",
+      "file": "sounds/一滴水.mp3",
+      "duration": 1.68,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 67250,
+      "sha256": "53e0f2eab421b5656ff0f1a474f79c352e2a9f4e9fc2989c476d0c88d363d14c"
+    },
+    {
+      "id": "sfx-003",
+      "name": "卡通-上升",
+      "file": "sounds/卡通-上升.mp3",
+      "duration": 1.344,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 53810,
+      "sha256": "17a289b932803a7f6b54526b597449f87c1f27f3ccb0f6b4ab49901eeaa095c5"
+    },
+    {
+      "id": "sfx-004",
+      "name": "咚咚",
+      "file": "sounds/咚咚.mp3",
+      "duration": 1.152,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 46130,
+      "sha256": "6a22de80acc25900883fb33e82bf25ee4cbb87ed891a293060378415be7b2f9d"
+    },
+    {
+      "id": "sfx-005",
+      "name": "唰",
+      "file": "sounds/唰.mp3",
+      "duration": 0.552,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 22130,
+      "sha256": "70858298e379b815f308cc1a2003c0a46a7d3db344bd50b2d3d4d7bc0b6a00b6"
+    },
+    {
+      "id": "sfx-006",
+      "name": "啵",
+      "file": "sounds/啵.mp3",
+      "duration": 0.408,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 16370,
+      "sha256": "26bca1325d60f8d22479cbc6e689abff37580404c81d65f91f1ca293ce4cff55"
+    },
+    {
+      "id": "sfx-007",
+      "name": "啾",
+      "file": "sounds/啾.mp3",
+      "duration": 0.6,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 24050,
+      "sha256": "762c010f16d29fcd8b5d0948911a1c61d58bad3700884fc98c3340339df25c4d"
+    },
+    {
+      "id": "sfx-008",
+      "name": "嘟咚",
+      "file": "sounds/嘟咚.mp3",
+      "duration": 0.72,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 28850,
+      "sha256": "08674b11f0bf638c372a598350ff98f0e2c9f2553f69e973e47f32bef7af2be4"
+    },
+    {
+      "id": "sfx-009",
+      "name": "嘭",
+      "file": "sounds/嘭.mp3",
+      "duration": 1.176,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 47090,
+      "sha256": "56de494186fb0656098af8615e5531aa85082d641aac2ba089f49afc445a5b02"
+    },
+    {
+      "id": "sfx-010",
+      "name": "打字",
+      "file": "sounds/打字.mp3",
+      "duration": 1.488,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 59570,
+      "sha256": "b3b8a72ad26e472d05fb172c3e66f6af87c1bd98339f6832050b5774c405e9da"
+    },
+    {
+      "id": "sfx-011",
+      "name": "拉扯",
+      "file": "sounds/拉扯.mp3",
+      "duration": 0.6,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 24050,
+      "sha256": "e295f77fcc4af6e84911eec75712d44e3a49520eee00e2eef7233cdd14566c66"
+    },
+    {
+      "id": "sfx-012",
+      "name": "收银机",
+      "file": "sounds/收银机.mp3",
+      "duration": 2.328,
+      "sampleRate": 48000,
+      "channels": 2,
+      "bytes": 93170,
+      "sha256": "7288fe421cf3b24196603678ac68c39c2cfb45f970459290aa860474dc52f19d"
+    }
+  ]
+}

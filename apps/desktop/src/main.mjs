@@ -1,3 +1,6 @@
+import { cleanupStaleTemporaries } from 'openfilm/temporary-files';
+import { configureDiagnosticLogging } from './chat-store.mjs';
+import { removeProjectRuntime } from './project-runtime.mjs';
 /**
  * OpenFilm for desktop: one window of tabs, a project in each, Studio on the left and a chat on the right, one page
  * per tab (tabs.mjs). A project is picked in Studio's projects window (the tabs' `+`), and its tab opens; with no tab
@@ -35,7 +38,7 @@ import { startUpdates } from './updates.mjs';
 import { ensureFfmpeg, ffmpegDir, ffmpegDownloadable, ffmpegIn, ffmpegOnPath } from './ffmpeg-runtime.mjs';
 import { PATH_SEP } from './environment.mjs';
 import { createTabs } from './tabs.mjs';
-import { gatewayConfig, activateGateway, checkGatewayAuthorization, checkSub2ApiConfig, publicSub2ApiConfig, gatewayEndpoint, probeGatewayAuthorization } from './sub2api-config.mjs';
+import { personalProfile, getPersonalQuota, gatewayConfig, activateGateway, checkGatewayAuthorization, checkSub2ApiConfig, publicSub2ApiConfig, gatewayEndpoint, probeGatewayAuthorization } from './sub2api-config.mjs';
 import { authorizationController } from './authorization-state.mjs';
 import { precomputeUploadFrames } from './source-analysis.mjs';
 
@@ -58,11 +61,14 @@ if (process.platform === 'linux' && process.env.WAYLAND_DISPLAY) {
 
 /* each flavour its own name, data folder and single-instance lock (flavor.mjs) */
 app.setName(PRODUCT_NAME);
-app.setPath('userData', IDENTITY.userData ?? join(app.getPath('appData'), PRODUCT_NAME));
+app.setPath('userData', IDENTITY.userData ?? join(app.getPath('appData'), IDENTITY.dataName ?? PRODUCT_NAME));
 const DATA = app.getPath('userData');
 const LOGS = join(DATA, 'logs');
-mkdirSync(LOGS, { recursive: true });
-const log = (line) => { try { appendFileSync(join(LOGS, 'studio.log'), line); } catch { /* no log */ } };
+mkdirSync(DATA, { recursive: true });
+const DIAGNOSTICS = !app.isPackaged;
+configureDiagnosticLogging(DIAGNOSTICS);
+if (DIAGNOSTICS) mkdirSync(LOGS, { recursive: true });
+const log = (line) => { if (!DIAGNOSTICS) return; try { appendFileSync(join(LOGS, 'studio.log'), line); } catch { /* no log */ } };
 const sub2apiStorage = () => ({...credentialStorage({safeStorage,dataDir:DATA}),onAuthorizationInvalidated:()=>authorization.invalidate()});
 
 if (!app.requestSingleInstanceLock()) {
@@ -360,9 +366,13 @@ async function runStudio(env) {
     home: env.OPENFILM_HOME,
     port: IDENTITY.studioPort,
     /* Studio serves the window's page as its editor (shell/: its editor with the chat beside it) */
-    env: { ...env, OPENFILM_EDITOR_DIR: here('../shell/dist/'),
+    env: { ...env, OPENFILM_TEMP_REGISTRY: process.env.OPENFILM_TEMP_REGISTRY, OPENFILM_EDITOR_DIR: here('../shell/dist/'),
       ...(process.env.OPENFILM_SKIP_BROWSER_DOWNLOAD === '1' ? { OPENFILM_SKIP_BROWSER_DOWNLOAD: '1' } : {}) },
     log,
+    onProjectDeleted: async path => {
+      await localAgents?.closeProject(path);
+      await removeProjectRuntime(DATA, path).catch(() => {});
+    },
     onOpen: (url) => {
       /* Studio would open a browser for an address of its own: the window already shows Studio */
       if (studio && url.startsWith(studio.origin)) focusWindow();
@@ -389,10 +399,16 @@ async function runStudio(env) {
 }
 
 async function start() {
+  const tempRegistry = join(DATA, 'temporary-registry');
+  process.env.OPENFILM_TEMP_REGISTRY = tempRegistry;
+  await cleanupStaleTemporaries(tempRegistry).catch(() => {});
+  const cleanupTimer = setInterval(() => { void cleanupStaleTemporaries(tempRegistry).catch(() => {}); }, 60000);
+  cleanupTimer.unref();
   const shellEnv = await loginShellEnvironment();
   const env = childEnvironment({
     shell: shellEnv,
     extra: {
+      OPENFILM_TEMP_REGISTRY: tempRegistry,
       OPENFILM_HOME: IDENTITY.studioHome ?? process.env.OPENFILM_HOME ?? join(app.getPath('home'), '.openfilm'),
       ...((IDENTITY.library ?? process.env.OPENFILM_LIBRARY) ? { OPENFILM_LIBRARY: IDENTITY.library ?? process.env.OPENFILM_LIBRARY } : {}),
       /* the app names Studio's home, which would put exports inside it (Studio's rule for a home kept apart): the
@@ -458,6 +474,9 @@ async function start() {
   });
   ipc.handle('desktop:clipboard-text', (event) => fromPage(event) ? clipboard.readText() : '');
   ipc.handle('desktop:sub2api:status', event => fromPage(event) ? authorizationStatus() : { authorized: false });
+  ipc.handle('desktop:sub2api:profile', event => fromPage(event) ? personalProfile(DATA, sub2apiStorage()) : null);
+  ipc.handle('desktop:sub2api:rename', (event, username) => fromPage(event) ? personalProfile(DATA, sub2apiStorage(), typeof username === 'string' ? username : null) : null);
+  ipc.handle('desktop:sub2api:quota', event => fromPage(event) ? getPersonalQuota(DATA, sub2apiStorage()) : null);
   ipc.handle('desktop:sub2api:get', event => fromPage(event) ? publicSub2ApiConfig(DATA, sub2apiStorage()) : null);
   ipc.handle('desktop:sub2api:set', async (event, input) => {
     if (!fromPage(event)) throw new Error('not the window\'s page');
@@ -516,6 +535,7 @@ async function start() {
   /* the person's own skills: Skills/ beside this app's projects (~/Movies/OpenFilm/Skills), as its `openfilm` finds them */
   const mySkills = process.env.OPENFILM_SKILLS || (env.OPENFILM_LIBRARY ? join(dirname(env.OPENFILM_LIBRARY), 'Skills') : (await import('openfilm/skills')).mySkillsDir());
   localAgents = registerLocalAgentIpc(ipc, {
+    diagnostics: DIAGNOSTICS,
     trusted: fromPage,
     log,
     /* Studio refuses to delete a project an agent is working in */
@@ -524,9 +544,9 @@ async function start() {
     onAsking: (folders) => void tellTabsWorking({ asking: folders }),
     /* the `openfilm` command first (with the app's ffmpeg and browser in it); the app's ffmpeg last, for a computer
        that has none of its own: the person's own ffmpeg and browsers are what the agent's commands use */
-    binDir: installOpenfilmCommand(DATA, { ffmpeg: ffmpegHere, env: browsers }),
+    binDir: installOpenfilmCommand(DATA, { ffmpeg: ffmpegHere, env: { ...browsers, OPENFILM_TEMP_REGISTRY: tempRegistry } }),
     fallbackDir: ffmpegHere,
-    env: { OPENFILM_HOME: env.OPENFILM_HOME, ...(env.OPENFILM_LIBRARY ? { OPENFILM_LIBRARY: env.OPENFILM_LIBRARY } : {}) },
+    env: { OPENFILM_TEMP_REGISTRY: tempRegistry, OPENFILM_HOME: env.OPENFILM_HOME, ...(env.OPENFILM_LIBRARY ? { OPENFILM_LIBRARY: env.OPENFILM_LIBRARY } : {}) },
     /* each session's skills: its maker's, OpenFilm's, and of the person's own those let in (agent-skills.mjs) */
     skills: { dataDir: DATA, mine: mySkills },
     videoSecurity: {

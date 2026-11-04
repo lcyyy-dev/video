@@ -201,3 +201,17 @@ docker compose -f compose.yaml -f compose.host.yaml -f compose.source.yaml -f co
 node --env-file=.env --test server.test.mjs admin.test.mjs observability.test.mjs gateway-logging.test.mjs log-store.test.mjs tts.test.mjs
 AUTH_UI_BROWSER=/path/to/chromium node --env-file=.env --test admin-ui.browser.test.mjs
 ```
+
+### 个人 Key 额度
+
+`GET /account/quota` 使用设备签名与 access token，并实时校验 Keygen 许可证及设备关联。网关按许可证映射的用户 Key 查询 Sub2API `/v1/usage`，只返回 `limit`、`used`、`remaining`、`percent`（0–100）和 `unit`（USD），不返回上游 Key 或原始用量响应。没有 Key 总限额时数值为 null，不使用钱包余额计算百分比。上游失败返回 502，不表示额度耗尽。桌面端在打开个人卡片时查询；部署时需更新网关并重新构建桌面端。
+
+### 授权用户资料
+
+用户资料保存在 PostgreSQL 的 `gateway_accounts.license_profiles` 表，通过 `license_id` 关联 Keygen 授权，不改动 Keygen 上游业务表。字段为 `username`（默认“用户”加六位随机数字，用户可修改，最长 8 个 Unicode 字符）与 `user_id`（固定前缀 `0406 2003`，后四位从未使用的 0001–9999 随机分配，用户不可修改）。事务锁和唯一约束保证并发分配不重复，删除模型 Key 映射不会删除资料或回收 ID；四位空间用尽后明确报错。
+
+中文管理页和 `provision.mjs issue` 创建授权时自动创建资料；网关启动为已有映射补齐资料，其他已授权许可证按需补齐。后台列表展示用户名和用户 ID，管理备注独立保留。用户名变更不改变激活码、用户 ID 或模型 Key。
+
+`GET /account/profile` 返回当前设备绑定许可证的 `{username,userId}`。`PATCH /account/profile` 只接受 `{username}`，拒绝 ID 等额外字段；均校验设备签名、凭证、Keygen 设备授权和映射。个人卡片点击用户名旁的编辑按钮修改并保存，ID 只读。
+
+默认连接使用 `LOG_DATABASE_URL`，可用 `PROFILE_DATABASE_URL` 指向独立 PostgreSQL。即使管理页日志使用只读的 `LOG_DATABASE_READ_URL`，资料连接也需要写权限及首次建表权限。`gateway_accounts` 不受日志保留期清理影响。源码挂载部署需更新 `compose.source.yaml` 后重新创建 gateway、admin 容器以挂载 `profiles.mjs`。

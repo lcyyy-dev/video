@@ -7,6 +7,7 @@ services:
       - ./logs.mjs:/app/logs.mjs:ro
       - ./log-fields.mjs:/app/log-fields.mjs:ro
       - ./log-store.mjs:/app/log-store.mjs:ro
+      - ./profiles.mjs:/app/profiles.mjs:ro
       - ./tts.mjs:/app/tts.mjs:ro
       - ./node_modules:/app/node_modules:ro
   admin:
@@ -17,6 +18,7 @@ services:
       - ./logs.mjs:/app/logs.mjs:ro
       - ./log-fields.mjs:/app/log-fields.mjs:ro
       - ./log-store.mjs:/app/log-store.mjs:ro
+      - ./profiles.mjs:/app/profiles.mjs:ro
       - ./node_modules:/app/node_modules:ro
   monitor:
     volumes:
@@ -24,11 +26,13 @@ services:
       - ./logs.mjs:/app/logs.mjs:ro
       - ./log-fields.mjs:/app/log-fields.mjs:ro
       - ./log-store.mjs:/app/log-store.mjs:ro
+      - ./profiles.mjs:/app/profiles.mjs:ro
       - ./node_modules:/app/node_modules:ro
   log-init:
     volumes:
       - ./log-db.mjs:/app/log-db.mjs:ro
       - ./legacy-logs.mjs:/app/legacy-logs.mjs:ro
       - ./log-store.mjs:/app/log-store.mjs:ro
+      - ./profiles.mjs:/app/profiles.mjs:ro
       - ./log-fields.mjs:/app/log-fields.mjs:ro
       - ./node_modules:/app/node_modules:ro

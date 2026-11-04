@@ -1,3 +1,4 @@
+import { openProfileStore } from './profiles.mjs';
 // Server-side administration only. Never include this directory in client packages.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -23,14 +24,17 @@ if (command === 'policy') {
   if (!process.env.KEYGEN_POLICY_ID || !keyFile || !outputFile) throw new Error('用法: KEYGEN_POLICY_ID=... node provision.mjs issue sub2api-key文件 激活信息输出文件');
   const apiKey = readFileSync(keyFile, 'utf8').trim();
   if (!apiKey) throw new Error('sub2api Key 不能为空');
+  const profiles = await openProfileStore(process.env.PROFILE_DATABASE_URL || process.env.LOG_DATABASE_URL);
   const license = await api('/licenses', { type: 'licenses', relationships: { policy: { data: { type: 'policies', id: process.env.KEYGEN_POLICY_ID } } } });
   const mappingFile = process.env.MAPPING_FILE ?? './data/mappings.json';
   mkdirSync(dirname(mappingFile), { recursive: true, mode: 0o700 });
   let mappings = {};
   try { mappings = JSON.parse(readFileSync(mappingFile, 'utf8')); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+  const profile = await profiles.ensure(license.id);
+  await profiles.close();
   mappings[license.id] = { apiKey };
   writeFileSync(mappingFile, JSON.stringify(mappings, null, 2), { mode: 0o600 });
-  writeFileSync(outputFile, JSON.stringify({ licenseId: license.id, activationCode: license.attributes.key }, null, 2), { mode: 0o600, flag: 'wx' });
+  writeFileSync(outputFile, JSON.stringify({ licenseId: license.id, activationCode: license.attributes.key, ...profile }, null, 2), { mode: 0o600, flag: 'wx' });
   console.log('已创建授权、关联用户 Key 并将激活信息写入指定文件。');
 } else {
   throw new Error('命令: policy 或 issue');

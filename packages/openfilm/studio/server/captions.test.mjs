@@ -397,3 +397,15 @@ test('a transcript that runs past the end of its file is listed to be made again
   assert.deepEqual(shorter.untranscribed, ['assets/vo.mp3']);
   assert.ok(shorter.cues.length > 0, 'still shown until it is made again');
 });
+
+
+test('generated narration never adds captions from legacy VTT files', async () => {
+  const root = project([{ clips: [
+    { id: 'tts', src: 'assets/narration/voice.mp3', time: [0, 3] },
+    { id: 'original', src: 'assets/vo.mp3', time: [0, 3], at: 4 },
+  ] }], { 'assets/narration/voice.vtt': VTT, 'assets/vo.vtt': VTT });
+  const { cues, untranscribed } = await filmCaptions(root, noProbe);
+  assert.ok(cues.length > 0);
+  assert.ok(cues.every(cue => cue.clip === 'original'));
+  assert.deepEqual(untranscribed, []);
+});

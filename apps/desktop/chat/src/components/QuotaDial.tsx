@@ -1,10 +1,10 @@
 import React from 'react';
 
 /** Read-only: null is unknown, never an exhausted balance. */
-export function QuotaDial({ percent = null }: { percent?: number | null }) {
+export function QuotaDial({ percent = null, message = '暂无额度数据' }: { percent?: number | null; message?: string }) {
   const value = percent != null && Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : null;
   const color = value == null ? '#8290a4' : value === 0 ? '#000000' : value >= 50 ? '#ffffff' : value >= 20 ? '#facc15' : '#ef4444';
-  return <div className="quota-dial" role="img" aria-label={value == null ? '剩余额度：暂无数据' : `剩余额度 ${value}%`} style={{ color }}>
+  return <div className="quota-dial" role="img" aria-label={value == null ? `剩余额度：${message}` : `剩余额度 ${value}%`} style={{ color }}>
     <svg viewBox="0 0 200 200" aria-hidden="true">
       <circle cx="100" cy="100" r="78" fill="none" stroke="currentColor" strokeOpacity="0.08" />
       {Array.from({ length: 60 }, (_, index) => {
@@ -14,6 +14,6 @@ export function QuotaDial({ percent = null }: { percent?: number | null }) {
       })}
       {value != null && value > 0 && <circle cx="100" cy="19" r="3.5" transform={`rotate(${value * 3.6} 100 100)`} fill="currentColor" className="quota-dial-head" />}
     </svg>
-    <div className="quota-dial-copy"><strong>{value == null ? '—' : `${Math.round(value)}%`}</strong><span>剩余额度</span>{value == null && <small>暂无额度数据</small>}</div>
+    <div className="quota-dial-copy"><strong>{value == null ? '—' : `${Math.round(value)}%`}</strong><span>剩余额度</span>{value == null && <small>{message}</small>}</div>
   </div>;
 }

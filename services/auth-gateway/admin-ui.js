@@ -19,9 +19,9 @@ const button = (parent, text, action, danger = false) => { const b = document.cr
 function showCode(code) { $('#activation-code').value = code; $('#code-dialog').showModal(); }
 function render() {
   const filter = $('#search').value.toLowerCase(); $('#licenses').replaceChildren();
-  for (const license of licenses.filter(l => `${l.name} ${l.id} ${l.key}`.toLowerCase().includes(filter))) {
+  for (const license of licenses.filter(l => `${l.username ?? ''} ${l.userId ?? ''} ${l.name} ${l.id} ${l.key}`.toLowerCase().includes(filter))) {
     const row = document.createElement('tr');
-    const identity = cell(row, license.name || '未填写备注'); const id = document.createElement('code'); id.textContent = license.id; identity.append(document.createElement('br'), id);
+    const identity = cell(row, [license.username, license.userId, license.name].filter(Boolean).join(' · ') || '未填写备注'); const id = document.createElement('code'); id.textContent = license.id; identity.append(document.createElement('br'), id);
     cell(row, license.suspended ? '已停用' : license.expiry && new Date(license.expiry) < new Date() ? '已到期' : '有效'); cell(row, license.mapped ? `已关联 · 指纹 ${license.keyRef??''}` : '未关联，无法调用');
     cell(row, license.expiry ? new Date(license.expiry).toLocaleString() : '长期');
     const actions = cell(row, ''); actions.className = 'actions';

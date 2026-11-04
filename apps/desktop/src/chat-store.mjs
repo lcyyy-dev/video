@@ -29,6 +29,11 @@ import { createWriteStream, existsSync, mkdirSync, readFileSync, readdirSync, re
 import { join } from 'node:path';
 
 /** a turn's id (`local:…`) and the file it names (no `:`, which Windows does not allow in a name) */
+// Only development builds write local diagnostic records; conversations remain normal project data.
+let diagnosticsEnabled = true;
+export const diagnosticLoggingEnabled = () => diagnosticsEnabled;
+export function configureDiagnosticLogging(enabled) { diagnosticsEnabled = enabled === true; }
+
 const ID = /^[\w:-]{1,120}$/;
 const fileOf = (id) => id.replace(/:/g, '-');
 /** a log longer than this is read from its end: the last of a very long turn is what explains how it ended */
@@ -157,6 +162,7 @@ const IMAGE_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp
  * went without carrying its bytes; → its path in the project (`.film/logs/images/<sha1>.<ext>`), or null.
  */
 export function saveLogImage(project, data, mimeType) {
+  if (!diagnosticsEnabled) return null;
   try {
     const bytes = Buffer.from(String(data ?? ''), 'base64');
     if (!bytes.length) return null;
@@ -170,6 +176,7 @@ export function saveLogImage(project, data, mimeType) {
 
 /** A message's blocks as the log keeps them: each picture's bytes kept apart (saveLogImage), the rest as it went. */
 export function loggedBlocks(project, blocks) {
+  if (!diagnosticsEnabled) return [];
   return (Array.isArray(blocks) ? blocks : []).map((b) => (b?.type === 'image' && typeof b.data === 'string'
     ? { type: 'image', mimeType: b.mimeType, bytes: Buffer.byteLength(b.data, 'base64'), file: saveLogImage(project, b.data, b.mimeType) }
     : b));
@@ -177,6 +184,7 @@ export function loggedBlocks(project, blocks) {
 
 /** Write a turn's model requests whole (lines as agent-records.mjs compactCalls makes them), in place of any before. */
 export function writeModelLog(project, turnId, lines) {
+  if (!diagnosticsEnabled) return;
   if (typeof turnId !== 'string' || !ID.test(turnId)) return;
   const dir = logsDir(project);
   mkdirSync(dir, { recursive: true });
@@ -188,6 +196,7 @@ export function writeModelLog(project, turnId, lines) {
  * Never throws: a log that cannot be written does not stop the turn. `part` '.model': its model requests' log.
  */
 export function openLog(project, turnId, onError = () => {}, part = '') {
+  if (!diagnosticsEnabled) return { write() {}, end() {} };
   if (typeof turnId !== 'string' || !ID.test(turnId)) return { write() {}, end() {} };
   let stream = null;
   try {

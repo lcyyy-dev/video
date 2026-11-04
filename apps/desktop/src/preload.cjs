@@ -104,6 +104,9 @@ contextBridge.exposeInMainWorld('openfilmNative', {
     onChange: on('desktop:prefs'),
   },
   sub2api: {
+    profile: () => ipcRenderer.invoke('desktop:sub2api:profile'),
+    rename: username => ipcRenderer.invoke('desktop:sub2api:rename', username),
+    quota: () => ipcRenderer.invoke('desktop:sub2api:quota'),
     status: () => ipcRenderer.invoke('desktop:sub2api:status'),
     onAuthorization: on('desktop:authorization'),
     get: () => ipcRenderer.invoke('desktop:sub2api:get'),

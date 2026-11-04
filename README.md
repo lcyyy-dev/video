@@ -2,8 +2,7 @@
 
 <p align="center">
   <br>
-  <img src="docs/logo-light.svg#gh-light-mode-only" alt="OpenFilm" height="72">
-  <img src="docs/logo-dark.svg#gh-dark-mode-only" alt="OpenFilm" height="72">
+  <img src="docs/logo.png" alt="小源ai" height="72">
 </p>
 
 <h3 align="center">The open source AI video agent.</h3>

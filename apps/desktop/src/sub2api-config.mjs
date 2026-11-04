@@ -63,7 +63,7 @@ export function publicSub2ApiConfig(dataDir, storage = {}) {
 /** Workspace access depends only on saved activation. Cloud requests validate authorization separately. */
 export async function checkGatewayAuthorization(dataDir, storage = {}) {
   try {
-    if (!gatewayConfig(dataDir, storage)) return { authorized: false, message: '请输入激活码以使用 OpenFilm。' };
+    if (!gatewayConfig(dataDir, storage)) return { authorized: false, message: '请输入激活码以使用 GainingCut。' };
     return { authorized: true, message: '' };
   } catch(error) { return { authorized: false, message:error instanceof VideoPolicyError?error.message:'无法读取本机激活凭据，请恢复应用数据或重新激活。' }; }
 }
@@ -108,4 +108,24 @@ export async function checkSub2ApiConfig(dataDir, fetchImpl = fetch, storage = {
   const replied = result?.output?.some?.(item => item.type === 'message' && item.content?.some?.(part => part.type === 'output_text' && typeof part.text === 'string' && part.text.trim()));
   if (result?.status !== 'completed' || !replied) throw new VideoPolicyError('模型未成功完成回复，请检查模型配置。');
   return { ok: true, baseUrl: config.baseUrl, model: config.model };
+}
+
+export async function getPersonalQuota(dataDir, storage = {}, fetchImpl = fetch) {
+  const config = gatewayConfig(dataDir, storage, fetchImpl);
+  if (!config) throw new VideoPolicyError('请先输入激活码完成激活。');
+  const response = await config.fetchImpl(`${new URL(config.baseUrl).origin}/account/quota`, { method: 'GET', signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new VideoPolicyError('个人额度查询失败，请稍后重试。');
+  return response.json();
+}
+
+export async function personalProfile(dataDir, storage = {}, username, fetchImpl = fetch) {
+  const config = gatewayConfig(dataDir, storage, fetchImpl);
+  if (!config) throw new VideoPolicyError('请先完成激活。');
+  const updating = username !== undefined;
+  const response = await config.fetchImpl(`${new URL(config.baseUrl).origin}/account/profile`, {
+    method: updating ? 'PATCH' : 'GET', signal: AbortSignal.timeout(20000),
+    ...(updating ? { headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username }) } : {}),
+  });
+  if (!response.ok) throw new VideoPolicyError(response.status === 400 ? '用户名需要为 1–8 个字符，不能包含控制字符。' : '用户资料请求失败，请稍后重试。');
+  return response.json();
 }

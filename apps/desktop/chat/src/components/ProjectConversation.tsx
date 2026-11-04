@@ -4,8 +4,6 @@ import React from 'react';
 import type { PublicProgressSnapshot, TurnAttachment } from '@openfilm/shared';
 import { BellRing, Check, ChevronRight, Copy, Play } from 'lucide-react';
 import { AgentActivityList, formatWorkDuration, StatusLine, type AgentActivityItem } from './AgentActivityRow';
-import { AgentIcon, hasAgentIcon } from './AgentIcons';
-import { BrandLogo } from './BrandLogo';
 import { StickToBottomContext } from './useStickToBottom';
 import { answerStart, countedSteps } from '@/lib/agent-activity-runs';
 import {
@@ -24,9 +22,8 @@ import {
 import { useT, useUiLocale } from '@/i18n';
 import { relativeTime, useMinuteTick } from '@/lib/relative-time';
 import { isPendingAssetId } from '@/lib/asset-lists';
-import { TurnLogButton } from './TurnLog';
 import { FileChangesList } from './FileChangesList';
-import { ChatProjectContext, useDeveloperMode, useShowChanges } from '@/lib/developer';
+import { useShowChanges } from '@/lib/developer';
 import { isVideoAttachment } from '@/lib/composer-attachments';
 
 /** What past turns get as "no live process". One constant: a new array each time would defeat the memo. */
@@ -618,11 +615,6 @@ function WorkSummary({ items, durationMs }: { items: AgentActivityItem[]; durati
   );
 }
 
-const AGENT_NAMES: Record<string, string> = {
-  codex: 'Codex', claude: 'Claude Code', gemini: 'Gemini CLI', copilot: 'GitHub Copilot', cursor: 'Cursor',
-  opencode: 'OpenCode', codebuddy: 'CodeBuddy', qwen: 'Qwen Code', kimi: 'Kimi',
-};
-
 /** The hover-only line: transparent but keeping its space (nothing jumps as the mouse moves); always shown on devices without hover. */
 /* Kept visible by keyboard focus only (:focus-visible): after a click on copy the focus stays on the button,
    and with focus-within the line would never hide again. */
@@ -674,38 +666,21 @@ function TurnFooter({ entry, items, running = false }: { entry: ProjectVersion; 
   const when = running ? null : relativeTime(entry.settledAt, locale, now);
   const outcome = running ? null : entry.outcome === 'stopped' ? t('turnFrame.stopped')
     : entry.outcome === 'failed' ? t('turnFrame.failed')
-      : entry.outcome === 'balance' && entry.balance ? t('turnFrame.balance').replaceAll('{provider}', entry.balance.provider)
+      : entry.outcome === 'balance' && entry.balance ? t('turnFrame.balance').replaceAll('{provider}', '服务')
         : null;
 
-  const developer = useDeveloperMode();
-  const project = React.useContext(ChatProjectContext);
 
   return (
     /* -mt-1.5: the footer belongs to the reply above it — close to it, not a row of its own */
     <div className={`-mt-1.5 flex h-6 min-w-0 items-center gap-1.5 text-[11.5px] text-[var(--chat-hint)] group-hover/reply:opacity-100 ${HOVER_LINE}`}>
       {answer ? <CopyButton text={answer} /> : null}
-      {/* developer mode (Settings → Developer): the turn as it happened, every event; while it runs, as it goes */}
-      {developer && project && !isPendingAssetId(entry.assetId) ? <TurnLogButton project={project} turnId={entry.assetId} live={running} /> : null}
-      {entry.agent ? (
-        <span className="flex min-w-0 items-center gap-1.5">
-          {/* the icon says which agent (its name on hover); written out it would only repeat it */}
-          <span className="flex w-3.5 shrink-0 justify-center opacity-80" title={entry.agent === 'byok' ? t('composer.agentOwnKey') : AGENT_NAMES[entry.agent] ?? entry.agent}>
-            {hasAgentIcon(entry.agent)
-              ? <AgentIcon id={entry.agent} size={12} />
-              : <BrandLogo size={11} />}
-          </span>
-          <span className="truncate">{[entry.model, when].filter(Boolean).join(' · ')}</span>
-        </span>
-      ) : when ? <span>{when}</span> : null}
+      {when ? <span>{when}</span> : null}
       {outcome ? (
         <span className={entry.outcome === 'stopped' ? '' : 'text-[var(--warn)]'}>
-          {entry.agent || when ? '· ' : ''}{outcome}
+          {when ? '· ' : ''}{outcome}
         </span>
       ) : null}
-      {/* no balance left: the service's own page to top it up */}
-      {entry.outcome === 'balance' && entry.balance?.url ? (
-        <a href={entry.balance.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[var(--chat-text)]">{t('balance.manage')}</a>
-      ) : null}
+
     </div>
   );
 }

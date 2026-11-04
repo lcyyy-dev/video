@@ -252,6 +252,8 @@ export async function filmCaptions(root, options = {}) {
   const cues = [];
   const untranscribed = new Set();
   for (const clip of heardClips(root, doc)) {
+    // Generated narration uses the template's editable text; old VTTs must not add a second caption layer.
+    if (clip.src.replace(/\\/g, '/').startsWith('assets/narration/')) continue;
     const said = await transcriptOf(clip.src);
     if (!said) { if (await wantsTranscript(root, clip.src)) untranscribed.add(clip.src); continue; }
     /* a transcript that runs on past the end of its file is not this file's any more (it was made again faster, or

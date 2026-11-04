@@ -93,9 +93,9 @@ export function desktopInstaller(os, arch, base = DESKTOP_FILES) {
  * which its window needs). `editorDir`: the built editor to serve (only supplied by the desktop app); an app that builds
  * Studio's editor into a page of its own (its chat beside it) serves that one. `working`: the folders an app's agent
  * is working in right now (an app with a chat), which cannot be deleted meanwhile. Resolves once both servers listen.
- * @param {{ port?: number, key?: string, openBrowser?: (url: string) => void, advertise?: boolean, onQuit?: () => void, stays?: boolean, editorDir?: string, working?: () => string[] }} [options]
+ * @param {{ port?: number, key?: string, openBrowser?: (url: string) => void, advertise?: boolean, onQuit?: () => void, stays?: boolean, editorDir?: string, working?: () => string[], onProjectDeleted?: (path: string) => void }} [options]
  */
-export async function startStudio({ port = 4747, key, openBrowser = systemBrowser, advertise = false, onQuit, stays = false, editorDir, working = () => [] } = {}) {
+export async function startStudio({ port = 4747, key, openBrowser = systemBrowser, advertise = false, onQuit, stays = false, editorDir, working = () => [], onProjectDeleted = () => {} } = {}) {
   // Initialize on the recipient's first launch, under their own Windows account, before any export dialog opens.
   if (process.platform === 'win32' && !readPrefs().draftExportFolder && draftApps().jianying) {
     initializeDraftExportFolder(draftFolders().jianying);
@@ -505,6 +505,7 @@ export async function startStudio({ port = 4747, key, openBrowser = systemBrowse
         /* its files are being written, and its chat is mid-turn: stopped first, by the person */
         if (agentIn(project.path)) throw new HttpError(409, 'An agent is running in this project: stop it first, then delete the project.', { code: 'agent-running' });
         await deleteProject(project.id);
+        onProjectDeleted(project.path);
         return json(res, 200, {});
       }
     }

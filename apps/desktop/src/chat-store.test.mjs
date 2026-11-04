@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appendFileSync, mkdtempSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { chatDir, loadChat, logsDir, openLog, readLog, refsDir, saveRefImage, saveSessions, saveTurn, unsavedTurns } from './chat-store.mjs';
+import { configureDiagnosticLogging, loggedBlocks, saveLogImage, writeModelLog, chatDir, loadChat, logsDir, openLog, readLog, refsDir, saveRefImage, saveSessions, saveTurn, unsavedTurns } from './chat-store.mjs';
 
 const project = () => mkdtempSync(join(tmpdir(), 'of-chat-'));
 const turn = (id, createdAt) => ({ turn: { id, createdAt, sessionId: 's1', prompt: id }, items: [{ kind: 'text', text: id }] });
@@ -127,4 +127,22 @@ test('a turn with a log and no saved record is found with its events; a saved on
   const found = unsavedTurns(dir, { except: ['local:busy1'] });
   assert.deepEqual(found.map((f) => f.turnId), ['local:lost1']);
   assert.deepEqual(found[0].events.map((e) => e.kind), ['prompt', 'update']);
+});
+
+
+test('installed mode writes no turn/model/image diagnostics while retaining the normal conversation', async () => {
+  const root = project();
+  configureDiagnosticLogging(false);
+  try {
+    const log = openLog(root, 'turn-1');
+    log.write('prompt', { secret: 'not-on-disk' }); log.end();
+    writeModelLog(root, 'turn-1', [{ request: 'not-on-disk' }]);
+    assert.equal(saveLogImage(root, 'aW1hZ2U=', 'image/png'), null);
+    assert.deepEqual(loggedBlocks(root, [{ type: 'image', data: 'aW1hZ2U=', mimeType: 'image/png' }]), []);
+    saveSessions(root, { sessions: [{ id: 's1' }], last: 's1' });
+    saveTurn(root, turn('turn-1', '2026-11-05'));
+    await new Promise(done => setTimeout(done, 20));
+    assert.equal(existsSync(logsDir(root)), false);
+    assert.equal(loadChat(root).turns.length, 1);
+  } finally { configureDiagnosticLogging(true); }
 });

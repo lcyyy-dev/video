@@ -27,10 +27,16 @@ export async function createCodexProvider({ baseUrl, apiKey, fetchImpl = fetch, 
         res.writeHead(400, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ error: { message: '旁白接口不接受请求参数。' } })); return;
       }
+      const targetHeader = req.headers['x-openfilm-target-seconds'];
+      const targetSeconds = targetHeader === undefined ? undefined : Number(targetHeader);
+      if (targetSeconds !== undefined && (!Number.isFinite(targetSeconds) || targetSeconds < 1 || targetSeconds > 1800)) {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: '目标时长需要为 1–1800 秒。' } })); return;
+      }
       const controller = new AbortController(); pending.add(controller);
       res.on('close', () => { if (!res.writableEnded) controller.abort(); });
       try {
-        const result = await narration(controller.signal);
+        const result = await narration(controller.signal, { targetSeconds });
         res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
         res.end(JSON.stringify(result));
       } catch (error) {

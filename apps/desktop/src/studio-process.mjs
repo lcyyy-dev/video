@@ -48,6 +48,7 @@ try {
     /* another app (or `openfilm open`) asked this Studio to stop: the window still needs it, so it stays and says so */
     stays: true,
     working: () => working,
+    onProjectDeleted: path => send({ type: 'project-deleted', path }),
     /* the window's page, Studio's editor with the chat beside it (shell/), in place of the editor alone */
     ...(process.env.OPENFILM_EDITOR_DIR ? { editorDir: process.env.OPENFILM_EDITOR_DIR } : {}),
   });

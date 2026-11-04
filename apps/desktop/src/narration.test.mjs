@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, mkdirSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { generateNarration, narrationSentences, narrationVtt } from './narration.mjs';
+import { generateNarration, narrationRatePlan, narrationSentences } from './narration.mjs';
 import { saveTemplate } from './edit-workflow.mjs';
 import { initialTemplate } from './edit-template.mjs';
 
@@ -45,12 +45,12 @@ test('native narration preserves original punctuation, caches unchanged sentence
     assert.equal(result.sentences.map(s => s.text).join(''), config.bodyText);
     assert.equal(result.sentences[1].start, 1.2);
     assert.equal(result.duration, 2.2);
-    assert.match(readFileSync(join(root, result.sentences[0].src.replace('.mp3', '.vtt')), 'utf8'), /00:00:00.800/);
-    await generateNarration(root, hosted, options); assert.equal(calls, 2);
     const subtitle = join(root, result.sentences[0].src.replace('.mp3', '.vtt'));
-    unlinkSync(subtitle);
+    assert.equal(existsSync(subtitle), false, 'TTS must not generate duplicate captions');
+    const receipt = JSON.parse(readFileSync(join(root, result.sentences[0].src.replace('.mp3', '.json')), 'utf8'));
+    assert.equal(receipt.words.length, 1, 'timing metadata remains available');
     await generateNarration(root, hosted, options); assert.equal(calls, 2);
-    assert.match(readFileSync(subtitle, 'utf8'), /欢迎/);
+    assert.equal(existsSync(subtitle), false, 'cache reuse must not restore captions');
     saveTemplate(root, { ...config, titleText: '新标题', bodyText: '欢迎光临。全场优惠！' });
     await generateNarration(root, hosted, options); assert.equal(calls, 3);
     saveTemplate(root, { ...config, kind: 'copy' });
@@ -66,14 +66,10 @@ test('native narration rejects linked asset destinations before contacting servi
     await assert.rejects(generateNarration(root, { fetchImpl: () => { throw new Error('must not contact service'); } }), /链接/);
   } finally { rmSync(root, { recursive: true, force: true }); rmSync(outside, { recursive: true, force: true }); }
 });
-test('narration splitting keeps complete copy and VTT refuses invented or unordered times', () => {
+test('narration splitting keeps complete copy', () => {
   assert.equal(narrationSentences('你好，世界！\n欢迎。').join(''), '你好，世界！\n欢迎。');
   assert.deepEqual(narrationSentences('他说：“欢迎。” Hello world. Next sentence.'), ['他说：“欢迎。” ', 'Hello world. ', 'Next sentence.']);
-  assert.throws(() => narrationVtt([{ text: 'a', start: -1, end: 1 }]), /时间戳/);
-  assert.match(narrationVtt([{ text: '<你好>', start: 0, end: 1 }]), /&lt;你好&gt;/);
-  const sentence = narrationVtt([{ text: '你', start: 0.1, end: 0.4 }, { text: '好！', start: 0.4, end: 0.9 }]);
-  assert.equal((sentence.match(/-->/g) ?? []).length, 1, 'a subtitle displays the complete sentence');
-  assert.match(sentence, /你<00:00:00.400>好！/);
+
 });
 
 test('failed narration preserves completed sentences for retry and cancellation stops before service access', async () => {
@@ -93,5 +89,34 @@ test('failed narration preserves completed sentences for retry and cancellation 
     const abort = new AbortController(); abort.abort();
     await assert.rejects(generateNarration(root, hosted, { signal: abort.signal }));
     assert.equal(calls, 3);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+
+test('target duration estimates a bounded speech rate and preserves original copy', async () => {
+  const calibrated = narrationRatePlan('测试正文。', 20, { baselineSeconds: 32.808, baselineRate: 0, sentenceCount: 4 });
+  assert.equal(calibrated.speechRate, 69);
+  assert.ok(Math.abs(calibrated.estimatedSeconds - 20) < 0.1);
+  assert.equal(calibrated.basis, 'previous-audio');
+  assert.equal(narrationRatePlan('很长的文案。'.repeat(50), 2).speechRate, 100);
+  assert.equal(narrationRatePlan('你好。', 100).speechRate, -50);
+  assert.throws(() => narrationRatePlan('正文', NaN), /目标时长/);
+  const root = mkdtempSync(join(tmpdir(), 'narration-target-'));
+  const rates = [];
+  try {
+    saveTemplate(root, { ...initialTemplate(), narration: true, bodyText: '第一句话。第二句话。' });
+    const hosted = { baseUrl: 'https://gateway.test/v1', fetchImpl: async (url, options) => {
+      const input = JSON.parse(options.body); rates.push(input.speechRate);
+      return Response.json({ audio: 'YXVkaW8=', format: 'mp3', words: [] });
+    } };
+    await generateNarration(root, hosted, { probe: async () => 2 });
+    rates.length = 0;
+    const result = await generateNarration(root, hosted, { targetSeconds: 3, probe: async () => 1.4 });
+    assert.equal(result.speechRate, 40);
+    assert.deepEqual(rates, [40, 40]);
+    assert.equal(result.sentences.map(s => s.text).join(''), '第一句话。第二句话。');
+    assert.equal(result.ratePlan.basis, 'previous-audio');
+    await generateNarration(root, hosted, { targetSeconds: 3, probe: async () => 1.4 });
+    assert.equal(rates.length, 2, 'same target and measured baseline reuse audio');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

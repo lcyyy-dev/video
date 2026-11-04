@@ -1,3 +1,4 @@
+import { openProfileStore } from './profiles.mjs';
 import { openLogStore } from './log-store.mjs';
 import { createEventLog, keyReference, errorCode } from './logs.mjs';
 import { Transform } from 'node:stream';
@@ -90,7 +91,7 @@ export function createGateway(config) {
   }
   return createServer(async (req, res) => {
     const started=performance.now(), requestId=randomUUID();
-    const knownPaths=new Set(['/auth/activate','/auth/refresh','/auth/status','/v1/responses','/v1/models','/tts/synthesize','/tts/voices','/healthz']);
+    const knownPaths=new Set(['/auth/activate','/auth/refresh','/auth/status','/account/quota','/account/profile','/v1/responses','/v1/models','/tts/synthesize','/tts/voices','/healthz']);
     const context={requestId,method:req.method,path:knownPaths.has(req.url)?req.url:'/unknown',peer:req.socket.remoteAddress,stage:'request'};
     res.setHeader('x-request-id',requestId);
     const abort = new AbortController();let recorded=false;
@@ -110,7 +111,7 @@ export function createGateway(config) {
     };
     const json = (status, value) => { res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
-      const allowed = req.method === 'POST' && ['/auth/activate', '/auth/refresh', '/auth/status', '/v1/responses', '/tts/synthesize', '/tts/voices'].includes(req.url) || req.method === 'GET' && req.url === '/v1/models';
+      const allowed = req.method === 'POST' && ['/auth/activate', '/auth/refresh', '/auth/status', '/v1/responses', '/tts/synthesize', '/tts/voices'].includes(req.url) || req.method === 'GET' && ['/v1/models', '/account/quota', '/account/profile'].includes(req.url) || req.method === 'PATCH' && req.url === '/account/profile';
       if (!allowed) return json(404, { error: { message: '接口不存在' } });
       const raw = await bodyOf(req);
       if (req.url === '/auth/activate') {
@@ -148,6 +149,14 @@ export function createGateway(config) {
       const mapping = mappings()[claims.license];context.keyRef=keyReference(mapping?.apiKey);
       if (!mapping) throw revoked();
       await validate(claims.license, claims.fingerprint,context);
+      if (req.url === '/account/profile') {
+        if (!config.profileStore) throw fail(503, '用户资料服务暂不可用');
+        if (req.method === 'GET') return json(200, await config.profileStore.ensure(claims.license));
+        if (raw.length > 1024) throw fail(400, '用户资料请求过大');
+        let input; try { input = JSON.parse(raw); } catch { throw fail(400, '用户资料格式无效'); }
+        if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length !== 1 || !Object.hasOwn(input, 'username')) throw fail(400, '只允许修改用户名，ID 不可修改');
+        return json(200, await config.profileStore.rename(claims.license, input.username));
+      }
       if (req.url === '/auth/status') return json(200, { authorized: true });
       if (req.url === '/tts/voices') return json(200, { configured: Boolean(config.ttsKey), speakers });
       if (req.url === '/tts/synthesize') {
@@ -165,6 +174,22 @@ export function createGateway(config) {
         } finally { limit.active--; }
       }
       if (!mapping.apiKey) throw fail(403, '授权尚未关联模型服务');
+      if (req.url === '/account/quota') {
+        context.stage = 'sub2api';
+        const response = await requestFetch(`${config.sub2apiUrl.replace(/\/$/, '')}/usage`, {
+          method: 'GET', headers: { authorization: `Bearer ${mapping.apiKey}`, accept: 'application/json' },
+          redirect: 'error', signal: AbortSignal.any([abort.signal, AbortSignal.timeout(15000)]),
+        });
+        if (!response.ok) throw fail(502, '个人额度查询失败，请稍后重试');
+        const usage = await response.json();
+        if (!['quota_limited', 'unrestricted'].includes(usage?.mode)) throw fail(502, '额度服务返回无效数据');
+        const number = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+        const limit = number(usage.quota?.limit);
+        const used = number(usage.quota?.used);
+        const remaining = number(usage.quota?.remaining);
+        // Only a key-level quota defines a percentage. Wallet and subscription balances are not key quotas.
+        return json(200, { limit, used, remaining, percent: limit > 0 && remaining !== null ? Math.min(100, remaining / limit * 100) : null, unit: 'USD' });
+      }
       const headers = { authorization: `Bearer ${mapping.apiKey}`, 'content-type': req.headers['content-type'] ?? 'application/json', accept: req.headers.accept ?? 'text/event-stream' };
       for (const name of ['openai-beta', 'session_id', 'conversation_id', 'content-encoding']) if (req.headers[name]) headers[name] = req.headers[name];
       context.stage='sub2api';
@@ -192,9 +217,12 @@ export function createGateway(config) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const logStore=await openLogStore(process.env.LOG_DATABASE_URL);
-  const server = createGateway({ logStore, secret: process.env.GATEWAY_SECRET, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN, sub2apiUrl: process.env.SUB2API_URL, ttsKey: process.env.DOUBAO_TTS_API_KEY, ttsSpeakers: process.env.DOUBAO_TTS_SPEAKERS });
+  const profileStore = await openProfileStore(process.env.PROFILE_DATABASE_URL || process.env.LOG_DATABASE_URL);
+  const existingMappings = JSON.parse(readFileSync(process.env.MAPPING_FILE ?? '/data/mappings.json', 'utf8'));
+  for (const licenseId of Object.keys(existingMappings)) await profileStore.ensure(licenseId);
+  const server = createGateway({ profileStore, logStore, secret: process.env.GATEWAY_SECRET, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN, sub2apiUrl: process.env.SUB2API_URL, ttsKey: process.env.DOUBAO_TTS_API_KEY, ttsSpeakers: process.env.DOUBAO_TTS_SPEAKERS });
   let stopping=false;
-  const stop=async()=>{if(stopping)return;stopping=true;server.closeIdleConnections();server.close(async()=>{try{await logStore.close();process.exit(0);}catch{process.exit(1);}});setTimeout(()=>server.closeAllConnections(),5000).unref();};
+  const stop=async()=>{if(stopping)return;stopping=true;server.closeIdleConnections();server.close(async()=>{try{await profileStore.close();await logStore.close();process.exit(0);}catch{process.exit(1);}});setTimeout(()=>server.closeAllConnections(),5000).unref();};
   process.on('SIGTERM',stop);process.on('SIGINT',stop);
   server.listen(Number(process.env.PORT ?? 8787), process.env.BIND ?? '0.0.0.0',()=>createEventLog({store:logStore,source:'gateway'})('service.started',{stage:'listen'}));
 }

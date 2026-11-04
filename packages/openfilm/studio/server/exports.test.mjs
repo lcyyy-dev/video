@@ -919,3 +919,44 @@ test('manually moved and resized JSON text stays native in a draft export', { ti
   assert.ok(Math.abs(transform.y) < .00001, 'box resize retains the visual text center');
   assert.equal(JSON.parse(readFileSync(join(folder, 'native-text-report.json')))[0].mode, 'native');
 });
+
+
+test('native draft export needs no browser for video, MP3 narration and JSON text', ffmpeg, async () => {
+  const path = join(scratch, 'BrowserFreeDraft');
+  mkdirSync(path);
+  execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=320x180:r=25:d=1', '-c:v', 'libx264', join(path, 'shot.mp4')]);
+  execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', join(path, 'voice.mp3')]);
+  writeFileSync(join(path, 'title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 1,
+    texts: [{ text: '整句旁白字幕', x: 160, y: 140, width: 280, fontSize: 24, color: '#ffffff' }] }));
+  writeFileSync(join(path, 'voice.vtt'), 'WEBVTT\n\n00:00:00.000 --> 00:00:00.900\n真实旁白\n');
+  writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
+    { clips: [{ id: 'shot', src: 'shot.mp4', time: [0.1, 0.9], at: 0.2 }] },
+    { clips: [{ id: 'voice', src: 'voice.mp3', time: [0, 1], at: 0.2 }] },
+    { clips: [{ id: 'text', src: 'title.text.json', at: 0.2 }] },
+  ] }));
+  const previous = process.env.OPENFILM_BROWSER_CDP_URL;
+  const previousRegistry = process.env.OPENFILM_TEMP_REGISTRY;
+  const registry = join(scratch, 'temporary-registry');
+  process.env.OPENFILM_TEMP_REGISTRY = registry;
+  process.env.OPENFILM_BROWSER_CDP_URL = 'http://127.0.0.1:1';
+  try {
+    const exports = createExports({ drafts: () => null });
+    const done = await ended(exports, exports.start(project('BrowserFreeDraft', path), { kind: 'nle', format: 'jianying', fps: 25 }));
+    assert.equal(done.status, 'done', done.error);
+    assert.deepEqual(readdirSync(registry), [], 'normal export leaves no temporary registry records');
+    const draft = JSON.parse(readFileSync(done.out, 'utf8'));
+    assert.equal(draft.materials.videos.length, 1);
+    assert.equal(draft.materials.audios.length, 1);
+    assert.ok(draft.materials.texts.length >= 2, 'editable JSON text and VTT captions survive');
+    const video = draft.tracks.find(t => t.type === 'video').segments[0];
+    assert.deepEqual(video.target_timerange, { start: 200000, duration: 800000 });
+    for (const material of [...draft.materials.videos, ...draft.materials.audios]) {
+      assert.ok(material.path.includes('Resources/local/'));
+    }
+  } finally {
+    if (previousRegistry === undefined) delete process.env.OPENFILM_TEMP_REGISTRY;
+    else process.env.OPENFILM_TEMP_REGISTRY = previousRegistry;
+    if (previous === undefined) delete process.env.OPENFILM_BROWSER_CDP_URL;
+    else process.env.OPENFILM_BROWSER_CDP_URL = previous;
+  }
+});

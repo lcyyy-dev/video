@@ -21,3 +21,13 @@ test('the preview shares nothing with an installed OpenFilm or the dev app', () 
   }
   assert.ok(preview.studioHome, 'its own Studio home, not the machine\'s ~/.openfilm');
 });
+
+
+test('GainingCut branding retains existing activation and project storage locations', () => {
+  assert.equal(FLAVORS.release.productName, 'GainingCut');
+  assert.equal(FLAVORS.dev.productName, 'GainingCut Dev');
+  assert.equal(FLAVORS.release.dataName, 'OpenFilm');
+  assert.equal(FLAVORS.dev.dataName, 'OpenFilm Dev');
+  assert.equal(FLAVORS.preview.dataName, 'OpenFilm Preview');
+  assert.ok(FLAVORS.dev.library.includes('OpenFilm Dev'));
+});

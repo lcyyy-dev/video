@@ -475,7 +475,8 @@ test('an advertised Studio writes run.json, quits when asked by a key holder, an
 
 test('a project an app\'s agent is working in is marked so, and is not deleted until it stops', async () => {
   let working = [];
-  const app = await startStudio({ port: 0, openBrowser: () => {}, working: () => working });
+  const deleted = [];
+  const app = await startStudio({ port: 0, openBrowser: () => {}, working: () => working, onProjectDeleted: path => deleted.push(path) });
   try {
     const call = (path, method = 'GET', body) => fetch(`${app.origin}${path}`, { method, headers: { 'x-studio-key': app.key, 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
     const { project } = await (await call('/api/projects', 'POST', { path: join(scratch, 'Busy') })).json();
@@ -486,9 +487,11 @@ test('a project an app\'s agent is working in is marked so, and is not deleted u
     assert.equal(refused.status, 409);
     assert.equal((await refused.json()).code, 'agent-running');
     assert.ok(existsSync(project.path), 'its folder untouched');
+    assert.deepEqual(deleted, [], 'a refused deletion never clears the agent runtime');
     working = [];
     assert.equal((await call(`/api/projects/${project.id}`, 'DELETE')).status, 200, 'once the agent stops');
     assert.ok(!existsSync(project.path), 'to the Trash');
+    assert.deepEqual(deleted, [project.path], 'desktop receives the deleted project path for internal-state cleanup');
   } finally {
     await app.close();
   }

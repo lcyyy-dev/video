@@ -18,7 +18,7 @@ import { TextStylesSection } from './TextStylesSection';
 
 export type SettingsSection = 'general' | 'textStyles' | 'developer' | 'shortcuts';
 
-/* the nav, in groups: what OpenFilm does, then help (Agents and Developer only inside an app with a chat:
+/* the nav, in groups: what GainingCut does, then help (Agents and Developer only inside an app with a chat:
    lib/host.ts `agents`, `developer`) */
 const NAV: Array<{ group: 'settings' | 'help'; sections: SettingsSection[] }> = [
   { group: 'settings', sections: ['general', 'textStyles'] },

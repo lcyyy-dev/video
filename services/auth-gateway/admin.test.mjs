@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createEventLog, keyReference } from './logs.mjs';
 import {testLogStore,hasTestDatabase} from './test-log-store.mjs';
+import { ProfileStore } from './profiles.mjs';
 import { createAdmin } from './admin.mjs';
 
 test('admin requires login and CSRF, hides mapped keys, creates and replaces mappings', {skip:!hasTestDatabase}, async t => {
@@ -16,7 +17,9 @@ test('admin requires login and CSRF, hides mapped keys, creates and replaces map
   createEventLog({store:logStore,source:'monitor',stdout:false})('link.summary',{localOk:true,publicOk:false,diagnosis:'public_path_unavailable',probeId:'probe'},'error');
   await logStore.flush();
   let role = 'admin'; let valid = true; const calls = [];
-  const server = createAdmin({ logStore, mappingFile: file, keygenUrl: 'http://keygen/v1', keygenToken: 'server-token', fetchImpl: async (url, options) => {
+  const profileStore = new ProfileStore(logStore.pool, logStore.schemaName);
+  await profileStore.initialize();
+  const server = createAdmin({ profileStore, logStore, mappingFile: file, keygenUrl: 'http://keygen/v1', keygenToken: 'server-token', fetchImpl: async (url, options) => {
     calls.push({ url, options });
     if (url.endsWith('/tokens')) return Response.json({ data: { attributes: { token: 'admin-session-token' } } }, { status: valid ? 201 : 401 });
     if (url.endsWith('/me')) return Response.json({ data: { attributes: { role } } });
@@ -41,10 +44,16 @@ test('admin requires login and CSRF, hides mapped keys, creates and replaces map
     const { csrf } = await response.json();
     const request = (path, method, body, extra = {}) => fetch(`${origin}/admin/${path}`, { method, headers: { cookie, origin, 'x-csrf-token': csrf, ...extra }, ...(body ? { body: JSON.stringify(body) } : {}) });
     assert.equal((await request('issue', 'POST', {}, { 'x-csrf-token': '' })).status, 403);
-    assert.equal((await request('issue', 'POST', { policyId: 'policy', apiKey: 'first-private-key', name: '<b>User</b>' })).status, 200);
+    const issued = await request('issue', 'POST', { policyId: 'policy', apiKey: 'first-private-key', name: '<b>User</b>' });
+    assert.equal(issued.status, 200);
+    const issuedProfile = await issued.json();
+    assert.match(issuedProfile.username, /^用户\d{6}$/);
+    assert.match(issuedProfile.userId, /^0406 2003 \d{4}$/);
     assert.equal(JSON.parse(readFileSync(file)).license.apiKey, 'first-private-key');
     const state = await (await request('state', 'GET')).json();
     assert.equal(state.licenses[0].mapped, true);
+    assert.equal(state.licenses[0].username, issuedProfile.username);
+    assert.equal(state.licenses[0].userId, issuedProfile.userId);
     assert.equal(state.licenses[0].keyRef,keyReference('first-private-key'));
     const logs=await(await request('logs?license=license','GET')).json();
     assert.equal(logs.events.length,2);assert.ok(logs.events.every(row=>row.userName==='<b>User</b>'));
@@ -63,6 +72,7 @@ test('admin requires login and CSRF, hides mapped keys, creates and replaces map
     assert.ok(calls.some(call => call.url.endsWith('/actions/suspend')));
     await request('licenses/license/mapping', 'DELETE', {});
     assert.deepEqual(JSON.parse(readFileSync(file)), {});
+    assert.equal((await profileStore.ensure('license')).userId, issuedProfile.userId, 'removing a mapping never recycles the ID');
     const queryEvents=logStore.queryEvents;logStore.queryEvents=async()=>{throw new Error('private database details');};
     const unavailable=await request('logs','GET');assert.equal(unavailable.status,503);assert.match((await unavailable.json()).error,/PostgreSQL/);logStore.queryEvents=queryEvents;
     await request('logout', 'POST', {});

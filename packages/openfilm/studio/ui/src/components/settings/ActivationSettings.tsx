@@ -24,13 +24,13 @@ export function ActivationSettings() {
     finally { setBusy(false); }
   }
   async function test() {
-    setBusy(true); setMessage('正在测试模型连接…');
-    try { await app.sub2api.test(); setMessage('授权有效，模型连接成功。'); }
-    catch (error) { setMessage(error instanceof Error ? error.message : '连接失败。'); }
+    setBusy(true); setMessage('正在测试剪辑服务连接…');
+    try { await app.sub2api.test(); setMessage('授权有效，剪辑服务连接成功。'); }
+    catch { setMessage('剪辑服务连接失败，请稍后重试。'); }
     finally { setBusy(false); }
   }
   if (!api) return null;
-  return <SettingsGroup title="我的 · OpenFilm 授权">
+  return <SettingsGroup title="我的 · GainingCut 授权">
     <p className="mb-3 text-[12px] text-[var(--text-muted)]">{configured ? '此设备已激活，日常使用无需再次输入激活码。' : '首次使用请输入激活码，将授权绑定到此设备。'}</p>
     <form onSubmit={event => { event.preventDefault(); void activate(); }}>
       <label className="mb-3 block text-[12px] text-[var(--text-muted)]">激活码<input type="password" autoComplete="off" value={activationCode} onChange={event => setActivationCode(event.target.value)} placeholder={configured ? '输入新激活码可更换授权' : '输入你的激活码'} disabled={busy} className="mt-1 h-9 w-full rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 text-[12px] text-[var(--text)]" /></label>

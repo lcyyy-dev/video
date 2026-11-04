@@ -17,7 +17,7 @@ export function ActivationGate({ children }: { children: ReactNode }) {
       const result = await native.sub2api.status();
       if (current !== revision.current) return;
       setAuthorized(result.authorized);
-      setMessage(result.message || (result.authorized ? '' : '请输入激活码以使用 OpenFilm。'));
+      setMessage(result.message || (result.authorized ? '' : '请输入激活码以使用 GainingCut。'));
     } catch { if (current === revision.current) { setAuthorized(false); setMessage('无法读取本机激活凭据，请恢复应用数据或重新激活。'); } }
     finally { if (current === revision.current) setChecking(false); }
   }, []);
@@ -50,7 +50,7 @@ export function ActivationGate({ children }: { children: ReactNode }) {
   return <div className="activation-lock">
     <dialog ref={dialog} className="activation-dialog" aria-labelledby="activation-title" aria-describedby="activation-message" onCancel={event => event.preventDefault()}>
       <div className="activation-mark" aria-hidden="true">OF</div>
-      <h1 id="activation-title">激活 OpenFilm</h1>
+      <h1 id="activation-title">激活 GainingCut</h1>
       <p>请输入激活码以继续使用，授权将绑定到此设备。</p>
       <form onSubmit={event => { event.preventDefault(); void activate(); }}>
         <label>激活码<input autoFocus autoComplete="off" type="password" value={code} onChange={event => setCode(event.target.value)} placeholder="输入你的激活码" disabled={busy || checking} /></label>

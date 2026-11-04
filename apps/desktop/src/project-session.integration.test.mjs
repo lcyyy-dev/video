@@ -6,13 +6,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { filmHtml, readFilmFile } from 'openfilm/film-doc';
-import { textPageHtml, readTextPage } from 'openfilm/text-page';
+import { textPageJson, readTextPageJson, readLegacyTextPage } from 'openfilm/text-page';
 import { bundledTextFonts, textFontCss } from 'openfilm/text-fonts';
 import { installOpenfilmCommand } from './openfilm-command.mjs';
 import { registerLocalAgentIpc } from './local-agents-ipc.mjs';
 
 const dataDir = process.env.OPENFILM_TEST_DATA_DIR;
 const ffmpegDir = process.env.OPENFILM_TEST_FFMPEG_DIR;
+const readTextPage = source => readTextPageJson(source) ?? readLegacyTextPage(source);
 
 test('desktop IPC → native Codex: chat, style edits, narration removal, resume and project sandbox', { skip: !dataDir || !ffmpegDir, timeout: 420_000 }, async t => {
   const root = mkdtempSync(join(tmpdir(), 'of-native-film-'));
@@ -22,9 +23,9 @@ test('desktop IPC → native Codex: chat, style edits, narration removal, resume
   execFileSync(binary('ffmpeg'), ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=320x180:r=24:d=2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', join(root, 'assets/upload/source.mp4')]);
   execFileSync(binary('ffmpeg'), ['-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', join(root, 'assets/audio/vo/voice.wav')]);
   const font = bundledTextFonts()[0];
-  writeFileSync(join(root, 'titles/title.html'), textPageHtml({ version: 1, width: 320, height: 180, duration: 1.9, texts: [{ text: '测试标题', x: 160, y: 45, fontSize: 32, color: '#ffff00', backgroundOpacity: 0.7, backgroundColor: '#000000', fontFamily: font.family, fontPath: `openfilm-font:${font.id}` }] }, { fontCss: textFontCss([font.family], true) }));
+  writeFileSync(join(root, 'titles/title.text.json'), textPageJson({ version: 1, width: 320, height: 180, duration: 1.9, texts: [{ text: '测试标题', x: 160, y: 45, fontSize: 32, color: '#ffff00', backgroundOpacity: 0.7, backgroundColor: '#000000', fontFamily: font.family, fontPath: `openfilm-font:${font.id}` }] }, { fontCss: textFontCss([font.family], true) }));
   writeFileSync(join(root, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
-    { clips: [{ id: 'title', src: 'titles/title.html', time: [0, 1.9] }] },
+    { clips: [{ id: 'title', src: 'titles/title.text.json', time: [0, 1.9] }] },
     { clips: [{ id: 'shot', src: 'assets/upload/source.mp4', time: [0, 1.9], volume: 0 }] },
     { clips: [{ id: 'voice', src: 'assets/audio/vo/voice.wav', time: [0, 1.9] }] },
   ] }));
@@ -75,7 +76,7 @@ test('desktop IPC → native Codex: chat, style edits, narration removal, resume
       const voice = clips.find(clip => clip.src.endsWith('.wav'));
       assert.equal(voice, undefined, 'regeneration must not synthesize narration');
       assert.ok(clips.filter(clip => clip.src.endsWith('.mp4')).every(clip => (clip.speed ?? 1) === 1));
-      const title = clips.find(clip => clip.src.endsWith('.html'));
+      const title = clips.find(clip => /\.(?:text\.json|html)$/.test(clip.src));
       const text = readTextPage(readFileSync(join(root, title.src), 'utf8')).texts[0];
       assert.equal(text.text, '测试标题');
       const [red, green, blue] = [1, 3, 5].map(offset => parseInt(text.color.slice(offset, offset + 2), 16));

@@ -1,6 +1,6 @@
 # Windows 安装包构建
 
-目标为 Windows x64。用户安装一次 OpenFilm，即可获得客户端、Codex、FFmpeg／FFprobe 和预览所需的 Chromium；不需要另外安装 Node.js、Codex 或 FFmpeg。模型调用仍需要网络和用户登录，本轮不加入共享账号或计费服务。
+目标为 Windows x64。用户安装一次 GainingCut，即可获得客户端、Codex、FFmpeg／FFprobe 和预览所需的 Chromium；不需要另外安装 Node.js、Codex 或 FFmpeg。云端剪辑和 TTS 需要网络，用户通过激活码完成设备授权，无需登录第三方模型账号。
 
 ## 构建命令
 
@@ -24,14 +24,14 @@ pnpm release:win
 该命令会重新构建客户端窗口、打包当前源码和内置运行时，并生成：
 
 ```text
-apps/desktop/.release/win-x64/out/OpenFilm-Setup-x64.exe
+apps/desktop/.release/win-x64/out/GainingCut-Setup-x64.exe
 ```
 
 后续修改代码或内置 skill 后，无需手动清理 `.release/`，再次运行 `pnpm release:win` 即可覆盖生成新包。安装包当前未配置 Windows 代码签名，首次安装可能显示“未知发布者”。
 
 输出目录为 `apps/desktop/.release/win-x64/out/`：
 
-- `OpenFilm-Setup-x64.exe`：给用户的完整 NSIS 安装包，可选择安装位置，默认安装到当前用户目录。
+- `GainingCut-Setup-x64.exe`：给用户的完整 NSIS 安装包，可选择安装位置，默认安装到当前用户目录。
 - `build-manifest.json`：客户端、Electron、Codex 版本、Codex 来源和安装包 SHA-256。
 - `win-unpacked/`：构建后的完整应用目录，用于校验和本地试运行。
 
@@ -52,13 +52,13 @@ node apps/desktop/scripts/verify-windows.mjs apps/desktop/.release/win-x64/out/w
 安装包的 SHA-256 可用以下命令记录或提供给 Windows 用户核对：
 
 ```bash
-sha256sum apps/desktop/.release/win-x64/out/OpenFilm-Setup-x64.exe
+sha256sum apps/desktop/.release/win-x64/out/GainingCut-Setup-x64.exe
 ```
 
 当前工作区最近一次构建的 SHA-256：
 
 ```text
-b76ec61f29661df9e3e0c9311d3ab7f11d35b5231c5f3b6e7c4218de4a2467d7
+7841d63184622a243a94222455fa79ca501b81f062c40d804cdf7a0bc3169bc9
 ```
 
 本版同时包含 Windows 项目执行权限边界修复、中文输入法组合输入修复、模板原文逐句 TTS 规则，以及 WSL 下临时 502/503/504 的自动重试。
@@ -67,9 +67,9 @@ b76ec61f29661df9e3e0c9311d3ab7f11d35b5231c5f3b6e7c4218de4a2467d7
 
 ## 用户第一次使用
 
-打开软件，在设置 → Codex 中登录。登录会打开 PowerShell 和官方认证流程；登录成功后返回软件。无需手动选择 Codex 程序。
+打开 GainingCut，在激活页面输入管理员提供的激活码。激活后即可使用剪辑功能，不需要登录 Codex 或其他第三方模型账号，也不需要手动选择引擎程序。
 
-Windows 安装包固定使用 `resources/runtime/codex/bin/codex.exe`，不采用用户全局安装的其他版本。Codex 配置、凭证及会话位于软件用户数据目录下的 `codex/`，与用户原有的 `~/.codex` 分开；首次使用需要重新登录。安装包不包含开发者的凭证。覆盖安装保留用户数据，卸载也不主动清除该数据目录。
+Windows 安装包固定使用 `resources/runtime/codex/bin/codex.exe`，不采用用户全局安装的其他版本。Codex 配置、凭证及会话位于软件用户数据目录下的 `codex/`，与用户原有的 `~/.codex` 分开；首次使用需要激活，设备签名凭据与各项目会话状态由客户端管理。安装包不包含开发者的凭证。覆盖安装保留用户数据，卸载也不主动清除该数据目录。
 
 所有客户端启动的 Codex 登录、状态检查和后台会话均关闭启动更新检查；Codex 版本由软件发布统一管理，不弹出交互式“是否升级 Codex”。
 
@@ -94,3 +94,8 @@ Windows 安装包固定使用 `resources/runtime/codex/bin/codex.exe`，不采�
 仓库提供手动触发的 `Windows installer` GitHub Actions 工作流，使用 Windows 构建机器执行同样的命令，随后静默安装并验证安装后的运行时，最后生成可下载的构建附件。工作流不自动发布给用户。
 
 默认使用仓库自身的 `product.json`，不连接上游软件更新地址。此阶段给用户新版安装包进行覆盖安装；启用自己的自动更新服务需要另行配置发布源。当前流程没有 Windows 代码签名证书，安装时系统可能提示未知发布者，商业交付前可接入自己的签名证书。
+
+
+## 2026-11-05 构建记录
+
+GainingCut 0.2.0 Windows x64 安装包约 354 MiB，包含新版 Logo、授权用户资料与额度卡片、TTS 目标时长语速估算、无额外 VTT 字幕的剪辑流程、原生剪映草稿导出、教练单人首镜优先规则、内置音效资源、界面模型标签移除，以及安装版日志关闭和异常临时文件清理。完整工作区类型检查通过，桌面测试 193 项通过、3 项按环境条件跳过；安装包结构、PE x64 架构和运行时文件校验通过。当前构建环境为 WSL/Linux，未替代 Windows 真机安装、启动和成片验收。

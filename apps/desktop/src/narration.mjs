@@ -1,3 +1,4 @@
+import { trackTemporary, forgetTemporary } from 'openfilm/temporary-files';
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
@@ -22,21 +23,6 @@ export function narrationSentences(text) {
   return [...new Intl.Segmenter('zh', { granularity: 'sentence' }).segment(String(text))]
     .map(part => part.segment).filter(s => s.trim());
 }
-const timestamp = seconds => {
-  const ms = Math.round(seconds * 1000);
-  return `${String(Math.floor(ms / 3600000)).padStart(2, '0')}:${String(Math.floor(ms / 60000) % 60).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`;
-};
-export function narrationVtt(words) {
-  if (!words.length) return 'WEBVTT\n\n';
-  let previous = 0;
-  const payload = words.map((w, index) => {
-    if (typeof w.text !== 'string' || !Number.isFinite(w.start) || !Number.isFinite(w.end) || w.start < previous || w.end <= w.start) throw new Error('旁白字幕时间戳无效。');
-    previous = w.start;
-    const text = w.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\r\n]/g, ' ');
-    return `${index ? `<${timestamp(w.start)}>` : ''}${text}`;
-  }).join('');
-  return `WEBVTT\n\n${timestamp(words[0].start)} --> ${timestamp(words.at(-1).end)}\n${payload}\n`;
-}
 export async function probeNarration(file, { ffprobe = 'ffprobe', signal, env = process.env } = {}) {
   const { stdout } = await exec(ffprobe, ['-v', 'error', '-protocol_whitelist', 'file,pipe', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json', file], { windowsHide: true, timeout: 15000, signal, env });
   const media = JSON.parse(stdout), duration = Number(media.format?.duration);
@@ -45,18 +31,44 @@ export async function probeNarration(file, { ffprobe = 'ffprobe', signal, env = 
 }
 
 /** Native writes use content-addressed audio, never paths or text supplied by the model. */
-export async function generateNarration(project, hosted, { signal, ffprobe, env, probe = probeNarration } = {}) {
+/** Estimate, not force-fit: punctuation and the selected voice affect real speaking time. */
+export function narrationRatePlan(text, targetSeconds, { baselineSeconds, baselineRate = 0, sentenceCount = narrationSentences(text).length } = {}) {
+  if (!Number.isFinite(targetSeconds) || targetSeconds < 1 || targetSeconds > 1800) throw new Error('目标时长需要为 1–1800 秒。');
+  const characterCount = [...text].filter(char => /[\p{L}\p{N}]/u.test(char)).length;
+  const punctuationCount = [...text].filter(char => /[，,。.!！?？；;：:]/u.test(char)).length;
+  const gapSeconds = Math.min(0.2, targetSeconds / Math.max(10, sentenceCount * 10));
+  const pauses = Math.max(0, sentenceCount - 1) * gapSeconds;
+  const calibrated = Number.isFinite(baselineSeconds) && baselineSeconds > 0 && Number.isInteger(baselineRate) && baselineRate >= -50 && baselineRate <= 100;
+  const normalSeconds = calibrated ? baselineSeconds * (1 + baselineRate / 100) : characterCount / 5 + punctuationCount * 0.12;
+  const requestedRate = Math.round((normalSeconds / Math.max(0.1, targetSeconds - pauses) - 1) * 100);
+  const speechRate = Math.max(-50, Math.min(100, requestedRate));
+  return { targetSeconds, characterCount, speechRate, gapSeconds, normalSeconds, estimatedSeconds: normalSeconds / (1 + speechRate / 100) + pauses, limited: speechRate !== requestedRate, basis: calibrated ? 'previous-audio' : 'character-estimate' };
+}
+
+export async function generateNarration(project, hosted, { signal, ffprobe, env, probe = probeNarration, targetSeconds } = {}) {
   if (generating.has(project)) throw new Error('当前工程旁白正在生成，请等待完成。');
   generating.add(project);
-  try { return await generateProjectNarration(project, hosted, { signal, ffprobe, env, probe }); }
+  try { return await generateProjectNarration(project, hosted, { signal, ffprobe, env, probe, targetSeconds }); }
   finally { generating.delete(project); }
 }
-async function generateProjectNarration(project, hosted, { signal, ffprobe, env, probe }) {
+async function generateProjectNarration(project, hosted, { signal, ffprobe, env, probe, targetSeconds }) {
   assertVideoStorage(project);
   const config = loadTemplate(project);
   if (config.kind !== 'ad' || !config.body || !config.narration) throw new Error('仅广告模板开启文案朗读时可生成旁白。');
   const sentences = narrationSentences(config.bodyText);
   if (!sentences.length || sentences.some(s => s.length > 2000)) throw new Error('请填写广告正文，每句不超过 2000 字符。');
+  let ratePlan = null;
+  if (targetSeconds !== undefined) {
+    let previous;
+    try { previous = JSON.parse(readFileSync(join(project, '.film', 'narration.json'), 'utf8')); } catch {}
+    const same = previous?.speaker === config.speaker && previous?.sentences?.map(s => s.text).join('') === sentences.join('');
+    ratePlan = narrationRatePlan(config.bodyText, targetSeconds, { sentenceCount: sentences.length,
+      ...(same ? (previous.ratePlan?.targetSeconds === targetSeconds && Number.isFinite(previous.ratePlan.normalSeconds) && previous.ratePlan.normalSeconds > 0
+        ? { baselineSeconds: previous.ratePlan.normalSeconds, baselineRate: 0 }
+        : { baselineSeconds: previous.sentences.reduce((sum, s) => sum + s.duration, 0), baselineRate: previous.speechRate }) : {}) });
+  }
+  const speechRate = ratePlan?.speechRate ?? config.speechRate;
+  const gapSeconds = ratePlan?.gapSeconds ?? 0.2;
   assertVideoStorage(project);
   const dir = videoFile(project, 'assets/narration', { optional: true });
   mkdirSync(dir, { recursive: true });
@@ -64,11 +76,10 @@ async function generateProjectNarration(project, hosted, { signal, ffprobe, env,
   const results = []; let start = 0;
   for (let i = 0; i < sentences.length; i++) {
     signal?.throwIfAborted();
-    const input = { text: sentences[i], speaker: config.speaker, speechRate: config.speechRate };
+    const input = { text: sentences[i], speaker: config.speaker, speechRate };
     const hash = createHash('sha256').update(JSON.stringify({ model: 'seed-tts-2.0', ...input })).digest('hex');
     const src = `assets/narration/${hash}.mp3`;
     const file = videoFile(project, src, { optional: true });
-    videoFile(project, src.replace('.mp3', '.vtt'), { optional: true });
     const receipt = videoFile(project, `assets/narration/${hash}.json`, { optional: true });
     let duration, cached = false;
     try {
@@ -76,14 +87,6 @@ async function generateProjectNarration(project, hosted, { signal, ffprobe, env,
       const bytes = readFileSync(file);
       if (saved.sha256 === createHash('sha256').update(bytes).digest('hex')) {
         duration = await probe(file, { ffprobe, signal, env });
-        if (Array.isArray(saved.words) && saved.words.length) {
-          const subtitle = videoFile(project, src.replace('.mp3', '.vtt'), { optional: true });
-          try { readFileSync(subtitle); }
-          catch (error) {
-            if (error.code !== 'ENOENT') throw error;
-            writeFileSync(subtitle, narrationVtt(saved.words), { flag: 'wx' });
-          }
-        }
         cached = true;
       }
     } catch (error) { if (signal?.aborted) throw error; }
@@ -95,24 +98,24 @@ async function generateProjectNarration(project, hosted, { signal, ffprobe, env,
       const bytes = Buffer.from(result.audio, 'base64');
       if (!bytes.length) throw new Error('旁白未返回音频。');
       const temporary = videoFile(project, `assets/narration/${hash}-${randomUUID()}.mp3`, { optional: true });
+      trackTemporary(temporary);
       writeFileSync(temporary, bytes, { flag: 'wx' });
       try {
         duration = await probe(temporary, { ffprobe, signal, env });
         videoFile(project, src, { optional: true }); renameSync(temporary, file);
-      } finally { try { unlinkSync(temporary); } catch {} }
+      } finally { try { unlinkSync(temporary); } catch {} forgetTemporary(temporary); }
       const words = Array.isArray(result.words) ? result.words : [];
       if (words.length) {
         if (words.some(w => w.end > duration + 0.15)) throw new Error('字幕时间戳超出旁白时长。');
-        writeFileSync(videoFile(project, src.replace('.mp3', '.vtt'), { optional: true }), narrationVtt(words));
       }
       writeFileSync(videoFile(project, `assets/narration/${hash}.json`, { optional: true }), JSON.stringify({ ...input, duration, words, requestId: result.requestId, sha256: createHash('sha256').update(bytes).digest('hex') }));
     }
     results.push({ id: `s${String(i + 1).padStart(3, '0')}`, text: input.text, src, duration, start, end: start + duration, cached });
-    start += duration + 0.2;
+    start += duration + gapSeconds;
   }
   if (JSON.stringify(loadTemplate(project)) !== JSON.stringify(config)) throw new Error('生成期间模板已修改，请重新生成旁白。');
   assertVideoStorage(project);
-  const manifest = { version: 1, model: 'seed-tts-2.0', speaker: config.speaker, speechRate: config.speechRate, duration: results.at(-1).end, sentences: results };
+  const manifest = { version: 1, model: 'seed-tts-2.0', speaker: config.speaker, speechRate, ...(ratePlan ? { ratePlan } : {}), duration: results.at(-1).end, sentences: results };
   mkdirSync(join(project, '.film'), { recursive: true });
   writeFileSync(join(project, '.film', 'narration.json'), JSON.stringify(manifest, null, 2));
   return manifest;

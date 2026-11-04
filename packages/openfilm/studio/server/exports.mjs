@@ -1,3 +1,4 @@
+import { managedMkdtemp as mkdtemp, trackTemporary, forgetTemporary } from '../../src/temporary-files.mjs';
 // @ts-check
 /**
  * Exports: the film as a video (any codec this machine's ffmpeg encodes, any delivery frame), a GIF, its sound (the
@@ -51,13 +52,13 @@
 import { execFile, fork, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { constants as fsConstants, existsSync, readFileSync, statSync } from 'node:fs';
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, readFile, rename, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FilmPage, launch } from '../../src/host.mjs';
 import { filmSound, kill as killProcess, mix, open } from '../../src/shared.mjs';
-import { FILM_FILE, clipFade, filmHtml, fittedFade, isTextPage, kindOf, pictureRect, readFilmFile } from '../../src/film-doc.mjs';
+import { FILM_FILE, clipSpan, clipFade, filmHtml, fittedFade, isTextPage, kindOf, pictureRect, readFilmFile } from '../../src/film-doc.mjs';
 import { hasPictureEffects, NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
 import { readLegacyTextPage, readTextPageJson, textValueAt } from '../../src/text-page.mjs';
@@ -474,8 +475,9 @@ async function clipFilm(root, clipId, { change = {}, doc = filmDoc(root) } = {})
   if (!track || !clip) throw new ExportError(`${FILM_FILE} has no clip "${clipId}"`);
   const dir = join(root, '.film', 'cache', 'export', `clip-${randomBytes(4).toString('hex')}`);
   await mkdir(dir, { recursive: true });
+  trackTemporary(dir);
   await filmElsewhere(root, dir, { stage: doc.stage, tracks: [{ clips: [{ ...clip, ...change, at: 0 }], ...(track.muted ? { muted: true } : {}) }] });
-  return { dir, stage: doc.stage, remove: () => rm(dir, { recursive: true, force: true }) };
+  return { dir, stage: doc.stage, remove: async () => { await rm(dir, { recursive: true, force: true }); forgetTemporary(dir); } };
 }
 
 /**
@@ -491,6 +493,7 @@ async function burnFilm(root, stage, frame, fill, cues, style, transparent = fal
   const box = frameBox(stage, frame, fill);
   const dir = join(root, '.film', 'cache', 'export', `burn-${randomBytes(4).toString('hex')}`);
   await mkdir(dir, { recursive: true });
+  trackTemporary(dir);
   await copyFile(fileURLToPath(new URL('./film-subtitle.mjs', import.meta.url)), join(dir, 'film-subtitle.mjs'));
   const entry = existsSync(join(root, FILM_FILE)) ? `/${FILM_FILE}` : '/index.html';
   const x = (box.w - stage.w * box.scale) / 2, y = (box.h - stage.h * box.scale) / 2;
@@ -539,7 +542,7 @@ window.__filmCuts = () => inner?.__filmCuts?.() ?? null;
 window.__filmSounds = () => inner?.__filmSounds?.() ?? [];
 </script></body></html>
 `);
-  return { dir, box, remove: () => rm(dir, { recursive: true, force: true }) };
+  return { dir, box, remove: async () => { await rm(dir, { recursive: true, force: true }); forgetTemporary(dir); } };
 }
 
 const H264_CRF = { standard: 23, high: 18, master: 14 };
@@ -879,6 +882,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       await clip?.remove();
       await burn?.remove();
       if (scratch) await rm(scratch, { recursive: true, force: true, maxRetries: 5 });
+      if (scratch) forgetTemporary(scratch);
     }
   }
 
@@ -905,6 +909,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
     } finally {
       await burn?.remove();
       await rm(scratch, { recursive: true, force: true, maxRetries: 5 });
+      if (scratch) forgetTemporary(scratch);
     }
   }
 
@@ -1032,6 +1037,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       }
     } finally {
       await rm(scratch, { recursive: true, force: true, maxRetries: 5 });
+      if (scratch) forgetTemporary(scratch);
     }
   }
 
@@ -1052,6 +1058,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       else await writePptx(out, pages, job.name, signal);
     } finally {
       await rm(scratch, { recursive: true, force: true, maxRetries: 5 });
+      if (scratch) forgetTemporary(scratch);
     }
   }
 
@@ -1093,8 +1100,11 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
     const scratch = join(root, '.film', 'cache', 'export', `nle-${randomBytes(4).toString('hex')}`);
     const final = freeFile(dir, baseName(job.name, ask), '');
     const staging = join(dir, `.${basename(final)}.partial-${job.id}`);
+    await mkdir(dir, { recursive: true });
+    trackTemporary(staging);
     try {
       await mkdir(scratch, { recursive: true });
+      trackTemporary(scratch);
       await filmElsewhere(root, scratch, { stage: doc.stage, tracks: doc.tracks.map((t) => ({ clips: t.clips })) });
       /** @type {Map<string, import('../../src/text-page.mjs').TextPage>} */
       const sourceTextPages = new Map();
@@ -1104,47 +1114,76 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
         const page = isTextPage(row.src) ? readTextPageJson(source) : readLegacyTextPage(source);
         if (page) sourceTextPages.set(row.id, page);
       }
-      const probe = await open(scratch, { root });
       /** @type {{ id: string, at: number, end: number, from: number, to: number, speed: number, native: number | null, w: number | null, h: number | null, textHeights: number[] }[]} */
       let loaded;
-      try {
-        loaded = await probe.film.page.evaluate(async (pages) => {
-          /* Future timeline clips are not mounted yet. Measure their JSON with the
-             same renderer, independently of the playhead, without drawing video frames. */
-          const { mountTextPage } = await import(new URL('__film/text-page.mjs', location.href).href);
-          const heights = new Map();
-          for (const [id, page] of pages) {
-            if (!page.texts.some((item) => item.height != null)) continue;
-            const root = document.createElement('div');
-            Object.assign(root.style, { position: 'absolute', visibility: 'hidden', width: `${page.width}px`, height: `${page.height}px` });
-            document.body.append(root);
-            try {
-              const film = mountTextPage({ ...page, texts: page.texts.map((item) => ({ ...item, height: undefined })) }, root);
-              await film.ready;
-              heights.set(id, [...root.querySelectorAll('[data-openfilm-text]')].map((node) => /** @type {HTMLElement} */ (node).offsetHeight));
-            } finally {
-              root.remove();
-            }
-          }
-          return /** @type {any} */ (window).__filmEditor.stage.clips().map((/** @type {any} */ c) => ({
-          id: c.id, at: c.at, end: c.end, from: c.span.from, to: c.span.to, speed: c.span.speed,
-          native: Number.isFinite(c.native) ? c.native : null, w: c.nw ?? null, h: c.nh ?? null,
-          textHeights: heights.get(c.id) ?? [],
-        }));
-        }, [...sourceTextPages]);
-      } finally {
-        await probe.close();
-      }
-      if (signal.aborted) throw new Error('cancelled');
-      const byId = new Map(loaded.map((c) => [c.id, c]));
-
-      /* every source's facts, once */
+      /* Media facts and authored text timings do not require a DOM. Only web pages
+         and fixed-height text boxes need browser layout before rendering. */
       /** @type {Map<string, import('./nle.mjs').SourceFacts>} */
       const facts = new Map();
       const factsOf = async (/** @type {string} */ path) => {
         if (!facts.has(path)) facts.set(path, existsSync(path) ? await probeSource(path) : {});
         return /** @type {import('./nle.mjs').SourceFacts} */ (facts.get(path));
       };
+      const needsLayout = doc.tracks.some(track => track.clips.some(row => {
+        if (kindOf(row) !== 'page') return false;
+        const page = sourceTextPages.get(row.id);
+        return !page || page.texts.some(item => item.height != null);
+      }));
+      if (!needsLayout) {
+        loaded = [];
+        for (const track of doc.tracks) for (const row of track.clips) {
+          const kind = kindOf(row);
+          if (!kind) continue;
+          const page = sourceTextPages.get(row.id);
+          const f = kind === 'page' ? {} : await factsOf(clipPath(root, row.src));
+          const native = page?.duration ?? f.duration ?? null;
+          // Match the editor's recovery of stale media trims after replacing a source.
+          let playable = row;
+          if ((kind === 'video' || kind === 'sound') && native !== null && native > 0 && row.time?.length === 2) {
+            const from = Math.max(0, Math.min(native - 0.001, row.time[0] ?? 0));
+            playable = { ...row, time: [from, Math.max(from + 0.001, Math.min(native, row.time[1] ?? native))] };
+          }
+          const span = clipSpan(playable, native ?? NaN, row.id);
+          const at = row.at ?? 0;
+          loaded.push({ id: row.id, at, end: at + span.length, from: span.from, to: span.to, speed: span.speed,
+            native, w: f.w ?? null, h: f.h ?? null,
+            textHeights: [],
+          });
+        }
+      } else {
+        const probe = await open(scratch, { root });
+        try {
+          loaded = await probe.film.page.evaluate(async (pages) => {
+            /* Future timeline clips are not mounted yet. Measure their JSON with the
+               same renderer, independently of the playhead, without drawing video frames. */
+            const { mountTextPage } = await import(new URL('__film/text-page.mjs', location.href).href);
+            const heights = new Map();
+            for (const [id, page] of pages) {
+              if (!page.texts.some((item) => item.height != null)) continue;
+              const root = document.createElement('div');
+              Object.assign(root.style, { position: 'absolute', visibility: 'hidden', width: `${page.width}px`, height: `${page.height}px` });
+              document.body.append(root);
+              try {
+                const film = mountTextPage({ ...page, texts: page.texts.map((item) => ({ ...item, height: undefined })) }, root);
+                await film.ready;
+                heights.set(id, [...root.querySelectorAll('[data-openfilm-text]')].map((node) => /** @type {HTMLElement} */ (node).offsetHeight));
+              } finally {
+                root.remove();
+              }
+            }
+            return /** @type {any} */ (window).__filmEditor.stage.clips().map((/** @type {any} */ c) => ({
+            id: c.id, at: c.at, end: c.end, from: c.span.from, to: c.span.to, speed: c.span.speed,
+            native: Number.isFinite(c.native) ? c.native : null, w: c.nw ?? null, h: c.nh ?? null,
+            textHeights: heights.get(c.id) ?? [],
+          }));
+          }, [...sourceTextPages]);
+        } finally {
+          await probe.close();
+        }
+      }
+      if (signal.aborted) throw new Error('cancelled');
+      const byId = new Map(loaded.map((c) => [c.id, c]));
+
       /** @type {import('./nle.mjs').NlePicture[]} */
       const pictures = [];
       /** @type {import('./nle.mjs').NleSound[]} */
@@ -1326,7 +1365,9 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       update(job, { out: outputs[0], outputs });
     } finally {
       await rm(scratch, { recursive: true, force: true, maxRetries: 5 });
+      if (scratch) forgetTemporary(scratch);
       await rm(staging, { recursive: true, force: true });
+      forgetTemporary(staging);
     }
   }
 
@@ -1354,6 +1395,8 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
     }
     const final = freeFile(dir, title, '');
     const staging = join(dir, `.${basename(final)}.partial-${job.id}`);
+    await mkdir(dir, { recursive: true });
+    trackTemporary(staging);
     try {
       let bytes = 0;
       for (const f of files) {
@@ -1368,6 +1411,7 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
       update(job, { out: final, outputs: [final] });
     } finally {
       await rm(staging, { recursive: true, force: true });
+      forgetTemporary(staging);
     }
   }
 

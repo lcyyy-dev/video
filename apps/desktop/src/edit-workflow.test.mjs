@@ -96,7 +96,7 @@ test('every selected workflow executes and reports without automatic preview or 
 test('advertising read-aloud requires the native command before reporting availability',()=>{
  const root=project();
  const prepared=prepareEditPrompt(root,'按模板生成视频',{config:{...initialTemplate(),narration:true,bodyText:'完整正文。'}});
- assert.match(prepared.text,/请先在工程目录执行 openfilm narrate/);
+ assert.match(prepared.text,/执行 openfilm narrate --duration 秒数/);
  assert.match(prepared.text,/不得跳过已勾选旁白/);
  assert.match(prepared.text,/只有命令真实失败才可报告旁白未完成/);
  const disabled=prepareEditPrompt(root,'生成视频',{config:{...initialTemplate(),narration:false}});assert.match(disabled.text,/当前未启用广告正文朗读/);

@@ -12,6 +12,14 @@ format and exporter.
 For a normal template generation request, keep the execution short: inspect the supplied media, read this skill, read
 the template's exact copy, run native narration when read-aloud is enabled or retain original video audio when disabled, assemble the timeline, report the result immediately without an automatic preview or check. Do not add research, alternate concepts, unrelated cleanup or an export unless requested.
 
+### Prefer solo-coach footage for the opening clip
+
+For coach, fitness-training or home-training promotions, prefer a suitable verified interval of supplied solo-coach footage as the first clip on the main video timeline. A solo-coach shot shows the coach independently introducing, demonstrating or training; it is not a coach interacting with a child, a group-training shot or a child alone. Do not identify an arbitrary lone bystander as the coach.
+
+Use source descriptions, `.film/source-analysis/index.json` and cached preview frames first, and confirm that the selected source interval actually meets this condition. A filename or the first frame alone is not evidence for the entire interval. Among candidates, prefer a clearly visible subject, stable framing, a complete action and relevance to the opening. Set shot length using the requested duration and real narration timing without changing narration or text-synchronization rules.
+
+This is a preference when suitable supplied footage exists. If no candidate fits or identity cannot be confirmed, continue with the most relevant opening shot instead of inventing footage or blocking the edit. Explicit user-selected openings and locked or preserved first clips take priority.
+
 ### Optional narration
 
 Advertising uses one workflow, without advertising subcategories. The content field narration is an optional read-aloud checkbox, off by default. When off, retain original video audio and do not generate narration. When on, call the native narration capability supplied by the desktop session. It reads the saved advertising body text, speaker and speech rate, and calls seed-tts-2.0 through the Keygen gateway. Read .film/narration.json and place its real audio files as independent clips at the measured start times. Lower original source audio to 0.15 by default. Failures must be reported as incomplete narration, never silently skipped. Run `openfilm narrate` before deciding whether narration is available. Do not use `openfilm get` or Studio provider connection status to judge this separate native capability. Earlier conversation claims that TTS is unavailable do not override the saved read-aloud setting or current native command result. Never replace requested narration with on-screen text and claim completion.
@@ -257,7 +265,7 @@ Default workflow: receive the command, execute the command, and report the resul
 
 ## Copy and audio execution policy
 
-When requested TTS fails, report incomplete narration and retain successful sentence assets for retry. Never claim a silent video fulfills a narration request. If a fixed duration cannot fit the complete narration, report the conflict without truncating speech, deleting copy or silently extending the video.
+When requested TTS fails, report incomplete narration and retain successful sentence assets for retry. Never claim a silent video fulfills a narration request. When a target duration is given, run `openfilm narrate --duration seconds` to estimate TTS speed from character count or prior measured audio. Synthesize once and schedule using actual durations, accepting an approximate target. If speed limits prevent a close match, briefly report the difference and preserve the full copy; never truncate or repeatedly synthesize to hit an exact second.
 Preserve every character of supplied final titles and body copy. Never ask whether to shorten, use only the title, or retain the full copy. For an authorized source rewrite, use the complete resulting script. Keep the requested duration and arrange all copy across text clips by adapting layout and timing. Missing TTS imposes no spoken-duration constraint. Complete the edit without asking the person to choose between shortened copy, title-only and a longer duration; report any readability limitation afterward.
 
 A frame may show two or more sentences simultaneously, grouped by meaning in multiple lines or text blocks. Do not enforce one sentence per screen or exclusive time intervals per sentence. For a short video with long copy, prefer related sentences together and allocate display time per group, preserving all copy and the requested duration while avoiding the subject. A single-line headline rule does not limit the number of body sentences on screen.

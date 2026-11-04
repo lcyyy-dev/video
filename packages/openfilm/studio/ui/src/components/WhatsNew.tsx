@@ -100,7 +100,7 @@ export function WhatsNew() {
             return (
               <section key={release.version} className="py-3">
                 <p className="mb-2.5 text-[12.5px] text-[var(--text-muted)]">
-                  {shown.length > 1 ? `OpenFilm ${release.version} · ` : ''}{date(release.date)}
+                  {shown.length > 1 ? `GainingCut ${release.version} · ` : ''}{date(release.date)}
                 </p>
                 <div className="flex flex-col gap-3.5">
                   {KINDS.map((kind) => {

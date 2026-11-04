@@ -36,7 +36,7 @@ interface Native {
   /* the composer's Skills button (src/skills-ipc.mjs) */
   skills: Record<string, (...args: never[]) => Promise<unknown>>;
   prefs: { get(): Promise<AppPrefs>; set(next: Partial<AppPrefs>): Promise<unknown>; onChange(listener: Listener<AppPrefs>): Stop };
-  sub2api: { status(): Promise<{ authorized: boolean; message?: string }>; onAuthorization(listener: (authorized: boolean) => void): () => void; get(): Promise<{ baseUrl: string; model: string; configured: boolean }>; set(input: { activationCode: string }): Promise<{ baseUrl: string; model: string; configured: boolean }>; test(): Promise<{ ok: true; baseUrl: string; model: string }> };
+  sub2api: { profile(): Promise<{ username: string; userId: string }>; rename(username: string): Promise<{ username: string; userId: string }>; quota(): Promise<{ limit: number | null; used: number | null; remaining: number | null; percent: number | null; unit: string }>; status(): Promise<{ authorized: boolean; message?: string }>; onAuthorization(listener: (authorized: boolean) => void): () => void; get(): Promise<{ baseUrl: string; model: string; configured: boolean }>; set(input: { activationCode: string }): Promise<{ baseUrl: string; model: string; configured: boolean }>; test(): Promise<{ ok: true; baseUrl: string; model: string }> };
   saveEditorLayout(layout: Record<string, string>): void;
   saveLayout(layout: { chatOpen: boolean; chatWidth: number }): void;
   setTheme(theme: Theme): void;
@@ -255,7 +255,7 @@ const INSET_RIGHT = 138;
 
 const host: StudioHost = {
   version: 1,
-  name: 'OpenFilm',
+  name: 'GainingCut',
   ...(mac ? { titlebar: { inset: INSET, onChange: (listener: Listener<number>) => { fullScreen.on((full) => listener(full ? 6 : INSET)); } } } : {}),
   ...(windows ? { titlebar: { inset: 6, insetRight: INSET_RIGHT } } : {}),
   /* in order, each with its picture: two pointed at quickly must not swap or share a screenshot */

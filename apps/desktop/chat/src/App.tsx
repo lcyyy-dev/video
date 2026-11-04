@@ -1,3 +1,4 @@
+import { serviceErrorText } from './lib/service-error-text';
 import { Sub2ApiSettings } from './components/Sub2ApiSettings';
 /**
  * The chat beside Studio: a conversation with an agent (the app's own, or the person's own Claude Code or Codex) about
@@ -15,7 +16,6 @@ import { ProjectConversation, primeStoredTranscript } from '@/components/Project
 import { EditTemplateBuilder } from '@/components/EditTemplateBuilder';
 import AnimatedContent from '@/components/react-bits/AnimatedContent';
 import { ProjectStarters } from '@/components/ProjectStarters';
-import { ModelDisplay } from '@/components/ModelDisplay';
 import { CardActions, CardButton, ComposerCard } from '@/components/ComposerCard';
 import { LocalAgentQuestionCard } from '@/components/TurnQuestionCard';
 import { Tooltip } from '@/components/Tooltip';
@@ -58,7 +58,7 @@ import { readBalance, type TurnBalance } from '@/lib/balance';
 import { BalanceNotice } from '@/components/BalanceNotice';
 import { readStudioFilm } from '@/lib/studio-film';
 import { studioRefsFromTransfer, transferHasStudioRefs } from '@/lib/studio-transfer';
-import { agentModelSummary, agentOptions, currentAgent, effectivePrefs, offeredOption, useLocalAgents } from '@/state/local-agent-store';
+import { agentOptions, effectivePrefs, currentAgent, useLocalAgents } from '@/state/local-agent-store';
 import { useLiveActivityFromStore } from '@/lib/live-activity';
 import { loadLastSession, loadSessions, newSession, saveLastSession, saveSessions } from '@/lib/local-sessions';
 import type { ProjectSessionItem } from '@/lib/project-sessions';
@@ -531,16 +531,11 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
     const agentStore = useLocalAgents.getState();
     const options = agentOptions(agentStore, agent);
     const prefs = effectivePrefs(agentStore.prefs, agent, agentStore.roster, options);
-    const summary = agentModelSummary(options, prefs);
-    /* how hard it thinks, as the menu offers it */
-    const effortOption = options?.find((o) => o.category === 'thought_level');
-    const effort = effortOption && offeredOption(agent, agentStore.roster, effortOption) ? summary.effort : null;
-    const modelLabel = [summary.model, effort].filter(Boolean).join(' · ');
     const started: Turn = {
       ...makePlaceholder(id, 'video', instruction, { projectId: projectKey, sessionId }),
       ...(promptDisplay ? { promptDisplay } : {}),
       ...(attachments?.length ? { attachments } : {}),
-      localAgent: { id: agent, model: modelLabel || null },
+      localAgent: { id: agent, model: null },
       ...(origin ? { origin } : {}),
     } as Turn;
     if (shown) setTurns((list) => mergeAssetLists([started], list));
@@ -793,7 +788,6 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
         </div>
       </div>
       <div className="flex items-center gap-0.5 px-0.5">
-        <ModelDisplay />
         <div className="min-w-0 flex-1" />
         {mineOpen ? <Sub2ApiSettings onClose={() => setMineOpen(false)} /> : null}
         <Tooltip label="我的设置">
@@ -920,7 +914,7 @@ function ChatPane({ project, banners, selection }: { project: Project; banners: 
                       </CardActions>
                     </ComposerCard>
                   ) : null}
-                  {localTurn?.state.error ? <p role="alert" className="text-xs text-[var(--err)]">{localTurn.state.error}</p> : null}
+                  {localTurn?.state.error ? <p role="alert" className="text-xs text-[var(--err)]">{serviceErrorText(localTurn.state.error)}</p> : null}
                   {localTurn?.state.balance ? <BalanceNotice balance={localTurn.state.balance} /> : null}
                   {followUpError && <p className="text-xs text-[var(--err)]">{followUpError}</p>}
                   {composerFiles.notice && <p className="text-xs text-[var(--warn)]">{composerFiles.notice}</p>}

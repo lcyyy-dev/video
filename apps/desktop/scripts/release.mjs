@@ -69,7 +69,7 @@ const official = process.argv.includes('--official');
    folder, Studio home, port and projects (src/flavor.mjs `preview`, from the package's `openfilmFlavor`); no updates */
 const preview = process.argv.includes('--preview');
 if (preview && official) throw new Error('--preview is never the official build');
-const NAME = preview ? 'OpenFilm Preview' : 'OpenFilm';
+const NAME = preview ? 'GainingCut Preview' : 'GainingCut';
 const productFile = join(protocol, official ? 'product.official.json' : 'product.json');
 const product = JSON.parse(readFileSync(productFile, 'utf8'));
 const updates = typeof product.desktop?.updates === 'string' ? product.desktop.updates.trim().replace(/\/+$/, '') : '';
@@ -104,7 +104,7 @@ writeFileSync(join(stage, 'package.json'), `${JSON.stringify({
   ...(preview ? { openfilmFlavor: 'preview' } : {}),
   version: pkg.version,
   description: pkg.description,
-  author: 'OpenFilm',
+  author: 'GainingCut',
   license: 'UNLICENSED',
   private: true,
   packageManager: `npm@${execFileSync('npm', ['--version'], { ...commandOptions('npm'), encoding: 'utf8' }).trim()}`,
@@ -148,7 +148,7 @@ await builder.build({
   config: {
     afterPack: win ? async (context) => {
       await windowsResources(context);
-      console.log('Windows runtime:', verifyWindowsApp(context.appOutDir));
+      console.log('Windows runtime:', verifyWindowsApp(context.appOutDir, { executable: `${NAME}.exe` }));
     } : undefined,
     /* unsigned on a Mac: signed ad hoc, whole, before the .dmg and .zip are made. Electron's fuses are written into
        its framework after the linker signed it, and an Apple chip kills a program whose pages no longer match its
@@ -173,7 +173,7 @@ await builder.build({
     },
     appId: preview ? 'dev.openfilm.desktop.preview' : 'dev.openfilm.desktop',
     productName: NAME,
-    copyright: 'Copyright © 2026 OpenFilm',
+    copyright: 'Copyright © 2026 GainingCut',
     electronVersion,
     asar: true,
     /* run by Electron as Node from outside the archive: the CLI the agents run, the agents' adapters */
@@ -259,8 +259,8 @@ async function windowsResources(context) {
   info.setFileVersion(major, minor, patch, 0, 1033);
   info.setProductVersion(major, minor, patch, 0, 1033);
   info.setStringValues({ lang: 1033, codepage: 1200 }, {
-    ProductName: 'OpenFilm', FileDescription: 'OpenFilm', CompanyName: 'OpenFilm', OriginalFilename: 'OpenFilm.exe',
-    InternalName: 'OpenFilm', LegalCopyright: 'Copyright © 2026 OpenFilm', FileVersion: pkg.version, ProductVersion: pkg.version,
+    ProductName: NAME, FileDescription: NAME, CompanyName: 'GainingCut', OriginalFilename: `${NAME}.exe`,
+    InternalName: NAME, LegalCopyright: 'Copyright © 2026 GainingCut', FileVersion: pkg.version, ProductVersion: pkg.version,
   });
   info.outputToResourceEntries(res.entries);
   res.outputResource(exe);

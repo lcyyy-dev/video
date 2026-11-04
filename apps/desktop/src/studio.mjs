@@ -60,10 +60,10 @@ async function takeOver(home, log) {
 
 /**
  * @param {{ home: string, port: number, env: Record<string, string>, onOpen: (url: string) => void,
- *           onBrowser: (state: { state: string, message?: string }) => void, log: (line: string) => void }} options
+ *           onBrowser: (state: { state: string, message?: string }) => void, onProjectDeleted?: (path: string) => void, log: (line: string) => void }} options
  * @returns {Promise<{ origin: string, filmOrigin: string, key: string, child: Electron.UtilityProcess }>}
  */
-function fork({ port, env, onOpen, onBrowser, log }) {
+function fork({ port, env, onOpen, onBrowser, onProjectDeleted = () => {}, log }) {
   return new Promise((resolve, reject) => {
     const child = utilityProcess.fork(ENTRY, [], {
       serviceName: 'OpenFilm Studio',
@@ -84,6 +84,7 @@ function fork({ port, env, onOpen, onBrowser, log }) {
         clearTimeout(timer);
         reject(Object.assign(new Error(message.message), { code: message.code }));
       } else if (message?.type === 'open') onOpen(message.url);
+      else if (message?.type === 'project-deleted' && typeof message.path === 'string') onProjectDeleted(message.path);
       else if (message?.type === 'browser' || message?.type === 'ffmpeg') onBrowser(message);
     });
     child.once('exit', (code) => {
@@ -98,7 +99,7 @@ function fork({ port, env, onOpen, onBrowser, log }) {
 /**
  * Start the window's Studio. `onExit` hears when it stops after it had started (a crash): `restart()` starts it again.
  * @param {{ home: string, port: number, env: Record<string, string>, onOpen: (url: string) => void,
- *           onBrowser: (state: { state: string, message?: string }) => void, onExit: (code: number) => void,
+ *           onBrowser: (state: { state: string, message?: string }) => void, onProjectDeleted?: (path: string) => void, onExit: (code: number) => void,
  *           log: (line: string) => void }} options
  */
 export async function startWindowStudio(options) {

@@ -9,14 +9,9 @@ export function BalanceNotice({ balance }: { balance: Balance }) {
   const t = useT();
   return (
     <p role="status" className="text-xs text-[var(--warn)]">
-      <b className="font-medium">{t('balance.title').replaceAll('{provider}', balance.provider)}</b>{' '}
-      {t('balance.body').replaceAll('{provider}', balance.provider)}
-      {balance.url ? (
-        <>
-          {' '}
-          <a href={balance.url} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-[var(--text)]">{t('balance.manage')}</a>
-        </>
-      ) : null}
+      <b className="font-medium">{t('balance.title').replaceAll('{provider}', '服务')}</b>{' '}
+      {t('balance.body').replaceAll('{provider}', '服务')}
+
     </p>
   );
 }

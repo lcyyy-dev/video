@@ -1,3 +1,4 @@
+import { openProfileStore } from './profiles.mjs';
 import { openLogStore } from './log-store.mjs';
 import { keyReference } from './logs.mjs';
 import { createServer } from 'node:http';
@@ -91,7 +92,7 @@ export function createAdmin(config) {
         const [licenses, policies] = await Promise.all([list('/licenses'), list('/policies')]);
         const mappings = readMappings();
         return json(200, {
-          licenses: licenses.map(item => ({ id: item.id, key: item.attributes.key, name: mappings[item.id]?.name ?? '', suspended: item.attributes.suspended, expiry: item.attributes.expiry, mapped: Boolean(mappings[item.id]?.apiKey), keyRef:keyReference(mappings[item.id]?.apiKey), policyId: item.relationships?.policy?.data?.id })),
+          licenses: await Promise.all(licenses.map(async item => ({ ...(config.profileStore ? await config.profileStore.ensure(item.id) : {}), id: item.id, key: item.attributes.key, name: mappings[item.id]?.name ?? '', suspended: item.attributes.suspended, expiry: item.attributes.expiry, mapped: Boolean(mappings[item.id]?.apiKey), keyRef:keyReference(mappings[item.id]?.apiKey), policyId: item.relationships?.policy?.data?.id }))),
           policies: policies.map(item => ({ id: item.id, name: item.attributes.name, maxMachines: item.attributes.maxMachines })),
         });
       }
@@ -100,9 +101,9 @@ export function createAdmin(config) {
         const attributes = {};
         if (body.expiry) { const expiry = new Date(body.expiry); if (!Number.isFinite(expiry.getTime())) return json(400, { error: '到期时间无效' }); attributes.expiry = expiry.toISOString(); }
         const license = await keygen('/licenses', 'POST', { data: { type: 'licenses', attributes, relationships: { policy: { data: { type: 'policies', id: body.policyId } } } } });
-        try { const mappings = readMappings(); mappings[license.data.id] = { apiKey: body.apiKey.trim(), name: String(body.name ?? '').slice(0, 100) }; saveMappings(mappings); }
+        try { await config.profileStore?.ensure(license.data.id); const mappings = readMappings(); mappings[license.data.id] = { apiKey: body.apiKey.trim(), name: String(body.name ?? '').slice(0, 100) }; saveMappings(mappings); }
         catch (error) { await keygen(`/licenses/${license.data.id}/actions/suspend`, 'POST'); throw error; }
-        return json(200, { activationCode: license.data.attributes.key });
+        return json(200, { activationCode: license.data.attributes.key, ...(config.profileStore ? await config.profileStore.ensure(license.data.id) : {}) });
       }
       const match = /^\/admin\/licenses\/([a-zA-Z0-9-]+)(?:\/(devices|mapping|suspend|reinstate))?$/.exec(url.pathname);
       if (!match) return json(404, { error: '接口不存在' });
@@ -139,8 +140,9 @@ export function createAdmin(config) {
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const logStore=await openLogStore(process.env.LOG_DATABASE_READ_URL||process.env.LOG_DATABASE_URL);
-  const server=createAdmin({ logStore, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN });
+  const profileStore=await openProfileStore(process.env.PROFILE_DATABASE_URL||process.env.LOG_DATABASE_URL);
+  const server=createAdmin({ profileStore, logStore, mappingFile: process.env.MAPPING_FILE ?? '/data/mappings.json', keygenUrl: process.env.KEYGEN_URL, keygenToken: process.env.KEYGEN_TOKEN });
   server.listen(Number(process.env.ADMIN_PORT??8790),process.env.ADMIN_BIND??'127.0.0.1');
-  const stop=()=>{server.closeIdleConnections();server.close(async()=>{await logStore.close();process.exit(0);});setTimeout(()=>server.closeAllConnections(),5000).unref();};
+  const stop=()=>{server.closeIdleConnections();server.close(async()=>{await profileStore.close();await logStore.close();process.exit(0);});setTimeout(()=>server.closeAllConnections(),5000).unref();};
   process.on('SIGTERM',stop);process.on('SIGINT',stop);
 }

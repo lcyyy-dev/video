@@ -62,3 +62,16 @@ test('bundled narrate command reaches native bridge without additional Python or
     assert.equal(JSON.parse(stdout).model, 'seed-tts-2.0');
   } finally { await provider.close(); }
 });
+
+
+test('narrate duration crosses the capability bridge as a validated numeric target', async () => {
+  let target;
+  const provider = await createCodexProvider({ baseUrl: 'https://gateway.test/v1', narration: async (signal, options) => { target = options.targetSeconds; return { duration: 20 }; } });
+  try {
+    const env = { ...process.env, OPENFILM_NO_UPDATE_CHECK: '1', OPENFILM_NARRATION_URL: provider.baseUrl.replace('/v1', '/tts/generate'), OPENFILM_NARRATION_CAPABILITY: provider.narrationCapability };
+    await promisify(execFile)(process.execPath, [fileURLToPath(new URL('../../../packages/openfilm/bin/openfilm.mjs', import.meta.url)), 'narrate', '--duration', '20'], { env, timeout: 10000 });
+    assert.equal(target, 20);
+    const invalid = await fetch(env.OPENFILM_NARRATION_URL, { method: 'POST', headers: { authorization: `Bearer ${provider.narrationCapability}`, 'x-openfilm-target-seconds': 'NaN' } });
+    assert.equal(invalid.status, 400);
+  } finally { await provider.close(); }
+});

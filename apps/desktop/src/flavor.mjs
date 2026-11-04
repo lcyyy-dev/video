@@ -21,20 +21,20 @@ import { fileURLToPath } from 'node:url';
 const packaged = Boolean(process.versions.electron) && !process.defaultApp;
 
 export const FLAVORS = Object.freeze({
-  release: { productName: 'OpenFilm', bundleId: 'dev.openfilm.desktop', studioPort: 4747, studioHome: null, library: null },
+  release: { productName: 'GainingCut', dataName: 'OpenFilm', bundleId: 'dev.openfilm.desktop', studioPort: 4747, studioHome: null, library: null },
   preview: {
-    productName: 'OpenFilm Preview', bundleId: 'dev.openfilm.desktop.preview', studioPort: 4777,
+    productName: 'GainingCut Preview', dataName: 'OpenFilm Preview', bundleId: 'dev.openfilm.desktop.preview', studioPort: 4777,
     studioHome: join(homedir(), '.openfilm-preview'), library: join(homedir(), 'Movies', 'OpenFilm Preview', 'Projects'),
   },
   dev: {
-    productName: 'OpenFilm Dev', bundleId: 'dev.openfilm.desktop.dev', studioPort: 4757,
+    productName: 'GainingCut Dev', dataName: 'OpenFilm Dev', bundleId: 'dev.openfilm.desktop.dev', studioPort: 4757,
     studioHome: join(homedir(), '.openfilm-dev'), library: join(homedir(), 'Movies', 'OpenFilm Dev', 'Projects'),
   },
 });
 
 const benchDir = process.env.OPENFILM_BENCH_DIR ?? '';
 const BENCH = Object.freeze({
-  productName: 'OpenFilm Bench', bundleId: 'dev.openfilm.desktop.bench', studioPort: 4767,
+  productName: 'GainingCut Bench', dataName: 'OpenFilm Bench', bundleId: 'dev.openfilm.desktop.bench', studioPort: 4767,
   studioHome: join(benchDir, 'home'), library: join(benchDir, 'projects'), userData: join(benchDir, 'data'),
 });
 
