@@ -59,7 +59,7 @@ import { fileURLToPath } from 'node:url';
 import { FilmPage, launch } from '../../src/host.mjs';
 import { filmSound, kill as killProcess, mix, open } from '../../src/shared.mjs';
 import { FILM_FILE, clipSpan, clipFade, filmHtml, fittedFade, isTextPage, kindOf, pictureRect, readFilmFile } from '../../src/film-doc.mjs';
-import { hasPictureEffects, NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
+import { nativePictureFit, hasPictureEffects, NLE_FPS, nleFps, planNleTimeline, probeSource, soundStem, xmemlDocument } from './nle.mjs';
 import { draftsRoot, jianyingDraft } from './jianying.mjs';
 import { readLegacyTextPage, readTextPageJson, textValueAt } from '../../src/text-page.mjs';
 import { bundledTextFont } from './text-fonts.mjs';
@@ -1241,7 +1241,8 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
               f = { ...f, w: Math.max(1, Math.round(f.w * k)), h: Math.max(1, Math.round(f.h * k)) };
             }
             pictures.push({ id: row.id, kind, src: row.src, path, at: c.at, end: c.end, from: c.from, speed: c.speed, box: row.box,
-              track: ti, hidden: Boolean(track.hidden), styled: hasPictureEffects(row), ...(fade ? { faded: true } : {}), facts: f });
+              track: ti, hidden: Boolean(track.hidden), styled: hasPictureEffects(row) && !nativePictureFit(row, doc.stage),
+              fit: nativePictureFit(row, doc.stage) ?? undefined, ...(fade ? { faded: true } : {}), facts: f });
           }
           if (kind === 'sound' || kind === 'video') {
             const f = await factsOf(path);
@@ -1308,7 +1309,9 @@ export function createExports({ onChange = () => {}, captions = subtitlesForExpo
         }
       }
 
-      update(job, { phase: 'encoding', progress: 0.9, rate: 0, etaMs: null });
+      // A Jianying/CapCut draft normally copies native video/audio and writes native text JSON.
+      // Keep the UI phase explicit: “copying” means no frame renderer is running.
+      update(job, { phase: 'copying', progress: 0.9, rate: 0, etaMs: null });
       const others = timeline.files.filter((f) => f.job.kind !== 'render' && f.job.kind !== 'link');
       /** @type {import('playwright-core').Browser | null} */
       let browser = null;

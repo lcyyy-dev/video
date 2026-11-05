@@ -2119,3 +2119,6 @@ body.tl-pinning, body.tl-pinning * { cursor: crosshair !important; }
 .edit-template-copy-source { display: flex; flex-direction: column; gap: 10px; padding: 14px; font-size: 14px; }
 .template-native-stepper textarea[aria-label='正文内容'],
 .template-native-stepper textarea[aria-label='文案二创'] { min-height: 200px; }
+
+.edit-template-narration-hint { flex: 1; min-width: 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.edit-template-toggle:has(.edit-template-narration-hint) > label { flex-shrink: 0; }

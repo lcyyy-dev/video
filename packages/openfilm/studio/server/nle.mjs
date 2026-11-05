@@ -30,7 +30,7 @@ import { clipKind, pictureRect, soundRole } from '../../src/film-doc.mjs';
  * @typedef {{ w?: number, h?: number, duration?: number, fps?: number, hasVideo?: boolean, hasAudio?: boolean,
  *   channels?: number, sampleRate?: number, alpha?: boolean }} SourceFacts
  * @typedef {{ id: string, kind: 'page' | 'video' | 'still', src: string, path: string, at: number, end: number,
- *   from: number, speed: number, box?: FilmBox, track: number, hidden: boolean, styled?: boolean, faded?: boolean,
+ *   from: number, speed: number, box?: FilmBox, track: number, hidden: boolean, styled?: boolean, faded?: boolean, fit?: 'contain' | 'cover',
  *   facts: SourceFacts | null }} NlePicture
  *   A picture clip: its film seconds [at, end), its source from `from` at `speed`; `facts` its file's (w × h as the
  *   browser shows it), null for a page
@@ -110,13 +110,13 @@ const round6 = (/** @type {number} */ n) => { const r = Math.round(n * 1e6) / 1e
  * @param {{ w?: number, h?: number }} natural @param {{ w: number, h: number }} stage @param {FilmBox} [box]
  * @returns {{ kind: 'none' } | { kind: 'motion', motion: { scale: number, center: { h: number, v: number } } } | { kind: 'bake' }}
  */
-export function containMotion(natural, stage, box) {
+export function containMotion(natural, stage, box, fit = 'contain') {
   const nw = natural.w ?? 0, nh = natural.h ?? 0;
   if (!(nw > 0 && nh > 0) || Math.abs(box?.r ?? 0) > 1e-6) return { kind: 'bake' };
   const rect = pictureRect('video', { w: nw, h: nh }, stage, box);
   const cx = rect.x + rect.w / 2;
   const cy = rect.y + rect.h / 2;
-  const scale = round6((Math.min(rect.w / nw, rect.h / nh)) * 100);
+  const scale = round6(((fit === 'cover' ? Math.max : Math.min)(rect.w / nw, rect.h / nh)) * 100);
   const center = { h: round6((cx - stage.w / 2) / stage.w), v: round6((cy - stage.h / 2) / stage.h) };
   if (Math.abs(scale - 100) < 1e-4 && center.h === 0 && center.v === 0) return { kind: 'none' };
   return { kind: 'motion', motion: { scale, center } };
@@ -129,6 +129,30 @@ export function hasPictureEffects(clip) {
   if (clip.class?.trim()) return true;
   return (clip.style ?? '').split(';').some((declaration) => declaration.trim()
     && !/^\s*object-fit\s*:\s*contain\s*(?:!important\s*)?$/i.test(declaration));
+}
+
+/** Recognize only the editor/agent's full-canvas CSS layout; retain rendering for other CSS.
+ * @param {{ class?: string, style?: string, box?: FilmBox }} clip
+ * @param {{ w: number, h: number }} stage
+ * @returns {'contain' | 'cover' | null}
+ */
+export function nativePictureFit(clip, stage) {
+  if (clip.class?.trim()) return null;
+  if (clip.box && (Object.keys(clip.box).some(k => !['x', 'y', 'w', 'h'].includes(k))
+    || clip.box.x !== 0 || clip.box.y !== 0 || clip.box.w !== stage.w || clip.box.h !== stage.h)) return null;
+  /** @type {Record<string, number>} */
+  const allowed = { left: 0, top: 0, width: stage.w, height: stage.h };
+  let fit = 'contain';
+  for (const declaration of (clip.style ?? '').split(';')) {
+    if (!declaration.trim()) continue;
+    const match = /^\s*([a-z-]+)\s*:\s*(.*?)\s*(?:!important\s*)?$/i.exec(declaration);
+    if (!match) return null;
+    const key = match[1].toLowerCase(), value = match[2].trim().toLowerCase();
+    if (key === 'object-fit' && ['contain', 'cover'].includes(value)) { fit = value; continue; }
+    if (!(key in allowed) || !/^(?:0|[0-9]+(?:\.[0-9]+)?px)$/.test(value)
+      || parseFloat(value) !== allowed[key]) return null;
+  }
+  return /** @type {'contain' | 'cover'} */ (fit);
 }
 
 /**
@@ -242,7 +266,7 @@ export function planNleTimeline(film, opts) {
     };
     /* a clip with a look of its own (the film's CSS: a crop, round corners) is drawn as the film draws it */
     if (p.kind === 'page' || p.styled || p.faded || !p.facts || (p.kind === 'video' && Math.abs(p.speed - 1) > 1e-6)) { bake(); continue; }
-    const placement = containMotion(p.facts, stage, p.box);
+    const placement = containMotion(p.facts, stage, p.box, p.fit);
     if (placement.kind === 'bake') { bake(); continue; }
     const inFrame = p.kind === 'still' ? 0 : toFrame(p.from, rate);
     const file = sourceFile(p, p.kind, inFrame + len);
@@ -511,14 +535,14 @@ export function xmemlDocument(timeline) {
 export function probeSource(path) {
   return new Promise((done) => {
     const proc = spawn('ffprobe', ['-v', 'error', '-show_entries',
-      'format=duration,format_name:stream=codec_type,width,height,avg_frame_rate,r_frame_rate,channels,sample_rate,pix_fmt:stream_tags=alpha_mode',
+      'format=duration,format_name:stream=codec_type,width,height,avg_frame_rate,r_frame_rate,channels,sample_rate,pix_fmt:stream_tags=alpha_mode,rotate:stream_side_data=rotation',
       '-of', 'json', path], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
     let out = '';
     proc.stdout.on('data', (c) => { out += c; });
     proc.on('error', () => done({}));
     proc.on('close', () => {
       try {
-        /** @type {{ format?: { duration?: string, format_name?: string }, streams?: { codec_type?: string, width?: number, height?: number, avg_frame_rate?: string, r_frame_rate?: string, channels?: number, sample_rate?: string, pix_fmt?: string, tags?: { alpha_mode?: string } }[] }} */
+        /** @type {{ format?: { duration?: string, format_name?: string }, streams?: { codec_type?: string, width?: number, height?: number, avg_frame_rate?: string, r_frame_rate?: string, channels?: number, sample_rate?: string, pix_fmt?: string, tags?: { alpha_mode?: string, rotate?: string }, side_data_list?: { rotation?: number }[] }[] }} */
         const json = JSON.parse(out);
         const streams = json.streams ?? [];
         const v = streams.find((s) => s.codec_type === 'video');
@@ -527,9 +551,14 @@ export function probeSource(path) {
         const still = /image|png|mjpeg|jpeg|bmp|tiff/.test(json.format?.format_name ?? '');
         const fr = (/** @type {string | undefined} */ raw) => { const [n, d] = (raw ?? '').split('/').map(Number); return n && d ? n / d : undefined; };
         const fps = fr(v?.avg_frame_rate) ?? fr(v?.r_frame_rate);
+        // Phone MOV files store landscape pixels with a portrait display matrix.
+        // Match HTMLVideoElement.videoWidth/videoHeight without opening a browser.
+        const rotation = Number(v?.side_data_list?.find(s => s.rotation != null)?.rotation ?? v?.tags?.rotate ?? 0);
+        const swapped = Math.abs(rotation % 180) === 90;
+        const width = swapped ? v?.height : v?.width, height = swapped ? v?.width : v?.height;
         done({
-          ...(v?.width ? { w: v.width } : {}),
-          ...(v?.height ? { h: v.height } : {}),
+          ...(width ? { w: width } : {}),
+          ...(height ? { h: height } : {}),
           ...(Number.isFinite(sec) && sec > 0 && !still ? { duration: sec } : {}),
           ...(fps && fps < 500 && !still ? { fps } : {}),
           hasVideo: Boolean(v),

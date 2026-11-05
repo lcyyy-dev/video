@@ -31,7 +31,8 @@ export function createGateway(config) {
   const log = config.log ?? createEventLog({store:config.logStore, source:'gateway',stdout:config.logStdout ?? true});
   const nonces = new Map();
   const ttsLimits = new Map();
-  const speakers = (config.ttsSpeakers ?? 'zh_female_vv_uranus_bigtts').split(',').map(s => s.trim()).filter(Boolean);
+  const DEFAULT_TTS_SPEAKERS = ['zh_female_vv_uranus_bigtts', 'zh_female_gujie_uranus_bigtts', 'zh_female_zhishuaiyingzi_uranus_bigtts', 'zh_male_xionger_uranus_bigtts', 'zh_male_silang_uranus_bigtts', 'zh_male_wennuanahu_uranus_bigtts', 'zh_male_jieshuoxiaoming_uranus_bigtts', 'zh_male_yizhipiannan_uranus_bigtts', 'zh_female_tvbnv_uranus_bigtts', 'zh_male_qingshuangnanda_uranus_bigtts'];
+  const speakers = (config.ttsSpeakers ? config.ttsSpeakers.split(',') : DEFAULT_TTS_SPEAKERS).map(s => s.trim()).filter(Boolean);
   const mappings = () => JSON.parse(readFileSync(config.mappingFile, 'utf8'));
   function issue(claims) {
     const payload = Buffer.from(JSON.stringify(claims)).toString('base64url');

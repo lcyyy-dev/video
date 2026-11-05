@@ -169,9 +169,15 @@ export async function startPages({ port, editorOrigin, secret, projects }) {
     if (!servable(entry.root, plain)) { res.writeHead(404, headers).end('not found'); return; }
     if (url.searchParams.has('film-sound')) {
       /* waited for while it is made (a few seconds for a long recording): the mixer plays the film without it meanwhile */
-      const file = await soundOf(entry.root, plain.replace(/^\/+/, '')).catch((/** @type {any} */ e) => (e?.status === 404 ? undefined : null));
-      if (file === undefined) { res.writeHead(404, headers).end('not found'); return; }
-      if (!file) { res.writeHead(204, headers).end(); return; }
+      let file;
+      try { file = await soundOf(entry.root, plain.replace(/^\/+/, '')); }
+      catch (error) {
+        // An extraction failure must not masquerade as a permanently silent file.
+        const missing = /** @type {any} */ (error)?.status === 404;
+        res.writeHead(missing ? 404 : 503, { ...headers, 'cache-control': 'no-store' }).end(missing ? 'not found' : 'audio temporarily unavailable');
+        return;
+      }
+      if (!file) { res.writeHead(204, { ...headers, 'cache-control': 'no-store' }).end(); return; }
       if (!folderFiles(dirname(file), { headers: policy() })(req, res, `/${basename(file)}`, url.searchParams)) res.writeHead(403, headers).end();
       return;
     }

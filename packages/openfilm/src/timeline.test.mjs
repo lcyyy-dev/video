@@ -814,3 +814,41 @@ window.seen.push(look());await new Promise((r)=>setTimeout(r,150));window.seen.p
     await s.close();
   }
 });
+
+test('live cuts wait for incoming video data before cueing and do not restart an unfinished seek', { skip: !hasFfmpeg && 'no ffmpeg', timeout: 60_000 }, async () => {
+  const dir = footage('of-live-cut-');
+  writeFileSync(join(dir, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [{ clips: [
+    { id: 'first', src: 'a.mp4', time: [0, 2] },
+    { id: 'next', src: 'b.mp4', at: 2, time: [1, 3] },
+  ] }] }));
+  const s = await open(dir);
+  try {
+    // Metadata probes have already finished; delay only the upcoming playback file.
+    await s.film.page.route('**/b.mp4', async route => {
+      await new Promise(resolve => setTimeout(resolve, 850));
+      await route.continue();
+    });
+    const result = await s.film.page.evaluate(async () => {
+      const v = document.getElementById('next');
+      const property = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
+      const invalid = [];
+      Object.defineProperty(v, 'currentTime', {
+        get() { return property.get.call(this); },
+        set(time) { if (this.readyState < 2 || this.seeking) invalid.push({ ready: this.readyState, seeking: this.seeking }); property.set.call(this, time); },
+      });
+      const start = performance.now();
+      await new Promise(resolve => {
+        const tick = async () => {
+          const t = (performance.now() - start) / 1000;
+          await window.__filmEditor.watch(t);
+          if (t < 2.3) setTimeout(tick, 33); else resolve();
+        };
+        tick();
+      });
+      return { invalid, time: v.currentTime, ready: v.readyState, paused: v.paused };
+    });
+    assert.deepEqual(result.invalid, [], 'the incoming clip is not cued during loading or an unfinished seek');
+    assert.ok(result.ready >= 2 && !result.paused, JSON.stringify(result));
+    assert.ok(Math.abs(result.time - 1.3) < 0.25, JSON.stringify(result));
+  } finally { await s.close(); }
+});

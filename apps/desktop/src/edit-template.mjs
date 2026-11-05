@@ -1,3 +1,16 @@
+// Voice IDs: https://docs.volcengine.com/docs/doubao-voice/tone-list-3
+export const NARRATION_VOICES = Object.freeze([
+  { id: 'zh_female_vv_uranus_bigtts', name: 'Vivi 2.0' },
+  { id: 'zh_female_gujie_uranus_bigtts', name: '顾姐2.0' },
+  { id: 'zh_female_zhishuaiyingzi_uranus_bigtts', name: '直率英子2.0' },
+  { id: 'zh_male_xionger_uranus_bigtts', name: '熊二2.0' },
+  { id: 'zh_male_silang_uranus_bigtts', name: '四郎2.0' },
+  { id: 'zh_male_wennuanahu_uranus_bigtts', name: '温暖阿虎2.0' },
+  { id: 'zh_male_jieshuoxiaoming_uranus_bigtts', name: '解说小明2.0' },
+  { id: 'zh_male_yizhipiannan_uranus_bigtts', name: '译制片男2.0' },
+  { id: 'zh_female_tvbnv_uranus_bigtts', name: 'TVB女声2.0' },
+  { id: 'zh_male_qingshuangnanda_uranus_bigtts', name: '清爽男大2.0' },
+]);
 /** Template defaults and routing shared by the desktop composer and main process. */
 export const TEMPLATE_TYPES = Object.freeze([
   { id: 'ad', name: '广告素材', hint: '素材组合 · 视觉包装', skill: 'ad-editing' },

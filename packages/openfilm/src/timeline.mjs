@@ -222,7 +222,7 @@ function mediaShown(page) {
  * exact.
  */
 const ROLL_STEP = 0.5;   // s: a frame further on than this from the last one is a jump
-const ROLL_DRIFT = 0.25; // s: a playing video further off the film's clock than this is sought again
+const ROLL_SEEK_DRIFT = 0.5; // s: only a substantial drift justifies interrupting native decoder playback
 const CUE_AHEAD = 1.5;   // s: how long before its clip starts a video is sought, ready
 const PREROLL = 0.2;     // s: how long before its clip starts a video plays, hidden, to be in step at its cut
 const START_LAG = 0.08;  // s: how long play() takes to get a video going
@@ -238,7 +238,7 @@ function roll(c, want) {
      Nudging playbackRate every animation frame makes Chromium continually
      reschedule 59.94/60fps video and appears as judder. Correct only a real
      timeline drift, otherwise keep the authored speed unchanged. */
-  if (Math.abs(drift) > ROLL_DRIFT || v.ended) v.currentTime = want;
+  if (!v.seeking && (Math.abs(drift) > ROLL_SEEK_DRIFT || v.ended)) v.currentTime = want;
   if (Math.abs(v.playbackRate - speed) > 0.005) v.playbackRate = speed;
   if (v.paused) v.play().catch((e) => { if (e?.name === 'NotAllowedError') c.held = true; });
   c.lastWant = want;
@@ -289,6 +289,9 @@ async function glance(c, want) {
  */
 function getReady(c, lead) {
   const v = c.el;
+  // wake() returns a pending promise too. Seeking before metadata/data arrives can
+  // be discarded by Chromium; do not mark that cue as ready until loading finishes.
+  if (v.readyState < 2 || v.seeking) return;
   const speed = c.span.speed ?? 1;
   const first = sourceAt(c.span, 0, c.row);
   const cue = Math.max(0, first - PREROLL * speed);
@@ -735,9 +738,13 @@ async function drawClip(c, t, live, playing, turn, coming, going) {
   const on = !c.hidden && !c.missing && t >= c.at && t < c.end;
   c.shown = on;
   const appears = on && c.el.style.visibility !== 'visible';
+  /* A reused video element can still contain the last frame of its previous use. During a live cut, keep that
+     stale frame hidden until the element has been moved close to the requested source time; otherwise the first few
+     frames of the new clip can look like a short replay. Pages already use the same deferred reveal path. */
+  const deferVideo = live && playing && appears && c.kind === 'video';
   if (live && appears && c.kind === 'page') { c.coming = turn; coming.push(c); }
   else if (live && !on && c.el.style.visibility === 'visible') going.push(c);
-  else c.el.style.visibility = on ? 'visible' : 'hidden';
+  else c.el.style.visibility = deferVideo ? 'hidden' : (on ? 'visible' : 'hidden');
   if (on) fadeAt(c, t);
   if (!on) {
     if (c.kind !== 'video') return;
@@ -748,7 +755,13 @@ async function drawClip(c, t, live, playing, turn, coming, going) {
   if (c.kind === 'still') return;
   if (c.kind === 'video') {
     const want = sourceAt(c.span, t - c.at, c.row);
-    if (playing) { if (c.held) step(c, want); else roll(c, want); return; }
+    if (playing) {
+      if (c.held) step(c, want); else roll(c, want);
+      if (deferVideo && c.awake && c.el.readyState >= 2 && Math.abs(c.el.currentTime - want) <= 0.5) {
+        c.el.style.visibility = 'visible';
+      }
+      return;
+    }
     c.held = false;
     if (live) { await glance(c, want); return; }
     if (!c.el.paused) c.el.pause();

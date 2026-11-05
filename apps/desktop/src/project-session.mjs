@@ -42,6 +42,7 @@ export class ProjectSession extends AgentSession {
       'model_reasoning_effort = "low"',
       'approval_policy = "never"',
       'sandbox_mode = "workspace-write"',
+      ...(process.platform === 'win32' ? ['[windows]', 'sandbox = "unelevated"'] : []),
       `developer_instructions = ${JSON.stringify(instructions)}`,
       '[model_providers.openfilm]',
       'name = "OpenFilm"',

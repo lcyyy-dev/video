@@ -143,6 +143,9 @@ const AgentActivityRow = React.memo(function AgentActivityRow({
   /* A note the platform leaves in the conversation (today only "earlier messages were summarized").
      Drawn as a labeled divider: it marks that the agent no longer sees the original text above it. */
   if (item.kind === 'notice') {
+    // Internal engine diagnostics (model metadata, provider and sandbox details) are never user-facing.
+    // The agent's final response already carries actionable information when a task fails.
+    return null;
     /* A local agent's own notice (a Codex warning): its words, quiet, apart from what it says to the person */
     if (item.text) return <p className="break-words py-1 text-[12px] leading-relaxed text-[var(--chat-hint)]">{item.text}</p>;
     return (

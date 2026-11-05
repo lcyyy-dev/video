@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { initialTemplate, normalizeTemplate, templateSummary, titleFontSize } from './edit-template.mjs';
+import { NARRATION_VOICES, initialTemplate, normalizeTemplate, templateSummary, titleFontSize } from './edit-template.mjs';
 
 test('title sizing fits longer titles while keeping a readable minimum', () => {
   assert.equal(titleFontSize(''), 112);
@@ -102,4 +102,14 @@ test('copy content does not inherit hidden advertising fields', () => {
   assert.equal(config.narration, false);
   assert.doesNotMatch(templateSummary(config), /广告标题|广告正文|广告地点|文案朗读/);
   assert.equal(normalizeTemplate({ ...initialTemplate(), kind: 'copy', bodyText: '隐藏旧文案' }).source, '');
+});
+
+test('all ten narration voices save provider IDs and reach the editing instructions', () => {
+  assert.equal(NARRATION_VOICES.length, 10);
+  assert.equal(new Set(NARRATION_VOICES.map(voice => voice.id)).size, 10);
+  for (const voice of NARRATION_VOICES) {
+    const config = normalizeTemplate({ ...initialTemplate(), narration: true, speaker: voice.id });
+    assert.equal(config.speaker, voice.id);
+    assert.ok(templateSummary(config).includes(`音色 ${voice.id}；`));
+  }
 });

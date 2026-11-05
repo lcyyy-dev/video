@@ -16,7 +16,7 @@
  */
 
 /** How long play waits for the browser to start the sound before the film plays on without it. */
-const RESUME_WAIT_MS = 250;
+const RESUME_WAIT_MS = 1500;
 /** Sounds fetched at once; the others wait, the ones nearest to where the film is first. */
 const FETCHES = 3;
 
@@ -66,6 +66,7 @@ export class Player {
   private silent = false;
   /** which call to play is the latest: an earlier one still waiting for the sound gives up */
   private starts = 0;
+  private resuming = 0;
   private master: GainNode | null = null;
   /** every sound, before the person's volume: what the meters read */
   private mix: GainNode | null = null;
@@ -118,16 +119,36 @@ export class Player {
       url.searchParams.set('film-sound', '1');
       /* past the browser's cache, which keeps the old file under the same address */
       if (version !== undefined) url.searchParams.set('v', String(version));
-      this.buffers.set(s.src, { version, buffer: this.slot(s.src)
-        .then((done) => fetch(url)
-          /* 204: there is no sound in it */
-          .then((r) => (r.status === 204 ? null : r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-          .finally(done))
-        .then((bytes) => (bytes ? ctx.decodeAudioData(bytes) : null))
-        .catch(() => null) });
+      const entry = { version, buffer: Promise.resolve<AudioBuffer | null>(null) };
+      entry.buffer = this.readSound(url, ctx).catch(() => {
+        // A request/decoder failure is not a silent source. Let the next play retry
+        // it, without removing a newer version already fetched for this source.
+        if (this.buffers.get(s.src) === entry) this.buffers.delete(s.src);
+        return null;
+      });
+      this.buffers.set(s.src, entry);
       fetched = true;
     }
     return fetched;
+  }
+
+  /** Retry transient extraction/network/decoder failures; a genuine silent source stays cached. */
+  private async readSound(url: URL, ctx: AudioContext): Promise<AudioBuffer | null> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const done = await this.slot(url.pathname);
+        let bytes: ArrayBuffer | null;
+        try {
+          const response = await fetch(url, { cache: 'no-store' });
+          if (!response.ok) throw new Error(String(response.status));
+          bytes = response.status === 204 ? null : await response.arrayBuffer();
+        } finally { done(); }
+        return bytes === null ? null : await ctx.decodeAudioData(bytes);
+      } catch (error) {
+        if (attempt >= 2 || ctx.state === 'closed' || this.ctx !== ctx) throw error;
+        await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+      }
+    }
   }
 
   /** A turn to fetch `src`'s sound; resolves with what ends it. */
@@ -173,7 +194,7 @@ export class Player {
       this.analysers = [meter(0), meter(1)];
       /* the sound was not allowed to start when play was pressed; now it is: it joins where the film is */
       const ctx = this.ctx;
-      ctx.addEventListener('statechange', () => { if (ctx.state === 'running' && this.playing && this.silent) void this.play(this.time()); });
+      ctx.addEventListener('statechange', () => { if (this.ctx === ctx && ctx.state === 'running' && this.playing && this.silent && !this.resuming) void this.play(this.time()); });
     }
     return this.ctx;
   }
@@ -200,7 +221,15 @@ export class Player {
 
   /** Try to start the sound again (a click or key on the page lets a browser that refused it before). */
   wake() {
-    if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume().catch(() => {});
+    if (!this.ctx || this.ctx.state === 'running') return;
+    const ctx = this.ctx;
+    /* Some Chromium builds emit `statechange` before resume()'s promise settles. In that race the listener sees
+       `resuming > 0` and deliberately skips restarting playback, leaving the film on its silent clock forever. */
+    void ctx.resume().then(() => {
+      if (this.ctx === ctx && ctx.state === 'running' && this.playing && this.silent && !this.resuming) {
+        void this.play(this.time());
+      }
+    }).catch(() => {});
   }
 
   setVolume(v: number) {
@@ -244,8 +273,18 @@ export class Player {
     this.silent = true;
     this.startedAt = performance.now() / 1000;
     const ctx = this.context();
+    this.fetchSounds();
     /* a resume the browser holds back never settles: wait a moment, then play on without the sound */
-    await Promise.race([ctx.resume().catch(() => {}), new Promise((done) => setTimeout(done, RESUME_WAIT_MS))]);
+    if (ctx.state !== 'running') {
+      this.resuming++;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([ctx.resume().catch(() => {}), new Promise<void>(done => { timer = setTimeout(done, RESUME_WAIT_MS); })]);
+      } finally {
+        clearTimeout(timer);
+        this.resuming--;
+      }
+    }
     /* paused, sought or played again while waiting: that call decides */
     if (go !== this.starts || !this.playing) return;
     if (ctx.state !== 'running') return;
@@ -316,6 +355,7 @@ export class Player {
     this.pause();
     void this.ctx?.close();
     this.ctx = null;
+    this.buffers.clear();
     this.master = null;
     this.mix = null;
     this.analysers = null;

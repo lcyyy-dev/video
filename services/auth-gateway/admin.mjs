@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 
 export function createAdmin(config) {
   const sessions = new Map();
+  const sessionFile = config.sessionFile ?? `${config.mappingFile}.sessions.json`;
   const attempts = new Map();
   const fetchImpl = config.fetchImpl ?? fetch;
   const readMappings = () => JSON.parse(readFileSync(config.mappingFile, 'utf8'));
@@ -16,6 +17,19 @@ export function createAdmin(config) {
     writeFileSync(temp, JSON.stringify(value, null, 2), { mode: 0o600 });
     renameSync(temp, config.mappingFile);
   };
+  const persistSessions = () => {
+    const temp = `${sessionFile}.tmp`;
+    writeFileSync(temp, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 });
+    renameSync(temp, sessionFile);
+  };
+  try {
+    const saved = JSON.parse(readFileSync(sessionFile, 'utf8'));
+    for (const [id, session] of Object.entries(saved)) {
+      if (/^[a-f0-9]{64}$/.test(id) && session && Number.isFinite(session.exp) && session.exp > Date.now() && /^[a-f0-9]{48}$/.test(session.csrf)) {
+        sessions.set(id, { csrf: session.csrf, exp: session.exp });
+      }
+    }
+  } catch { /* first start, or an expired/missing session store */ }
   async function keygen(path, method = 'GET', body, authorization = `Bearer ${config.keygenToken}`) {
     const response = await fetchImpl(`${config.keygenUrl.replace(/\/$/, '')}${path}`, {
       method, redirect: 'error', signal: AbortSignal.timeout(15000),
@@ -68,6 +82,7 @@ export function createAdmin(config) {
         for (const [id, session] of sessions) if (session.exp < now) sessions.delete(id);
         const id = randomBytes(32).toString('hex'); const csrf = randomBytes(24).toString('hex');
         sessions.set(id, { csrf, exp: now + 8 * 3600000 });
+        persistSessions();
         res.setHeader('set-cookie', `openfilm_admin=${id}; HttpOnly; SameSite=Strict; Path=/admin; Max-Age=28800`);
         return json(200, { csrf });
       }
@@ -76,7 +91,7 @@ export function createAdmin(config) {
       if (!session || session.exp < Date.now()) return json(401, { error: '请登录管理员账号' });
       if (req.method !== 'GET' && req.headers['x-csrf-token'] !== session.csrf) return json(403, { error: '请求校验失败' });
       if (url.pathname === '/admin/session' && req.method === 'GET') return json(200, { csrf: session.csrf });
-      if (url.pathname === '/admin/logout' && req.method === 'POST') { sessions.delete(id); return json(200, { ok: true }); }
+      if (url.pathname === '/admin/logout' && req.method === 'POST') { sessions.delete(id); persistSessions(); return json(200, { ok: true }); }
       if (url.pathname === '/admin/logs' && req.method === 'GET') {
         if(!config.logStore)return json(503,{error:'日志数据库未配置'});
         const result=await config.logStore.queryEvents(url.searchParams);let mappings={};try{mappings=readMappings();}catch{/* Log access remains available when mapping storage is broken. */}

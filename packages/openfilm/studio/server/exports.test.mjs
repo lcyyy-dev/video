@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createExports, exportCapabilities, exportsRoot, ExportError, frameBox, dimsForShortEdge, hardwareEncoder, hardwareOptions, projectFiles, projectSizes } from './exports.mjs';
-import { allocateLanes, containMotion, fadeKeyframes, frameSpan, hasPictureEffects, nleRate, planNleTimeline, xmemlDocument } from './nle.mjs';
+import { allocateLanes, containMotion, fadeKeyframes, frameSpan, nativePictureFit, hasPictureEffects, nleRate, probeSource, planNleTimeline, xmemlDocument } from './nle.mjs';
 import { pptxParts } from './slides.mjs';
 import { filmSubtitleSrt, parseFilmSubtitleStyle } from './film-subtitle.mjs';
 import { zipFiles } from './zip.mjs';
@@ -501,6 +501,27 @@ test('contain layout preserves source media while effects still require renderin
   }
 });
 
+test('full-canvas cover uses native scale, but crops and effects keep the render fallback', () => {
+  const stage = { w: 1080, h: 1920 };
+  assert.equal(nativePictureFit({ style: 'left:0px;top:0px;width:1080px;height:1920px;object-fit:cover' }, stage), 'cover');
+  for (const style of ['width:900px;object-fit:cover', 'filter:blur(2px)', 'object-position:top', '--x:3']) {
+    assert.equal(nativePictureFit({ style }, stage), null);
+  }
+  assert.deepEqual(containMotion({ w: 1920, h: 1080 }, stage, undefined, 'cover'), {
+    kind: 'motion', motion: { scale: 177.777778, center: { h: 0, v: 0 } },
+  });
+});
+
+test('native media facts honor portrait phone rotation without browser layout', ffmpeg, async () => {
+  const source = join(scratch, 'rotation-source.mp4'), rotated = join(scratch, 'rotation-phone.mov');
+  execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=blue:s=160x90:r=30:d=1',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', source]);
+  execFileSync('ffmpeg', ['-v', 'error', '-i', source, '-c', 'copy', '-metadata:s:v:0', 'rotate=90', rotated]);
+  const facts = await probeSource(rotated);
+  assert.equal(facts.w, 90);
+  assert.equal(facts.h, 160);
+});
+
 test('draft export copies original video and audio, with trims and editable text in JSON', ffmpeg, async () => {
   const path = join(scratch, 'NativeMedia');
   mkdirSync(path);
@@ -513,7 +534,7 @@ test('draft export copies original video and audio, with trims and editable text
   writeFileSync(join(path, 'film.html'), filmHtml({ stage: { w: 320, h: 180 }, tracks: [
     { clips: [{ id: 'title', src: 'title.text.json', time: [0, 1] }] },
     { clips: [{ id: 'shot', src: 'shot.mp4', time: [0.5, 1.5], muted: true,
-      box: { x: 0, y: 0, w: 320, h: 180 }, style: 'object-fit: contain' }] },
+      box: { x: 0, y: 0, w: 320, h: 180 }, style: 'left:0px;top:0px;width:320px;height:180px;object-fit:cover' }] },
     { clips: [{ id: 'voice', src: 'voice.wav', time: [0, 1] }] },
   ] }));
   for (const format of ['jianying', 'capcut']) {
@@ -526,8 +547,8 @@ test('draft export copies original video and audio, with trims and editable text
     assert.equal(draft.materials.videos.length, 1);
     assert.equal(draft.materials.audios.length, 1);
     assert.equal(draft.materials.texts.length, 1);
-    assert.deepEqual(readFileSync(draft.materials.videos[0].path), readFileSync(source));
-    assert.deepEqual(readFileSync(draft.materials.audios[0].path), readFileSync(join(path, 'voice.wav')));
+    assert.deepEqual(readFileSync(join(dirname(job.out), 'Resources/local', basename(draft.materials.videos[0].path))), readFileSync(source));
+    assert.deepEqual(readFileSync(join(dirname(job.out), 'Resources/local', basename(draft.materials.audios[0].path))), readFileSync(join(path, 'voice.wav')));
     const video = draft.tracks.find((track) => track.type === 'video').segments[0];
     assert.deepEqual(video.source_timerange, { start: 500_000, duration: 1_000_000 });
     assert.deepEqual(video.target_timerange, { start: 0, duration: 1_000_000 });

@@ -416,8 +416,9 @@ export function ProjectView({ projectId, onProject, onLeave }: {
         preview.current?.seek(pictureAt(t));
       }
       for (const fn of listeners.current) fn();
-      /* the rest of the editor hears the time a few times a second; the playhead and timecode read the clock */
-      if (now - lastTick > 50) { lastTick = now; setTimeMs(t * 1000); }
+      /* Keep the transport clock smooth without rerendering the whole editor at video-frame cadence. The playhead
+         and audio stay on the precise Player clock; this state is only for React UI such as the timecode and ruler. */
+      if (now - lastTick > 100) { lastTick = now; setTimeMs(t * 1000); }
       if (!player.current.playing || t >= player.current.duration - 1e-3) {
         player.current.pause();
         setPlaying(false);
@@ -1888,11 +1889,23 @@ export function ProjectView({ projectId, onProject, onLeave }: {
     return { ok: res.ok, status: res.status, answer };
   }, []);
   const onPick = React.useCallback(async (title: string, folder: boolean): Promise<string[] | 'no-dialog'> => {
-    if (folder && studioHost?.folders?.pick) { const path = await studioHost.folders.pick({ title }); return path ? [path] : []; }
-    const { ok, status, answer } = await postJson(folder ? '/api/pick-folder' : '/api/pick-files', { title });
+    const recentKey = 'openfilm:last-import-folder';
+    let recent: string | undefined;
+    if (folder) { try { const value = localStorage.getItem(recentKey); if (value) recent = value; } catch { /* storage can be disabled */ } }
+    const remember = (path: string | undefined) => {
+      if (!folder || !path) return;
+      try { localStorage.setItem(recentKey, path); } catch { /* storage can be disabled */ }
+    };
+    if (folder && studioHost?.folders?.pick) {
+      const path = await studioHost.folders.pick({ title, ...(recent ? { at: recent } : {}) });
+      remember(path ?? undefined);
+      return path ? [path] : [];
+    }
+    const { ok, status, answer } = await postJson(folder ? '/api/pick-folder' : '/api/pick-files', { title, ...(recent ? { at: recent } : {}) });
     if (status === 501) return 'no-dialog';
     if (!ok) return [];
-    return folder ? (typeof answer.path === 'string' ? [answer.path] : []) : Array.isArray(answer.paths) ? answer.paths.map(String) : [];
+    if (folder) { const path = typeof answer.path === 'string' ? answer.path : ''; remember(path || undefined); return path ? [path] : []; }
+    return Array.isArray(answer.paths) ? answer.paths.map(String) : [];
   }, [postJson]);
   const onBring = React.useCallback(async (paths: string[], into: string, mode: 'copy' | 'link'): Promise<string[]> => {
     const { ok, answer } = await postJson(`${projectApi}/files/bring`, { paths, into, mode });

@@ -6,7 +6,7 @@ import { applyTextStyle, getTextElementLibrary, listTextStyles, type TextStylePr
 
 import { mountTextPage } from 'openfilm/text-page';
 import { app } from '../app-bridge';
-import { TEMPLATE_TYPES, initialTemplate, templateSummary, type EditTemplateConfig as Config } from '../../../src/edit-template.mjs';
+import { TEMPLATE_TYPES, NARRATION_VOICES, initialTemplate, templateSummary, type EditTemplateConfig as Config } from '../../../src/edit-template.mjs';
 
 const ICONS = { ad: Clapperboard, talk: Mic, copy: FileText, live: Radio };
 const TYPES = TEMPLATE_TYPES.map(type => ({ ...type, icon: ICONS[type.id], available: type.id === 'ad' || type.id === 'copy' }));
@@ -89,34 +89,6 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
   const [creatingStyle, setCreatingStyle] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [speakers, setSpeakers] = useState<string[]>([]);
-  const [previewing, setPreviewing] = useState(false);
-  const [speechError, setSpeechError] = useState('');
-  const audio = useRef<HTMLAudioElement | null>(null);
-  const previewEpoch = useRef(0);
-  useEffect(() => {
-    return () => { previewEpoch.current++; audio.current?.pause(); };
-  }, [open, projectPath]);
-  useEffect(() => {
-    if (!open || config.kind !== 'ad' || !config.narration) return;
-    let cancelled = false;
-    void app.editTemplate.voices(projectPath).then(result => {
-      if (!cancelled) { setSpeakers(result.speakers); setSpeechError(result.configured ? '' : '旁白服务尚未配置，请联系管理员。'); }
-    }).catch(error => { if (!cancelled) setSpeechError(error.message); });
-    return () => { cancelled = true; audio.current?.pause(); };
-  }, [open, projectPath, config.kind, config.narration]);
-  const previewSpeech = async () => {
-    const epoch = ++previewEpoch.current;
-    setPreviewing(true); setSpeechError(''); audio.current?.pause();
-    try {
-      const result = await app.editTemplate.preview(projectPath, config);
-      if (epoch !== previewEpoch.current) return;
-      const player = new Audio(`data:audio/mpeg;base64,${result.audio}`);
-      audio.current = player;
-      await player.play();
-    } catch (error) { if (epoch === previewEpoch.current) setSpeechError((error as Error).message); }
-    finally { setPreviewing(false); }
-  };
   const dialog = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -291,15 +263,16 @@ export function EditTemplateBuilder({ projectPath, busy, onSaved }: { projectPat
                 <button type="button" className="edit-template-remove-subtitle" aria-label={`删除副标题 ${index + 1}`} onClick={() => removeSubtitle(index)} disabled={subtitleFields.length === 1}>删除</button>
               </div>)}</div>
             </Toggle>
-            <Toggle label="正文 / 文案" action={config.kind === 'ad' && config.body ? <button type="button" className="edit-template-add-subtitle edit-template-narration" aria-pressed={config.narration} onClick={() => patch({ narration: !config.narration })}>文案朗读</button> : null} checked={config.body} onChange={body => patch({ body })}>
+            <Toggle label="正文 / 文案" checked={config.body} onChange={body => patch({ body })}>
               {text('bodyText', '正文内容', '输入正文或文案，可稍后补充', true)}
-              {config.kind === 'ad' && config.narration ? <div className="edit-template-group">
-                <label>旁白音色<select aria-label="旁白音色" value={config.speaker} onChange={e => patch({ speaker: e.target.value })}>{[...new Set([config.speaker, ...speakers])].map(speaker => <option key={speaker} value={speaker}>{speaker === 'zh_female_vv_uranus_bigtts' ? 'Vivi · 女声' : speaker}</option>)}</select></label>
-                <label>语速<input aria-label="旁白语速" type="range" min="-50" max="100" value={config.speechRate} onChange={e => patch({ speechRate: Number(e.target.value) })} />{(1 + config.speechRate / 100).toFixed(2)} 倍</label>
-                <button type="button" disabled={previewing || busy} onClick={() => void previewSpeech()}>{previewing ? '正在生成试听…' : '试听正文前 100 字'}</button>
-                {speechError ? <p role="alert">{speechError}</p> : null}
-              </div> : null}
             </Toggle>
+            {config.kind === 'ad' && config.body ? <div className="edit-template-element">
+              <Toggle label="文案朗读" action={<span className="edit-template-narration-hint">开启文案朗读后，使用所选音色生成配音。</span>} checked={config.narration} onChange={narration => patch({ narration })} />
+              <div className="edit-template-element-fields"><select aria-label="旁白音色" value={config.speaker} onChange={e => patch({ speaker: e.target.value })}>
+                {!NARRATION_VOICES.some(voice => voice.id === config.speaker) ? <option value={config.speaker}>已保存音色</option> : null}
+                {NARRATION_VOICES.map(voice => <option key={voice.id} value={voice.id}>{voice.name}</option>)}
+              </select></div>
+            </div> : null}
             <Toggle label="地点" checked={config.location} onChange={location => patch({ location })}>{text('locationText', '地点内容', '门店名称 / 地址 / 拍摄地点')}</Toggle>
             </>}
           </div></section>

@@ -637,6 +637,13 @@ test('the preview\'s mixer gets a file\'s sound alone (?film-sound), never the w
   assert.equal(readdirSync(join(project.path, '.film', 'cache', 'audio')).length, 1, 'made once');
   assert.equal((await fetch(`${folder}assets/mute.mp4?film-sound=1`)).status, 204);
   assert.equal((await fetch(`${folder}assets/gone.mp4?film-sound=1`)).status, 404);
+  writeFileSync(join(project.path, 'assets', 'broken.mov'), 'incomplete media');
+  const unavailable = await fetch(`${folder}assets/broken.mov?film-sound=1`);
+  assert.equal(unavailable.status, 503, 'extraction errors are retryable, not silent 204 responses');
+  assert.equal(unavailable.headers.get('cache-control'), 'no-store');
+  writeFileSync(join(project.path, 'assets', 'broken.mov'), readFileSync(join(project.path, 'assets', 'talk.mp4')));
+  assert.equal((await fetch(`${folder}assets/broken.mov?film-sound=1`)).status, 200, 'the same URL recovers once the media is available');
+
   assert.equal((await fetch(`${folder}.film/cache/audio/x.m4a?film-sound=1`)).status, 404, 'still nothing hidden');
 });
 

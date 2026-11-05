@@ -1,3 +1,4 @@
+export const NARRATION_VOICES: ReadonlyArray<{ id: string; name: string }>;
 export type TemplateKind = 'ad' | 'talk' | 'copy' | 'live';
 export interface EditTemplateConfig {
   kind: TemplateKind; narration: boolean; speaker: string; speechRate: number; title: boolean; titleText: string;
